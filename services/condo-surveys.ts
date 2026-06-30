@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
-import type { CondoSurvey } from "@/types"
+import type { CondoSurvey, CondoVotoStatus } from "@/types"
 
 function rowToCondoSurvey(row: {
   id: string
@@ -70,5 +70,23 @@ export async function createCondoSurvey(
 export async function deleteCondoSurvey(id: string): Promise<void> {
   const db = createServerClient()
   const { error } = await db.from("condo_surveys").delete().eq("id", id)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateCondoSurveyStatus(
+  id: string,
+  status: CondoVotoStatus
+): Promise<void> {
+  const db = createServerClient()
+  const updates: {
+    status: CondoVotoStatus
+    data_abertura?: string | null
+    data_encerramento?: string | null
+  } = { status }
+
+  if (status === "aberta") updates.data_abertura = new Date().toISOString()
+  if (status === "encerrada") updates.data_encerramento = new Date().toISOString()
+
+  const { error } = await db.from("condo_surveys").update(updates).eq("id", id)
   if (error) throw new Error(error.message)
 }

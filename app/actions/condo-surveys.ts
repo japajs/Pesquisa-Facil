@@ -1,8 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createCondoSurvey, deleteCondoSurvey } from "@/services/condo-surveys"
+import { createCondoSurvey, deleteCondoSurvey, updateCondoSurveyStatus } from "@/services/condo-surveys"
 import { ROUTES } from "@/lib/constants"
+import type { CondoVotoStatus } from "@/types"
 
 export async function createCondoSurveyAction(input: {
   condominio_id: string
@@ -37,5 +38,22 @@ export async function deleteCondoSurveyAction(
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao excluir votação." }
+  }
+}
+
+export async function updateCondoSurveyStatusAction(
+  id: string,
+  condominioId: string,
+  status: CondoVotoStatus
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await updateCondoSurveyStatus(id, status)
+    revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar status.",
+    }
   }
 }

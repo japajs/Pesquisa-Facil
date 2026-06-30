@@ -22,7 +22,7 @@ export function CondoVotoForm({ condoSurveyTitulo, pergunta, sendId }: CondoVoto
 
   const handleSubmit = () => {
     if (!resposta) {
-      setError("Selecione Sim ou Não para votar.")
+      setError("Selecione uma opção para votar.")
       return
     }
 
@@ -43,26 +43,39 @@ export function CondoVotoForm({ condoSurveyTitulo, pergunta, sendId }: CondoVoto
       <div className="rounded-xl border border-border/60 bg-card p-5">
         <p className="mb-4 text-sm font-medium leading-snug">{pergunta}</p>
 
-        <div className="flex gap-3">
-          {(["Sim", "Não"] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => {
-                setResposta(opt)
-                if (error) setError(null)
-              }}
-              aria-pressed={resposta === opt}
-              className={cn(
-                "flex flex-1 items-center justify-center rounded-xl border-2 py-4 text-sm font-medium transition-all",
-                resposta === opt
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-foreground hover:border-primary/60"
-              )}
-            >
-              {opt}
-            </button>
-          ))}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {(["Sim", "Não", "Abstenção"] as const).map((opt) => {
+            const selected = resposta === opt
+            const colorClass =
+              opt === "Sim"
+                ? selected
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-border bg-card text-foreground hover:border-emerald-500/60"
+                : opt === "Não"
+                ? selected
+                  ? "border-rose-500 bg-rose-500 text-white"
+                  : "border-border bg-card text-foreground hover:border-rose-500/60"
+                : selected
+                ? "border-amber-500 bg-amber-500 text-white"
+                : "border-border bg-card text-foreground hover:border-amber-500/60"
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  setResposta(opt)
+                  if (error) setError(null)
+                }}
+                aria-pressed={selected}
+                className={cn(
+                  "flex flex-1 items-center justify-center rounded-xl border-2 py-4 text-sm font-medium transition-all",
+                  colorClass
+                )}
+              >
+                {opt}
+              </button>
+            )
+          })}
         </div>
       </div>
 

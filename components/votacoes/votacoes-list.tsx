@@ -2,19 +2,31 @@
 
 import { useTransition } from "react"
 import Link from "next/link"
-import { ClipboardList, BarChart3, Trash2 } from "lucide-react"
+import { ClipboardList, BarChart3, Trash2, LockKeyhole, Unlock } from "lucide-react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { DispararVotacaoDialog } from "./disparar-votacao-dialog"
-import { deleteCondoSurveyAction } from "@/app/actions/condo-surveys"
+import { deleteCondoSurveyAction, updateCondoSurveyStatusAction } from "@/app/actions/condo-surveys"
 import { ROUTES } from "@/lib/constants"
-import type { CondoSurvey, Proprietario } from "@/types"
+import type { CondoSurvey, CondoVotoStatus, Proprietario } from "@/types"
 
 interface VotacoesListProps {
   votacoes: CondoSurvey[]
   condominioId: string
   proprietarios: Proprietario[]
+}
+
+const STATUS_LABEL: Record<CondoVotoStatus, string> = {
+  rascunho: "Rascunho",
+  aberta: "Aberta",
+  encerrada: "Encerrada",
+}
+
+const STATUS_CLASS: Record<CondoVotoStatus, string> = {
+  rascunho: "bg-muted text-muted-foreground",
+  aberta: "bg-emerald-500/15 text-emerald-500",
+  encerrada: "bg-rose-500/15 text-rose-500",
 }
 
 export function VotacoesList({ votacoes, condominioId, proprietarios }: VotacoesListProps) {
@@ -60,14 +72,65 @@ function VotacaoRow({
     })
   }
 
+  function handleStatusChange(nextStatus: CondoVotoStatus) {
+    const labels: Record<CondoVotoStatus, string> = {
+      rascunho: "rascunho",
+      aberta: "aberta",
+      encerrada: "encerrada",
+    }
+    startTransition(async () => {
+      const result = await updateCondoSurveyStatusAction(votacao.id, condominioId, nextStatus)
+      if (result.success) {
+        toast.success(`Votação marcada como ${labels[nextStatus]}.`)
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{votacao.titulo}</p>
-        <p className="truncate text-xs text-muted-foreground">{votacao.pergunta}</p>
+    <div className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS[votacao.status]}`}
+        >
+          {STATUS_LABEL[votacao.status]}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{votacao.titulo}</p>
+          <p className="truncate text-xs text-muted-foreground">{votacao.pergunta}</p>
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {/* Botão de status */}
+        {votacao.status === "rascunho" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleStatusChange("aberta")}
+            disabled={isPending}
+            className="h-8 gap-1.5 px-2.5 text-xs text-emerald-500 hover:text-emerald-600"
+            title="Abrir votação"
+          >
+            <Unlock className="h-3.5 w-3.5" />
+            Abrir
+          </Button>
+        )}
+        {votacao.status === "aberta" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleStatusChange("encerrada")}
+            disabled={isPending}
+            className="h-8 gap-1.5 px-2.5 text-xs text-rose-500 hover:text-rose-600"
+            title="Encerrar votação"
+          >
+            <LockKeyhole className="h-3.5 w-3.5" />
+            Encerrar
+          </Button>
+        )}
+
         <DispararVotacaoDialog condoSurvey={votacao} proprietarios={proprietarios} />
 
         <Link

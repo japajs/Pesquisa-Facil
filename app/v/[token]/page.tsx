@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, LockKeyhole } from "lucide-react"
 import { getCondoSendByToken, getVotoBySendId } from "@/services/condo-votos"
 import { CondoVotoForm } from "@/components/condo-voto/condo-voto-form"
 import { APP_NAME } from "@/lib/constants"
@@ -63,7 +63,19 @@ export default async function PublicCondoVotoPage({ params }: Props) {
           )}
         </div>
 
-        {alreadyAnswered ? (
+        {condoSurvey.status === "encerrada" ? (
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 ring-1 ring-border">
+              <LockKeyhole className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium">Votação encerrada</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Esta votação não está mais aceitando votos.
+              </p>
+            </div>
+          </div>
+        ) : alreadyAnswered ? (
           <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/10 ring-1 ring-emerald-400/20">
               <CheckCircle2 className="h-7 w-7 text-emerald-400" />

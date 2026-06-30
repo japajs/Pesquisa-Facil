@@ -170,7 +170,7 @@ export interface CondoSurveySend {
   sent_at: string | null
   created_at: string
   // joined
-  condo_survey?: Pick<CondoSurvey, "id" | "titulo" | "descricao" | "pergunta">
+  condo_survey?: Pick<CondoSurvey, "id" | "titulo" | "descricao" | "pergunta" | "status">
   proprietario?: Pick<Proprietario, "id" | "nome" | "email">
 }
 
