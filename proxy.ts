@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
 import { AUTH_COOKIE_NAME } from "@/lib/constants"
 
-const PROTECTED_PREFIXES = ["/dashboard", "/surveys", "/clients", "/sends", "/condominios"]
+const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes"]
 
 function getSecret(): Uint8Array | null {
   const password = process.env.AUTH_PASSWORD

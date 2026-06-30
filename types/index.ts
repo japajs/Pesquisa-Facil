@@ -74,7 +74,7 @@ export interface SurveyResponse {
   send?: Pick<SurveySend, "id" | "token" | "survey_id" | "client_id">
 }
 
-// ─── Dashboard ───────────────────────────────────────────────────────────────
+// ─── Dashboard (legado — será removido na Etapa 6) ───────────────────────────
 
 export interface DashboardStats {
   total_surveys: number
@@ -82,6 +82,28 @@ export interface DashboardStats {
   total_sends: number
   total_responses: number
   response_rate: number
+}
+
+// ─── Dashboard (condomínio) ────────────────────────────────────────────────
+
+export interface CondoDashboardStats {
+  total_condominios: number
+  total_proprietarios: number
+  total_unidades: number
+  total_votacoes: number
+  total_votos_enviados: number
+  total_votos_recebidos: number
+  participacao_geral: number // percentual
+}
+
+export interface VotacaoRecente {
+  id: string
+  titulo: string
+  created_at: string
+  condominio_id: string
+  condominio_nome: string
+  total_enviados: number
+  total_respondidos: number
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
