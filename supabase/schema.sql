@@ -78,3 +78,91 @@ alter table survey_responses enable row level security;
 
 -- Sem políticas públicas = sem acesso via anon key
 -- Toda a comunicação ocorre via service role key no servidor Next.js.
+
+-- ============================================================
+-- Módulo: Votação de Condomínio (peso por unidades)
+-- Fluxo separado de surveys/clients — não afeta o existente.
+-- ============================================================
+
+-- ─── Tabela: condominios ───────────────────────────────────────
+create table if not exists condominios (
+  id         uuid        primary key default uuid_generate_v4(),
+  nome       text        not null,
+  created_at timestamptz not null default now()
+);
+
+-- ─── Tabela: proprietarios ──────────────────────────────────────
+-- Cadastro permanente. Peso é sempre calculado a partir de unidades —
+-- nunca armazenado aqui ou em qualquer outra tabela.
+create table if not exists proprietarios (
+  id            uuid        primary key default uuid_generate_v4(),
+  condominio_id uuid        not null references condominios(id) on delete cascade,
+  nome          text        not null,
+  email         text        not null,
+  created_at    timestamptz not null default now(),
+  unique (condominio_id, email)
+);
+
+-- ─── Tabela: unidades ────────────────────────────────────────────
+-- Vendeu/comprou apartamento? Só mexe aqui. Nenhuma pesquisa precisa
+-- ser atualizada — o peso é recalculado dinamicamente em toda consulta.
+create table if not exists unidades (
+  id              uuid        primary key default uuid_generate_v4(),
+  proprietario_id uuid        not null references proprietarios(id) on delete cascade,
+  numero          text        not null,
+  bloco           text,
+  created_at      timestamptz not null default now()
+);
+
+-- ─── Tabela: condo_surveys ────────────────────────────────────────
+-- Votação de pergunta única (Sim/Não) escopada a um condomínio.
+create table if not exists condo_surveys (
+  id            uuid        primary key default uuid_generate_v4(),
+  condominio_id uuid        not null references condominios(id) on delete cascade,
+  titulo        text        not null,
+  descricao     text,
+  pergunta      text        not null,
+  created_at    timestamptz not null default now()
+);
+
+-- ─── Tabela: condo_survey_sends ────────────────────────────────────
+create table if not exists condo_survey_sends (
+  id              uuid        primary key default uuid_generate_v4(),
+  condo_survey_id uuid        not null references condo_surveys(id) on delete cascade,
+  proprietario_id uuid        not null references proprietarios(id) on delete cascade,
+  token           text        not null unique,
+  status          text        not null default 'pending'
+                              check (status in ('pending', 'sent', 'failed')),
+  sent_at         timestamptz,
+  created_at      timestamptz not null default now()
+);
+
+-- ─── Tabela: condo_survey_responses ─────────────────────────────────
+-- send_id é UNIQUE: cada proprietário responde uma única vez por votação.
+-- SEM coluna de peso — peso é sempre calculado a partir de unidades
+-- no momento da apuração (ver lib/peso.ts).
+create table if not exists condo_survey_responses (
+  id         uuid        primary key default uuid_generate_v4(),
+  send_id    uuid        not null unique references condo_survey_sends(id) on delete cascade,
+  resposta   text        not null check (resposta in ('Sim', 'Não')),
+  created_at timestamptz not null default now()
+);
+
+-- ─── Índices ─────────────────────────────────────────────────────────
+create index if not exists idx_proprietarios_condominio_id        on proprietarios(condominio_id);
+create index if not exists idx_unidades_proprietario_id           on unidades(proprietario_id);
+create index if not exists idx_condo_surveys_condominio_id        on condo_surveys(condominio_id);
+create index if not exists idx_condo_survey_sends_condo_survey_id on condo_survey_sends(condo_survey_id);
+create index if not exists idx_condo_survey_sends_proprietario_id on condo_survey_sends(proprietario_id);
+create index if not exists idx_condo_survey_sends_token           on condo_survey_sends(token);
+create index if not exists idx_condo_survey_responses_send_id     on condo_survey_responses(send_id);
+
+-- ─── Row Level Security ─────────────────────────────────────────────
+alter table condominios            enable row level security;
+alter table proprietarios          enable row level security;
+alter table unidades               enable row level security;
+alter table condo_surveys          enable row level security;
+alter table condo_survey_sends     enable row level security;
+alter table condo_survey_responses enable row level security;
+
+-- Sem políticas públicas = sem acesso via anon key (mesmo padrão acima)

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
 import { AUTH_COOKIE_NAME } from "@/lib/constants"
 
-const PROTECTED_PREFIXES = ["/dashboard", "/surveys", "/clients", "/sends"]
+const PROTECTED_PREFIXES = ["/dashboard", "/surveys", "/clients", "/sends", "/condominios"]
 
 function getSecret(): Uint8Array | null {
   const password = process.env.AUTH_PASSWORD
@@ -42,5 +42,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|s/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|s/|v/).*)"],
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, ClipboardList, LogOut, Send, Users } from "lucide-react"
+import { BarChart3, Building2, ClipboardList, LogOut, Send, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/app/actions/auth"
 import { APP_NAME } from "@/lib/constants"
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/surveys", label: "Pesquisas", icon: ClipboardList },
   { href: "/clients", label: "Clientes", icon: Users },
   { href: "/sends", label: "Envios", icon: Send },
+  { href: "/condominios", label: "Condomínios", icon: Building2 },
 ] as const
 
 export function Sidebar() {

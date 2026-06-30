@@ -9,6 +9,10 @@ export const ROUTES = {
   clients: "/clients",
   sends: "/sends",
   publicSurvey: (token: string) => `/s/${token}`,
+  publicCondoVoto: (token: string) => `/v/${token}`,
+  condominios: "/condominios",
+  condominioVotacao: (condominioId: string, votacaoId: string) =>
+    `/condominios/${condominioId}/votacoes/${votacaoId}`,
 } as const
 
 export const QUESTION_TYPE_LABELS: Record<string, string> = {
