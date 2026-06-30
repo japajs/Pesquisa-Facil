@@ -99,6 +99,7 @@ create table if not exists proprietarios (
   condominio_id uuid        not null references condominios(id) on delete cascade,
   nome          text        not null,
   email         text        not null,
+  telefone      text,
   created_at    timestamptz not null default now(),
   unique (condominio_id, email)
 );
@@ -115,14 +116,18 @@ create table if not exists unidades (
 );
 
 -- ─── Tabela: condo_surveys ────────────────────────────────────────
--- Votação de pergunta única (Sim/Não) escopada a um condomínio.
+-- Votação de pergunta única (Sim/Não/Abstenção) escopada a um condomínio.
 create table if not exists condo_surveys (
-  id            uuid        primary key default uuid_generate_v4(),
-  condominio_id uuid        not null references condominios(id) on delete cascade,
-  titulo        text        not null,
-  descricao     text,
-  pergunta      text        not null,
-  created_at    timestamptz not null default now()
+  id               uuid        primary key default uuid_generate_v4(),
+  condominio_id    uuid        not null references condominios(id) on delete cascade,
+  titulo           text        not null,
+  descricao        text,
+  pergunta         text        not null,
+  status           text        not null default 'rascunho'
+                               check (status in ('rascunho', 'aberta', 'encerrada')),
+  data_abertura    timestamptz,
+  data_encerramento timestamptz,
+  created_at       timestamptz not null default now()
 );
 
 -- ─── Tabela: condo_survey_sends ────────────────────────────────────
@@ -144,7 +149,7 @@ create table if not exists condo_survey_sends (
 create table if not exists condo_survey_responses (
   id         uuid        primary key default uuid_generate_v4(),
   send_id    uuid        not null unique references condo_survey_sends(id) on delete cascade,
-  resposta   text        not null check (resposta in ('Sim', 'Não')),
+  resposta   text        not null check (resposta in ('Sim', 'Não', 'Abstenção')),
   created_at timestamptz not null default now()
 );
 
@@ -166,3 +171,37 @@ alter table condo_survey_sends     enable row level security;
 alter table condo_survey_responses enable row level security;
 
 -- Sem políticas públicas = sem acesso via anon key (mesmo padrão acima)
+
+-- ============================================================
+-- Migração: Etapa 3 — novos campos
+-- Execute este bloco no Supabase SQL Editor se as tabelas já existem.
+-- ============================================================
+
+-- proprietarios: adiciona telefone (opcional)
+alter table proprietarios add column if not exists telefone text;
+
+-- condo_surveys: adiciona status e datas
+alter table condo_surveys add column if not exists status text not null default 'rascunho';
+alter table condo_surveys add column if not exists data_abertura timestamptz;
+alter table condo_surveys add column if not exists data_encerramento timestamptz;
+
+-- Remove o CHECK antigo e recria com os três valores
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'condo_surveys_status_check'
+      and conrelid = 'condo_surveys'::regclass
+  ) then
+    alter table condo_surveys drop constraint condo_surveys_status_check;
+  end if;
+end $$;
+alter table condo_surveys
+  add constraint condo_surveys_status_check
+  check (status in ('rascunho', 'aberta', 'encerrada'));
+
+-- condo_survey_responses: atualiza CHECK de resposta para incluir Abstenção
+alter table condo_survey_responses drop constraint if exists condo_survey_responses_resposta_check;
+alter table condo_survey_responses
+  add constraint condo_survey_responses_resposta_check
+  check (resposta in ('Sim', 'Não', 'Abstenção'));

@@ -138,6 +138,7 @@ export interface Proprietario {
   condominio_id: string
   nome: string
   email: string
+  telefone: string | null
   created_at: string
   // joined
   unidades?: Unidade[]
@@ -145,7 +146,8 @@ export interface Proprietario {
 
 // ─── Condo Survey (votação ponderada) ─────────────────────────────────────
 
-export type CondoVotoResposta = "Sim" | "Não"
+export type CondoVotoResposta = "Sim" | "Não" | "Abstenção"
+export type CondoVotoStatus = "rascunho" | "aberta" | "encerrada"
 
 export interface CondoSurvey {
   id: string
@@ -153,6 +155,9 @@ export interface CondoSurvey {
   titulo: string
   descricao: string | null
   pergunta: string
+  status: CondoVotoStatus
+  data_abertura: string | null
+  data_encerramento: string | null
   created_at: string
 }
 
@@ -184,7 +189,7 @@ export interface CondoSurveyResponse {
 // Sempre calculada dinamicamente — nunca lida de um campo "peso" salvo.
 
 export interface CondoApuracao {
-  por_participantes: { sim: number; nao: number }
-  ponderado: { sim: number; nao: number }
+  por_participantes: { sim: number; nao: number; abstencao: number }
+  ponderado: { sim: number; nao: number; abstencao: number }
   total_apartamentos_representados: number
 }

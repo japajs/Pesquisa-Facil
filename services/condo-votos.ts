@@ -174,8 +174,10 @@ export async function getApuracao(condoSurveyId: string): Promise<CondoApuracao>
 
   let participantesSim = 0
   let participantesNao = 0
+  let participantesAbstencao = 0
   let ponderadoSim = 0
   let ponderadoNao = 0
+  let ponderadoAbstencao = 0
   let totalApartamentos = 0
 
   for (const row of rows) {
@@ -186,6 +188,9 @@ export async function getApuracao(condoSurveyId: string): Promise<CondoApuracao>
     if (row.resposta === "Sim") {
       participantesSim += 1
       ponderadoSim += peso
+    } else if (row.resposta === "Abstenção") {
+      participantesAbstencao += 1
+      ponderadoAbstencao += peso
     } else {
       participantesNao += 1
       ponderadoNao += peso
@@ -193,8 +198,8 @@ export async function getApuracao(condoSurveyId: string): Promise<CondoApuracao>
   }
 
   return {
-    por_participantes: { sim: participantesSim, nao: participantesNao },
-    ponderado: { sim: ponderadoSim, nao: ponderadoNao },
+    por_participantes: { sim: participantesSim, nao: participantesNao, abstencao: participantesAbstencao },
+    ponderado: { sim: ponderadoSim, nao: ponderadoNao, abstencao: ponderadoAbstencao },
     total_apartamentos_representados: totalApartamentos,
   }
 }

@@ -7,6 +7,9 @@ function rowToCondoSurvey(row: {
   titulo: string
   descricao: string | null
   pergunta: string
+  status: "rascunho" | "aberta" | "encerrada"
+  data_abertura: string | null
+  data_encerramento: string | null
   created_at: string
 }): CondoSurvey {
   return {
@@ -15,6 +18,9 @@ function rowToCondoSurvey(row: {
     titulo: row.titulo,
     descricao: row.descricao,
     pergunta: row.pergunta,
+    status: row.status ?? "rascunho",
+    data_abertura: row.data_abertura ?? null,
+    data_encerramento: row.data_encerramento ?? null,
     created_at: row.created_at,
   }
 }

@@ -6,6 +6,7 @@ type JoinedProprietario = {
   condominio_id: string
   nome: string
   email: string
+  telefone: string | null
   created_at: string
   unidades: Unidade[] | null
 }
@@ -16,6 +17,7 @@ function rowToProprietario(row: JoinedProprietario): Proprietario {
     condominio_id: row.condominio_id,
     nome: row.nome,
     email: row.email,
+    telefone: row.telefone,
     created_at: row.created_at,
     unidades: row.unidades ?? [],
   }

@@ -33,8 +33,8 @@ export default async function ApuracaoPage({ params }: Props) {
   if (!condominio || !condoSurvey) notFound()
 
   const apuracao = await getApuracao(votacaoId).catch(() => ({
-    por_participantes: { sim: 0, nao: 0 },
-    ponderado: { sim: 0, nao: 0 },
+    por_participantes: { sim: 0, nao: 0, abstencao: 0 },
+    ponderado: { sim: 0, nao: 0, abstencao: 0 },
     total_apartamentos_representados: 0,
   }))
 

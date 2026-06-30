@@ -117,6 +117,7 @@ export type Database = {
           condominio_id: string
           nome: string
           email: string
+          telefone: string | null
           created_at: string
         }
         Insert: {
@@ -124,11 +125,13 @@ export type Database = {
           condominio_id: string
           nome: string
           email: string
+          telefone?: string | null
           created_at?: string
         }
         Update: {
           nome?: string
           email?: string
+          telefone?: string | null
         }
         Relationships: []
       }
@@ -160,6 +163,9 @@ export type Database = {
           titulo: string
           descricao: string | null
           pergunta: string
+          status: "rascunho" | "aberta" | "encerrada"
+          data_abertura: string | null
+          data_encerramento: string | null
           created_at: string
         }
         Insert: {
@@ -168,12 +174,18 @@ export type Database = {
           titulo: string
           descricao?: string | null
           pergunta: string
+          status?: "rascunho" | "aberta" | "encerrada"
+          data_abertura?: string | null
+          data_encerramento?: string | null
           created_at?: string
         }
         Update: {
           titulo?: string
           descricao?: string | null
           pergunta?: string
+          status?: "rascunho" | "aberta" | "encerrada"
+          data_abertura?: string | null
+          data_encerramento?: string | null
         }
         Relationships: []
       }
@@ -206,17 +218,17 @@ export type Database = {
         Row: {
           id: string
           send_id: string
-          resposta: "Sim" | "Não"
+          resposta: "Sim" | "Não" | "Abstenção"
           created_at: string
         }
         Insert: {
           id?: string
           send_id: string
-          resposta: "Sim" | "Não"
+          resposta: "Sim" | "Não" | "Abstenção"
           created_at?: string
         }
         Update: {
-          resposta?: "Sim" | "Não"
+          resposta?: "Sim" | "Não" | "Abstenção"
         }
         Relationships: []
       }
