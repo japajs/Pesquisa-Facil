@@ -3,6 +3,23 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      configuracoes: {
+        Row: {
+          chave: string
+          valor: string
+          updated_at: string
+        }
+        Insert: {
+          chave: string
+          valor: string
+          updated_at?: string
+        }
+        Update: {
+          valor?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       condominios: {
         Row: {
           id: string
@@ -157,6 +174,7 @@ export type Database = {
 }
 
 // Convenience aliases
+export type DbConfiguracao = Database["public"]["Tables"]["configuracoes"]["Row"]
 export type DbCondominio = Database["public"]["Tables"]["condominios"]["Row"]
 export type DbCondominioInsert = Database["public"]["Tables"]["condominios"]["Insert"]
 

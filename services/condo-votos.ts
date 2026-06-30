@@ -16,7 +16,7 @@ type JoinedSend = {
   status: SendStatus
   sent_at: string | null
   created_at: string
-  condo_surveys: { id: string; titulo: string; descricao: string | null; pergunta: string; status: "rascunho" | "aberta" | "encerrada" } | null
+  condo_surveys: { id: string; titulo: string; descricao: string | null; pergunta: string; status: "rascunho" | "aberta" | "encerrada"; data_encerramento: string | null } | null
   proprietarios: { id: string; nome: string; email: string } | null
 }
 
@@ -35,7 +35,7 @@ function rowToSend(row: JoinedSend): CondoSurveySend {
 }
 
 const SELECT_SEND_JOINED =
-  "*, condo_surveys(id, titulo, descricao, pergunta, status), proprietarios(id, nome, email)"
+  "*, condo_surveys(id, titulo, descricao, pergunta, status, data_encerramento), proprietarios(id, nome, email)"
 
 export async function getSendsByCondoSurveyId(condoSurveyId: string): Promise<CondoSurveySend[]> {
   const db = createServerClient()

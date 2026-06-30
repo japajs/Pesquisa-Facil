@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { CheckCircle2, LockKeyhole } from "lucide-react"
 import { getCondoSendByToken, getVotoBySendId } from "@/services/condo-votos"
+import { updateCondoSurveyStatus } from "@/services/condo-surveys"
+import { getConfiguracao } from "@/services/configuracoes"
 import { CondoVotoForm } from "@/components/condo-voto/condo-voto-form"
 import { APP_NAME } from "@/lib/constants"
 
@@ -41,6 +43,19 @@ export default async function PublicCondoVotoPage({ params }: Props) {
   }
 
   const condoSurvey = send.condo_survey
+
+  // Auto-encerra se passou da data de encerramento e a opção está ativa
+  if (
+    condoSurvey.status === "aberta" &&
+    condoSurvey.data_encerramento &&
+    new Date(condoSurvey.data_encerramento) < new Date()
+  ) {
+    const autoClose = await getConfiguracao("votacao_encerramento_automatico").catch(() => null)
+    if (autoClose === "true") {
+      await updateCondoSurveyStatus(condoSurvey.id, "encerrada").catch(() => {})
+      condoSurvey.status = "encerrada"
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">

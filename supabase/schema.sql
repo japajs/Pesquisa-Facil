@@ -172,6 +172,28 @@ alter table condo_survey_responses enable row level security;
 
 -- Sem políticas públicas = sem acesso via anon key (mesmo padrão acima)
 
+-- ─── Tabela: configuracoes ──────────────────────────────────────────────────
+-- Chave-valor para configurações do sistema. Lida apenas server-side.
+create table if not exists configuracoes (
+  chave      text        primary key,
+  valor      text        not null,
+  updated_at timestamptz not null default now()
+);
+
+-- Valores padrão (não sobrescreve se já existir)
+insert into configuracoes (chave, valor) values
+  ('admin_nome',                    'Administrador'),
+  ('admin_email',                   'admin@exemplo.com'),
+  ('auth_password',                 ''),
+  ('email_nome_remetente',          'Sistema de Votação'),
+  ('votacao_resposta_unica',        'true'),
+  ('votacao_ponderada',             'true'),
+  ('votacao_permite_abstencao',     'true'),
+  ('votacao_encerramento_automatico', 'false')
+on conflict (chave) do nothing;
+
+alter table configuracoes enable row level security;
+
 -- ============================================================
 -- Migração: Etapa 3 — novos campos
 -- Execute este bloco no Supabase SQL Editor se as tabelas já existem.
@@ -205,3 +227,26 @@ alter table condo_survey_responses drop constraint if exists condo_survey_respon
 alter table condo_survey_responses
   add constraint condo_survey_responses_resposta_check
   check (resposta in ('Sim', 'Não', 'Abstenção'));
+
+-- ============================================================
+-- Migração: Etapa 7 — tabela configuracoes
+-- ============================================================
+
+create table if not exists configuracoes (
+  chave      text        primary key,
+  valor      text        not null,
+  updated_at timestamptz not null default now()
+);
+
+insert into configuracoes (chave, valor) values
+  ('admin_nome',                    'Administrador'),
+  ('admin_email',                   'admin@exemplo.com'),
+  ('auth_password',                 ''),
+  ('email_nome_remetente',          'Sistema de Votação'),
+  ('votacao_resposta_unica',        'true'),
+  ('votacao_ponderada',             'true'),
+  ('votacao_permite_abstencao',     'true'),
+  ('votacao_encerramento_automatico', 'false')
+on conflict (chave) do nothing;
+
+alter table configuracoes enable row level security;

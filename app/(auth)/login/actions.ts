@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { redirect } from "next/navigation"
 import { createSession } from "@/lib/auth"
+import { getConfiguracao } from "@/services/configuracoes"
 
 const loginSchema = z.object({
   password: z.string().min(1, "Senha obrigatória"),
@@ -24,11 +25,16 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   }
 
   const { password, from } = result.data
-  const expectedPassword = process.env.AUTH_PASSWORD
+  const envPassword = process.env.AUTH_PASSWORD
 
-  if (!expectedPassword) {
+  if (!envPassword) {
     return { error: "Servidor mal configurado. Contate o administrador." }
   }
+
+  // Senha do banco sobrescreve env var se estiver definida
+  const dbPassword = await getConfiguracao("auth_password").catch(() => null)
+  const expectedPassword =
+    dbPassword && dbPassword.trim() ? dbPassword.trim() : envPassword
 
   // Constant-time comparison to prevent timing attacks
   const encoder = new TextEncoder()
@@ -42,7 +48,6 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   }
 
   if (!match) {
-    // Delay to slow brute-force attempts
     await new Promise((resolve) => setTimeout(resolve, 600))
     return { error: "Senha incorreta. Tente novamente." }
   }
