@@ -7,19 +7,22 @@ import "./globals.css"
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 })
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: false,
 })
 
 export const metadata: Metadata = {
   title: {
-    default: "Pesquisa Fácil",
-    template: "%s | Pesquisa Fácil",
+    default: "Sistema de Votação",
+    template: "%s | Sistema de Votação",
   },
-  description: "Plataforma de pesquisas de satisfação por e-mail",
+  description: "Sistema de votação eletrônica para condomínios",
 }
 
 export default function RootLayout({
