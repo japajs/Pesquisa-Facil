@@ -55,7 +55,7 @@ export async function getProprietarioById(id: string): Promise<Proprietario | nu
 }
 
 export async function createProprietario(
-  input: Pick<Proprietario, "condominio_id" | "nome" | "email">
+  input: Pick<Proprietario, "condominio_id" | "nome" | "email"> & { telefone?: string | null }
 ): Promise<Proprietario> {
   const db = createServerClient()
   const { data, error } = await db
@@ -64,6 +64,7 @@ export async function createProprietario(
       condominio_id: input.condominio_id,
       nome: input.nome,
       email: input.email,
+      ...(input.telefone ? { telefone: input.telefone } : {}),
     })
     .select(SELECT_WITH_UNIDADES)
     .single()

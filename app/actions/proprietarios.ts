@@ -12,6 +12,7 @@ export async function createProprietarioAction(input: {
   condominio_id: string
   nome: string
   email: string
+  telefone?: string
   unidades: string[] // numeros de apartamento
 }): Promise<{ success: boolean; error?: string }> {
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
@@ -22,6 +23,7 @@ export async function createProprietarioAction(input: {
       condominio_id: input.condominio_id,
       nome: input.nome.trim(),
       email: input.email.trim(),
+      telefone: input.telefone?.trim() || null,
     })
 
     // Cria as unidades em paralelo

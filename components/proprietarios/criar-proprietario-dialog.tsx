@@ -24,12 +24,14 @@ export function CriarProprietarioDialog({ condominioId }: CriarProprietarioDialo
   const [open, setOpen] = useState(false)
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
+  const [telefone, setTelefone] = useState("")
   const [unidades, setUnidades] = useState<string[]>([""])
   const [isPending, startTransition] = useTransition()
 
   function reset() {
     setNome("")
     setEmail("")
+    setTelefone("")
     setUnidades([""])
   }
 
@@ -56,6 +58,7 @@ export function CriarProprietarioDialog({ condominioId }: CriarProprietarioDialo
         condominio_id: condominioId,
         nome,
         email,
+        telefone,
         unidades: unidades.filter((u) => u.trim()),
       })
       if (result.success) {
@@ -101,6 +104,19 @@ export function CriarProprietarioDialog({ condominioId }: CriarProprietarioDialo
               placeholder="email@exemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="telefone-prop">
+              Telefone <span className="text-muted-foreground font-normal">(opcional)</span>
+            </Label>
+            <Input
+              id="telefone-prop"
+              type="tel"
+              placeholder="(11) 99999-9999"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
             />
           </div>
 

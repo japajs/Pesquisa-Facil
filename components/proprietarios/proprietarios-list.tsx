@@ -88,6 +88,9 @@ function ProprietarioRow({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{proprietario.nome}</p>
           <p className="truncate text-xs text-muted-foreground">{proprietario.email}</p>
+          {proprietario.telefone && (
+            <p className="truncate text-xs text-muted-foreground/70">{proprietario.telefone}</p>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
