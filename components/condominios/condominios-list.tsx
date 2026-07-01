@@ -1,11 +1,12 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
-import { Building2, ChevronRight, Trash2 } from "lucide-react"
+import { Building2, ChevronRight, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { deleteCondominioAction } from "@/app/actions/condominios"
+import { Input } from "@/components/ui/input"
+import { deleteCondominioAction, updateCondominioAction } from "@/app/actions/condominios"
 import { ROUTES } from "@/lib/constants"
 import type { Condominio } from "@/types"
 
@@ -43,14 +44,26 @@ function CondominioRow({
   condo: Condominio
   isLast: boolean
 }) {
-  const [isPending, startTransition] = useTransition()
+  const [editing, setEditing] = useState(false)
+  const [nome, setNome] = useState(condo.nome)
+  const [isPendingDelete, startDeleteTransition] = useTransition()
+  const [isPendingRename, startRenameTransition] = useTransition()
 
   function handleDelete() {
     if (!confirm(`Excluir "${condo.nome}"? Proprietários e unidades vinculados também serão removidos.`)) return
-    startTransition(async () => {
+    startDeleteTransition(async () => {
       const result = await deleteCondominioAction(condo.id)
+      if (!result.success) toast.error(result.error)
+    })
+  }
+
+  function handleRename() {
+    if (!nome.trim() || nome.trim() === condo.nome) { setEditing(false); return }
+    startRenameTransition(async () => {
+      const result = await updateCondominioAction(condo.id, nome.trim())
       if (result.success) {
-        toast.success("Condomínio excluído.")
+        toast.success("Nome atualizado.")
+        setEditing(false)
       } else {
         toast.error(result.error)
       }
@@ -61,29 +74,72 @@ function CondominioRow({
     <div
       className={`flex items-center justify-between gap-4 px-4 py-3.5 ${!isLast ? "border-b border-border/40" : ""}`}
     >
-      <Link
-        href={`${ROUTES.condominios}/${condo.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-80 transition-opacity"
-      >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Building2 className="h-4 w-4 text-primary" />
+      {editing ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Building2 className="h-4 w-4 text-primary" />
+          </div>
+          <Input
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") { setNome(condo.nome); setEditing(false) } }}
+            className="h-8 text-sm"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={handleRename}
+            disabled={isPendingRename || !nome.trim()}
+            className="text-xs text-primary hover:underline disabled:opacity-40"
+          >
+            OK
+          </button>
+          <button
+            type="button"
+            onClick={() => { setNome(condo.nome); setEditing(false) }}
+            className="text-xs text-muted-foreground hover:underline"
+          >
+            ✕
+          </button>
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{condo.nome}</p>
-        </div>
-        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/40" />
-      </Link>
+      ) : (
+        <Link
+          href={`${ROUTES.condominios}/${condo.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Building2 className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{condo.nome}</p>
+          </div>
+          <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/40" />
+        </Link>
+      )}
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDelete}
-        disabled={isPending}
-        className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-destructive"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        <span className="sr-only">Excluir</span>
-      </Button>
+      <div className="flex shrink-0 items-center gap-1">
+        {!editing && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditing(true)}
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="sr-only">Renomear</span>
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDelete}
+          disabled={isPendingDelete}
+          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className="sr-only">Excluir</span>
+        </Button>
+      </div>
     </div>
   )
 }
