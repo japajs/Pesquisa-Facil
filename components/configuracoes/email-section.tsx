@@ -20,6 +20,7 @@ interface EmailSectionProps {
 
 export function EmailSection({ fromEmail, nomeRemetente, apiKeyConfigured }: EmailSectionProps) {
   const [nome, setNome] = useState(nomeRemetente)
+  const [destinatario, setDestinatario] = useState("")
   const [isSavingNome, startSavingNome] = useTransition()
   const [isSendingTest, startSendingTest] = useTransition()
 
@@ -33,8 +34,8 @@ export function EmailSection({ fromEmail, nomeRemetente, apiKeyConfigured }: Ema
 
   function handleTestEmail() {
     startSendingTest(async () => {
-      const result = await enviarEmailTesteAction()
-      if (result.success) toast.success("E-mail de teste enviado com sucesso.")
+      const result = await enviarEmailTesteAction(destinatario || undefined)
+      if (result.success) toast.success(`E-mail de teste enviado para ${destinatario || "administrador"}.`)
       else toast.error(result.error)
     })
   }
@@ -96,7 +97,17 @@ export function EmailSection({ fromEmail, nomeRemetente, apiKeyConfigured }: Ema
           </div>
         </div>
 
-        <div className="border-t border-border/40 pt-2">
+        <div className="border-t border-border/40 pt-4 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Destinatário do teste</Label>
+            <Input
+              type="email"
+              placeholder="Deixe em branco para usar o e-mail do administrador"
+              value={destinatario}
+              onChange={(e) => setDestinatario(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -111,9 +122,6 @@ export function EmailSection({ fromEmail, nomeRemetente, apiKeyConfigured }: Ema
             )}
             Enviar e-mail de teste
           </Button>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Envia um e-mail para o endereço do administrador configurado na seção Conta.
-          </p>
         </div>
       </CardContent>
     </Card>

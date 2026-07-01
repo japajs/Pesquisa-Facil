@@ -80,14 +80,19 @@ export async function updateEmailNomeRemetenteAction(
   }
 }
 
-export async function enviarEmailTesteAction(): Promise<{ success: boolean; error?: string }> {
+export async function enviarEmailTesteAction(
+  destinatario?: string
+): Promise<{ success: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY
   const fromEnv = process.env.RESEND_FROM_EMAIL
   if (!apiKey) return { success: false, error: "RESEND_API_KEY não configurado." }
   if (!fromEnv) return { success: false, error: "RESEND_FROM_EMAIL não configurado." }
 
-  const adminEmail = await getConfiguracao("admin_email")
-  const to = adminEmail?.trim() || "admin@exemplo.com"
+  let to = destinatario?.trim()
+  if (!to) {
+    const adminEmail = await getConfiguracao("admin_email")
+    to = adminEmail?.trim() || "admin@exemplo.com"
+  }
 
   try {
     const resend = new Resend(apiKey)
