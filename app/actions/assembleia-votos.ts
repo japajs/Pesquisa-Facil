@@ -50,7 +50,7 @@ export async function enviarAssembleiaAction(
     proprietarioIds.map(async (proprietarioId) => {
       try {
         const proprietario = await getProprietarioById(proprietarioId)
-        if (!proprietario) { failedIds.push(proprietarioId); return }
+        if (!proprietario || !proprietario.email) { failedIds.push(proprietarioId); return }
 
         const token = generateSurveyToken()
         const send = await upsertAssembleiaSend({

@@ -5,7 +5,8 @@ type JoinedProprietario = {
   id: string
   condominio_id: string
   nome: string
-  email: string
+  email: string | null
+  cpf: string | null
   telefone: string | null
   created_at: string
   unidades: Unidade[] | null
@@ -17,6 +18,7 @@ function rowToProprietario(row: JoinedProprietario): Proprietario {
     condominio_id: row.condominio_id,
     nome: row.nome,
     email: row.email,
+    cpf: row.cpf,
     telefone: row.telefone,
     created_at: row.created_at,
     unidades: row.unidades ?? [],
@@ -55,7 +57,11 @@ export async function getProprietarioById(id: string): Promise<Proprietario | nu
 }
 
 export async function createProprietario(
-  input: Pick<Proprietario, "condominio_id" | "nome" | "email"> & { telefone?: string | null }
+  input: Pick<Proprietario, "condominio_id" | "nome"> & {
+    email?: string | null
+    cpf?: string | null
+    telefone?: string | null
+  }
 ): Promise<Proprietario> {
   const db = createServerClient()
   const { data, error } = await db
@@ -63,7 +69,8 @@ export async function createProprietario(
     .insert({
       condominio_id: input.condominio_id,
       nome: input.nome,
-      email: input.email,
+      ...(input.email ? { email: input.email } : {}),
+      ...(input.cpf ? { cpf: input.cpf } : {}),
       ...(input.telefone ? { telefone: input.telefone } : {}),
     })
     .select(SELECT_WITH_UNIDADES)

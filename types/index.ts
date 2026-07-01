@@ -55,7 +55,8 @@ export interface Proprietario {
   id: string
   condominio_id: string
   nome: string
-  email: string
+  email: string | null
+  cpf: string | null
   telefone: string | null
   created_at: string
   // joined
@@ -127,4 +128,41 @@ export interface AssembleiaApuracao {
   pautas: PautaApuracao[]
   total_enviados: number
   total_respondidos: number
+}
+
+// ─── Importação de planilha ────────────────────────────────────────────────
+
+export interface ImportacaoLinha {
+  imovel: string
+  nome: string
+  cpf: string | null
+  whatsapp: string | null
+  email: string | null
+  _linhaOriginal: number
+}
+
+export interface ImportacaoErro {
+  linha: number
+  campo: string
+  mensagem: string
+  dados?: string
+}
+
+export interface ProprietarioImport {
+  nome: string
+  email: string | null
+  cpf: string | null
+  telefone: string | null
+  unidades: string[]
+  linhasOrigem: number[]
+}
+
+export interface ImportacaoPreview {
+  proprietarios: ProprietarioImport[]
+  totalLinhas: number
+  totalProprietarios: number
+  totalUnidades: number
+  duplicidades: number
+  erros: ImportacaoErro[]
+  linhasIgnoradas: number
 }

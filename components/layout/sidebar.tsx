@@ -2,15 +2,16 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, LogOut, Settings, Vote } from "lucide-react"
+import { BarChart3, Building2, FileSpreadsheet, LogOut, Settings, Vote } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/app/actions/auth"
 import { APP_NAME } from "@/lib/constants"
 
 const NAV_ITEMS = [
-  { href: "/dashboard",   label: "Dashboard",    icon: BarChart3  },
-  { href: "/condominios", label: "Condomínios",  icon: Building2  },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
+  { href: "/dashboard",    label: "Dashboard",    icon: BarChart3       },
+  { href: "/condominios",  label: "Condomínios",  icon: Building2       },
+  { href: "/importacao",   label: "Importação",   icon: FileSpreadsheet },
+  { href: "/configuracoes", label: "Configurações", icon: Settings      },
 ] as const
 
 export function Sidebar() {

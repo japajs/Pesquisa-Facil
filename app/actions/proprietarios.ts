@@ -22,7 +22,7 @@ export async function createProprietarioAction(input: {
     const proprietario = await createProprietario({
       condominio_id: input.condominio_id,
       nome: input.nome.trim(),
-      email: input.email.trim(),
+      email: input.email.trim() || null,
       telefone: input.telefone?.trim() || null,
     })
 

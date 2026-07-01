@@ -41,7 +41,8 @@ export type Database = {
           id: string
           condominio_id: string
           nome: string
-          email: string
+          email: string | null
+          cpf: string | null
           telefone: string | null
           created_at: string
         }
@@ -49,13 +50,15 @@ export type Database = {
           id?: string
           condominio_id: string
           nome: string
-          email: string
+          email?: string | null
+          cpf?: string | null
           telefone?: string | null
           created_at?: string
         }
         Update: {
           nome?: string
-          email?: string
+          email?: string | null
+          cpf?: string | null
           telefone?: string | null
         }
         Relationships: []
