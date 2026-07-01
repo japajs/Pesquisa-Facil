@@ -132,6 +132,20 @@ export interface AssembleiaApuracao {
 
 // ─── Importação de planilha ────────────────────────────────────────────────
 
+export type CampoImportacao = "imovel" | "nome" | "cpf" | "whatsapp" | "email" | "ignorar"
+
+export interface DeteccaoColuna {
+  colIdx: number
+  header: string
+  campoDetetado: CampoImportacao | null
+}
+
+export interface LeituraArquivo {
+  headers: string[]
+  rows: string[][]
+  totalLinhas: number
+}
+
 export interface ImportacaoLinha {
   imovel: string
   nome: string

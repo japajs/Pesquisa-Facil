@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Building2,
   CheckCircle2,
+  Clock,
   FileSpreadsheet,
   Loader2,
   Plus,
@@ -17,7 +18,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { parseFile } from "@/lib/importacao/parser"
+import { parseFileRaw } from "@/lib/importacao/parser"
+import { detectarColunas, aplicarMapeamento } from "@/lib/importacao/mapper"
 import { processarLinhas } from "@/lib/importacao/processor"
 import {
   executarImportacaoAction,
@@ -25,11 +27,37 @@ import {
 } from "@/app/actions/importacao"
 import { createCondominioAction } from "@/app/actions/condominios"
 import { ROUTES } from "@/lib/constants"
-import type { Condominio, ImportacaoErro, ImportacaoPreview } from "@/types"
+import type {
+  CampoImportacao,
+  Condominio,
+  ImportacaoErro,
+  ImportacaoPreview,
+  LeituraArquivo,
+} from "@/types"
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── Constantes ───────────────────────────────────────────────────────────────
 
-type Step = "upload" | "analisando" | "preview" | "importando" | "resultado"
+const STEPS = [
+  { id: "condominio" as const, label: "Condomínio" },
+  { id: "upload" as const, label: "Planilha" },
+  { id: "mapeamento" as const, label: "Mapeamento" },
+  { id: "preview" as const, label: "Revisão" },
+  { id: "importando" as const, label: "Importando" },
+  { id: "resultado" as const, label: "Resultado" },
+]
+
+type Step = (typeof STEPS)[number]["id"]
+
+const CAMPO_LABELS: Record<CampoImportacao, string> = {
+  imovel: "Imóvel",
+  nome: "Nome",
+  cpf: "CPF",
+  whatsapp: "WhatsApp / Telefone",
+  email: "E-mail",
+  ignorar: "Ignorar coluna",
+}
+
+const CAMPOS_REQUERIDOS: CampoImportacao[] = ["imovel", "nome"]
 
 // ─── Auxiliares ───────────────────────────────────────────────────────────────
 
@@ -37,58 +65,61 @@ function formatCPF(cpf: string) {
   return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
 }
 
-function stepIndex(step: Step) {
-  if (step === "upload" || step === "analisando") return 0
-  if (step === "preview" || step === "importando") return 1
-  return 2
+function formatTempo(ms: number): string {
+  if (ms < 1000) return `${ms}ms`
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  return `${m}m ${s % 60}s`
 }
 
-// ─── Sub-componentes ──────────────────────────────────────────────────────────
+function stepIdx(step: Step): number {
+  return STEPS.findIndex((s) => s.id === step)
+}
 
-function StepIndicator({ step }: { step: Step }) {
-  const LABELS = ["Upload", "Pré-visualização", "Resultado"]
-  const current = stepIndex(step)
+// ─── Barra de progresso ───────────────────────────────────────────────────────
+
+function ProgressBar({ step }: { step: Step }) {
+  const idx = stepIdx(step)
+  const pct = Math.round((idx / (STEPS.length - 1)) * 100)
+  const label = STEPS[idx].label
+
   return (
-    <div className="flex items-center">
-      {LABELS.map((label, i) => (
-        <Fragment key={label}>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold">{label}</span>
+        <span className="text-xs text-muted-foreground">
+          Etapa {idx + 1} de {STEPS.length}
+        </span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {/* Mini steps */}
+      <div className="flex items-center justify-between px-0.5">
+        {STEPS.map((s, i) => (
           <div
+            key={s.id}
+            title={s.label}
             className={cn(
-              "flex items-center gap-2",
-              i < current
-                ? "text-primary"
-                : i === current
-                  ? "text-foreground"
-                  : "text-muted-foreground/50"
+              "h-1 w-1 rounded-full transition-colors",
+              i < idx
+                ? "bg-primary"
+                : i === idx
+                  ? "bg-primary ring-2 ring-primary/30"
+                  : "bg-border"
             )}
-          >
-            <div
-              className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                i < current
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : i === current
-                    ? "border-foreground"
-                    : "border-muted-foreground/30"
-              )}
-            >
-              {i < current ? "✓" : i + 1}
-            </div>
-            <span className="hidden text-sm font-medium sm:inline">{label}</span>
-          </div>
-          {i < LABELS.length - 1 && (
-            <div
-              className={cn(
-                "mx-3 h-px flex-1",
-                i < current ? "bg-primary" : "bg-border"
-              )}
-            />
-          )}
-        </Fragment>
-      ))}
+          />
+        ))}
+      </div>
     </div>
   )
 }
+
+// ─── Drop Zone ────────────────────────────────────────────────────────────────
 
 function DropZone({
   arquivo,
@@ -176,6 +207,104 @@ function DropZone({
   )
 }
 
+// ─── Tabela de mapeamento ─────────────────────────────────────────────────────
+
+function MapeamentoTable({
+  headers,
+  mapeamento,
+  onChange,
+}: {
+  headers: string[]
+  mapeamento: Record<number, CampoImportacao>
+  onChange: (colIdx: number, campo: CampoImportacao) => void
+}) {
+  const camposMapeados = Object.entries(mapeamento)
+    .filter(([, c]) => c !== "ignorar")
+    .map(([, c]) => c)
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/60">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border/60 bg-muted/30">
+            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              Coluna da planilha
+            </th>
+            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              Campo do sistema
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/30">
+          {headers.map((header, colIdx) => {
+            const campo = mapeamento[colIdx] ?? "ignorar"
+            const naoDetectado = campo === "ignorar"
+
+            return (
+              <tr
+                key={colIdx}
+                className={cn(
+                  "transition-colors",
+                  naoDetectado
+                    ? "bg-amber-500/5 hover:bg-amber-500/10"
+                    : "hover:bg-accent/30"
+                )}
+              >
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    {naoDetectado && (
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    )}
+                    <span
+                      className={cn(
+                        "font-medium",
+                        naoDetectado && "text-amber-700 dark:text-amber-400"
+                      )}
+                    >
+                      {header || `(coluna ${colIdx + 1})`}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-2.5">
+                  <select
+                    value={campo}
+                    onChange={(e) =>
+                      onChange(colIdx, e.target.value as CampoImportacao)
+                    }
+                    className={cn(
+                      "flex h-8 w-full max-w-[220px] rounded-lg border px-2 py-1 text-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50",
+                      naoDetectado
+                        ? "border-amber-400/60 bg-amber-50 dark:bg-amber-900/20"
+                        : "border-input bg-transparent"
+                    )}
+                  >
+                    {(
+                      Object.entries(CAMPO_LABELS) as [CampoImportacao, string][]
+                    ).map(([val, lbl]) => {
+                      const jaUsado =
+                        val !== "ignorar" &&
+                        val !== campo &&
+                        camposMapeados.includes(val)
+                      return (
+                        <option key={val} value={val} disabled={jaUsado}>
+                          {lbl}
+                          {jaUsado ? " (já mapeado)" : ""}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Cards de resumo ──────────────────────────────────────────────────────────
+
 function SummaryCards({ preview }: { preview: ImportacaoPreview }) {
   const cards = [
     { label: "Linhas", value: preview.totalLinhas, color: "text-foreground" },
@@ -203,10 +332,12 @@ function SummaryCards({ preview }: { preview: ImportacaoPreview }) {
   )
 }
 
+// ─── Tabela de proprietários ──────────────────────────────────────────────────
+
 function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border/60">
-      <div className="max-h-[38vh] overflow-y-auto">
+      <div className="max-h-[36vh] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-card">
             <tr className="border-b border-border/60">
@@ -252,6 +383,8 @@ function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
   )
 }
 
+// ─── Lista de avisos ──────────────────────────────────────────────────────────
+
 function AvisosList({ erros }: { erros: ImportacaoErro[] }) {
   if (erros.length === 0) return null
   return (
@@ -263,7 +396,9 @@ function AvisosList({ erros }: { erros: ImportacaoErro[] }) {
       <ul className="space-y-1">
         {erros.slice(0, 10).map((e, i) => (
           <li key={i} className="text-xs text-muted-foreground">
-            <span className="font-medium">Linha {e.linha} · {e.campo}:</span>{" "}
+            <span className="font-medium">
+              Linha {e.linha} · {e.campo}:
+            </span>{" "}
             {e.mensagem}
             {e.dados && <span className="ml-1 opacity-60">({e.dados})</span>}
           </li>
@@ -278,95 +413,36 @@ function AvisosList({ erros }: { erros: ImportacaoErro[] }) {
   )
 }
 
-function ResultadoCard({
-  resultado,
-  condominioNome,
-  onReset,
+// ─── Rodapé com botões Voltar / Próximo ───────────────────────────────────────
+
+function StepFooter({
+  onBack,
+  onNext,
+  backLabel = "← Voltar",
+  nextLabel,
+  nextDisabled,
+  loading,
 }: {
-  resultado: ImportacaoResultado
-  condominioNome: string
-  onReset: () => void
+  onBack?: () => void
+  onNext: () => void
+  backLabel?: string
+  nextLabel: string
+  nextDisabled?: boolean
+  loading?: boolean
 }) {
-  const stats = [
-    {
-      label: "Proprietários criados",
-      value: resultado.proprietariosCriados,
-      color: "text-emerald-500",
-    },
-    {
-      label: "Proprietários atualizados",
-      value: resultado.proprietariosAtualizados,
-      color: "text-blue-500",
-    },
-    {
-      label: "Unidades criadas",
-      value: resultado.unidadesCriadas,
-      color: "text-violet-500",
-    },
-    {
-      label: "Ignoradas",
-      value: resultado.unidadesIgnoradas,
-      color: "text-muted-foreground",
-    },
-  ]
-
   return (
-    <div className="flex flex-col items-center gap-6 py-4 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/20">
-        <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-      </div>
-
-      <div>
-        <p className="text-lg font-semibold">Importação concluída!</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Condomínio:{" "}
-          <span className="font-medium text-foreground">{condominioNome}</span>
-        </p>
-      </div>
-
-      <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
-        {stats.map(({ label, value, color }) => (
-          <div
-            key={label}
-            className="rounded-xl border border-border/60 bg-card px-3 py-3 text-center"
-          >
-            <p className={cn("text-2xl font-bold tabular-nums", color)}>{value}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {resultado.erros.length > 0 && (
-        <div className="w-full rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-left">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-            <AlertCircle className="h-3.5 w-3.5" />
-            {resultado.erros.length} {resultado.erros.length === 1 ? "erro" : "erros"} durante a importação
-          </p>
-          <ul className="space-y-1">
-            {resultado.erros.slice(0, 8).map((e, i) => (
-              <li key={i} className="text-xs text-muted-foreground">{e}</li>
-            ))}
-            {resultado.erros.length > 8 && (
-              <li className="text-xs text-muted-foreground opacity-60">
-                … e mais {resultado.erros.length - 8} erros
-              </li>
-            )}
-          </ul>
-        </div>
+    <div className="flex items-center justify-between border-t border-border/40 pt-4">
+      {onBack ? (
+        <Button variant="ghost" onClick={onBack} disabled={loading}>
+          {backLabel}
+        </Button>
+      ) : (
+        <span />
       )}
-
-      <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
-        <Button
-          variant="outline"
-          render={<Link href={`${ROUTES.condominios}/${resultado.condominioId}`} />}
-        >
-          <Building2 className="h-4 w-4" />
-          Ver condomínio
-        </Button>
-        <Button onClick={onReset} variant="ghost">
-          Nova importação
-        </Button>
-      </div>
+      <Button onClick={onNext} disabled={nextDisabled || loading} className="gap-2">
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+        {nextLabel}
+      </Button>
     </div>
   )
 }
@@ -378,86 +454,140 @@ interface Props {
 }
 
 export function ImportacaoWizard({ condominios }: Props) {
-  const [step, setStep] = useState<Step>("upload")
+  // ── Estado global do wizard ────────────────────────────────────────────────
+  const [step, setStep] = useState<Step>("condominio")
+  const [, startTransition] = useTransition()
+
+  // Etapa 1 — condomínio
   const [criarNovo, setCriarNovo] = useState(condominios.length === 0)
   const [condominioId, setCondominioId] = useState("")
-  const [condominioNome, setCondominioNome] = useState("")
   const [novoNome, setNovoNome] = useState("")
-  const [arquivo, setArquivo] = useState<File | null>(null)
-  const [parseError, setParseError] = useState<string | null>(null)
-  const [preview, setPreview] = useState<ImportacaoPreview | null>(null)
-  const [resultado, setResultado] = useState<ImportacaoResultado | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [condominioNome, setCondominioNome] = useState("")
 
+  // Etapa 2 — upload
+  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [leitura, setLeitura] = useState<LeituraArquivo | null>(null)
+  const [lendo, setLendo] = useState(false)
+
+  // Etapa 3 — mapeamento
+  const [colMapeamento, setColMapeamento] = useState<Record<number, CampoImportacao>>({})
+
+  // Etapa 4 — preview
+  const [preview, setPreview] = useState<ImportacaoPreview | null>(null)
+
+  // Etapa 6 — resultado
+  const [resultado, setResultado] = useState<ImportacaoResultado | null>(null)
+  const [tempoImportacao, setTempoImportacao] = useState(0)
+  const startTimeRef = useRef(0)
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
   function reset() {
-    setStep("upload")
-    setArquivo(null)
-    setParseError(null)
-    setPreview(null)
-    setResultado(null)
+    setStep("condominio")
+    setCriarNovo(condominios.length === 0)
     setCondominioId("")
     setNovoNome("")
+    setCondominioNome("")
+    setArquivo(null)
+    setUploadError(null)
+    setLeitura(null)
+    setColMapeamento({})
+    setPreview(null)
+    setResultado(null)
+    setTempoImportacao(0)
   }
 
-  // ─── Passo 1 → 2: parsear arquivo ────────────────────────────────────────
-
-  async function handleAnalisar() {
-    setParseError(null)
-
+  // ── Etapa 1 → 2 ───────────────────────────────────────────────────────────
+  function handleCondominioNext() {
     if (criarNovo && !novoNome.trim()) {
-      setParseError("Informe o nome do condomínio.")
+      toast.error("Informe o nome do condomínio.")
       return
     }
     if (!criarNovo && !condominioId) {
-      setParseError("Selecione um condomínio.")
+      toast.error("Selecione um condomínio.")
       return
     }
+    setStep("upload")
+  }
+
+  // ── Etapa 2 → 3: lê arquivo + detecção automática ─────────────────────────
+  async function handleUploadNext() {
     if (!arquivo) {
-      setParseError("Selecione um arquivo .xlsx ou .csv.")
+      setUploadError("Selecione um arquivo .xlsx ou .csv.")
       return
     }
+    setUploadError(null)
+    setLendo(true)
 
-    setStep("analisando")
     try {
-      const { linhas, colunasFaltando } = await parseFile(arquivo)
+      const result = await parseFileRaw(arquivo)
 
-      if (colunasFaltando.length > 0) {
-        const nomes = colunasFaltando
-          .map((c) => (c === "imovel" ? '"Imóvel"' : '"Nome"'))
-          .join(" e ")
-        setParseError(`Colunas obrigatórias ausentes: ${nomes}.`)
-        setStep("upload")
+      if (result.headers.length === 0 || result.totalLinhas === 0) {
+        setUploadError("O arquivo não contém dados válidos.")
+        setLendo(false)
         return
       }
 
-      if (linhas.length === 0) {
-        setParseError("O arquivo não contém dados válidos.")
-        setStep("upload")
-        return
-      }
+      const deteccoes = detectarColunas(result.headers)
+      const mapeamentoInicial: Record<number, CampoImportacao> = {}
+      deteccoes.forEach((d) => {
+        mapeamentoInicial[d.colIdx] = d.campoDetetado ?? "ignorar"
+      })
 
-      const result = processarLinhas(linhas)
-
-      if (result.proprietarios.length === 0) {
-        setParseError("Nenhum proprietário pôde ser extraído do arquivo.")
-        setStep("upload")
-        return
-      }
-
-      setPreview(result)
-      setStep("preview")
+      setLeitura(result)
+      setColMapeamento(mapeamentoInicial)
+      setStep("mapeamento")
     } catch (err) {
-      setParseError(
-        err instanceof Error ? err.message : "Erro ao ler o arquivo."
-      )
-      setStep("upload")
+      setUploadError(err instanceof Error ? err.message : "Erro ao ler o arquivo.")
+    } finally {
+      setLendo(false)
     }
   }
 
-  // ─── Passo 2 → 3: importar ────────────────────────────────────────────────
+  // ── Etapa 3 → 4: aplica mapeamento + gera preview ─────────────────────────
+  function handleMapeamentoNext() {
+    if (!leitura) return
 
+    const linhas = aplicarMapeamento(leitura.rows, colMapeamento)
+
+    if (linhas.length === 0) {
+      toast.error("Nenhuma linha válida após o mapeamento. Verifique se Imóvel e Nome estão corretamente mapeados.")
+      return
+    }
+
+    const result = processarLinhas(linhas)
+    setPreview(result)
+    setStep("preview")
+  }
+
+  // Atualiza mapeamento garantindo que cada campo seja usado uma única vez
+  function handleMapeamentoChange(colIdx: number, campo: CampoImportacao) {
+    setColMapeamento((prev) => {
+      const next = { ...prev }
+      // Libera campo se já estava em outra coluna (exceto "ignorar", que pode repetir)
+      if (campo !== "ignorar") {
+        for (const [idx, c] of Object.entries(next)) {
+          if (c === campo && parseInt(idx) !== colIdx) {
+            next[parseInt(idx)] = "ignorar"
+          }
+        }
+      }
+      next[colIdx] = campo
+      return next
+    })
+  }
+
+  // Validação da etapa de mapeamento
+  const camposMapeadosSet = new Set<CampoImportacao>(
+    Object.values(colMapeamento).filter((c) => c !== "ignorar")
+  )
+  const mapeamentoValido = CAMPOS_REQUERIDOS.every((c) => camposMapeadosSet.has(c))
+  const mapeamentoFaltando = CAMPOS_REQUERIDOS.filter((c) => !camposMapeadosSet.has(c))
+
+  // ── Etapa 4 → 5 → 6: importação ───────────────────────────────────────────
   function handleImportar() {
     if (!preview) return
+    startTimeRef.current = Date.now()
     setStep("importando")
 
     startTransition(async () => {
@@ -465,7 +595,6 @@ export function ImportacaoWizard({ condominios }: Props) {
         let targetId = condominioId
         let targetNome = condominios.find((c) => c.id === condominioId)?.nome ?? condominioId
 
-        // Criar condomínio se necessário
         if (criarNovo) {
           const res = await createCondominioAction(novoNome.trim())
           if (!res.success || !res.id) {
@@ -480,6 +609,7 @@ export function ImportacaoWizard({ condominios }: Props) {
         setCondominioNome(targetNome)
 
         const res = await executarImportacaoAction(targetId, preview.proprietarios)
+        const elapsed = Date.now() - startTimeRef.current
 
         if (!res.success) {
           toast.error(res.error ?? "Erro na importação.")
@@ -487,6 +617,7 @@ export function ImportacaoWizard({ condominios }: Props) {
           return
         }
 
+        setTempoImportacao(elapsed)
         setResultado(res)
         setStep("resultado")
       } catch (err) {
@@ -496,21 +627,25 @@ export function ImportacaoWizard({ condominios }: Props) {
     })
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <StepIndicator step={step} />
+    <div className="mx-auto max-w-3xl space-y-5">
+      <ProgressBar step={step} />
 
       <div className="rounded-xl border border-border/60 bg-card p-6">
 
-        {/* ── Passo 1: Upload ─────────────────────────────────────────── */}
-        {(step === "upload" || step === "analisando") && (
+        {/* ── Etapa 1: Condomínio ────────────────────────────────────── */}
+        {step === "condominio" && (
           <div className="space-y-6">
-            {/* Seleção do condomínio */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Condomínio</Label>
+            <div>
+              <h2 className="text-base font-semibold">Selecionar condomínio</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Escolha para qual condomínio os dados serão importados
+              </p>
+            </div>
 
+            <div className="space-y-3">
               <div className="flex gap-4">
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <input
@@ -541,6 +676,7 @@ export function ImportacaoWizard({ condominios }: Props) {
                   placeholder="Nome do condomínio"
                   value={novoNome}
                   onChange={(e) => setNovoNome(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCondominioNext()}
                   autoFocus
                 />
               ) : (
@@ -559,52 +695,101 @@ export function ImportacaoWizard({ condominios }: Props) {
               )}
             </div>
 
-            {/* Upload */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Planilha</Label>
-              <DropZone arquivo={arquivo} onChange={setArquivo} />
-            </div>
-
-            {/* Erro de parse */}
-            {parseError && (
-              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                {parseError}
-              </div>
-            )}
-
-            {/* Colunas esperadas */}
-            <p className="text-xs text-muted-foreground">
-              Colunas esperadas:{" "}
-              <span className="font-medium text-foreground">
-                Imóvel, Nome
-              </span>{" "}
-              (obrigatórias) e{" "}
-              <span className="font-medium text-foreground">
-                CPF, WhatsApp, E-mail
-              </span>{" "}
-              (opcionais)
-            </p>
-
-            <div className="flex justify-end">
-              <Button
-                onClick={handleAnalisar}
-                disabled={step === "analisando" || !arquivo}
-                className="gap-2"
-              >
-                {step === "analisando" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="h-4 w-4" />
-                )}
-                {step === "analisando" ? "Analisando…" : "Analisar planilha"}
-              </Button>
-            </div>
+            <StepFooter
+              nextLabel="Próximo →"
+              nextDisabled={criarNovo ? !novoNome.trim() : !condominioId}
+              onNext={handleCondominioNext}
+            />
           </div>
         )}
 
-        {/* ── Passo 2: Pré-visualização ──────────────────────────────── */}
-        {(step === "preview" || step === "importando") && preview && (
+        {/* ── Etapa 2: Upload ───────────────────────────────────────── */}
+        {step === "upload" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-base font-semibold">Selecionar planilha</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Arquivos aceitos: <span className="font-medium">.xlsx</span> e{" "}
+                <span className="font-medium">.csv</span>. A ordem das colunas não importa.
+              </p>
+            </div>
+
+            <DropZone arquivo={arquivo} onChange={setArquivo} />
+
+            {uploadError && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {uploadError}
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              O sistema detectará automaticamente as colunas pelo nome do cabeçalho.
+              Caso não consiga identificar alguma coluna, você poderá fazer o mapeamento
+              manualmente na próxima etapa.
+            </p>
+
+            <StepFooter
+              onBack={() => setStep("condominio")}
+              nextLabel={lendo ? "Lendo arquivo…" : "Analisar planilha"}
+              nextDisabled={!arquivo || lendo}
+              loading={lendo}
+              onNext={handleUploadNext}
+            />
+          </div>
+        )}
+
+        {/* ── Etapa 3: Mapeamento ───────────────────────────────────── */}
+        {step === "mapeamento" && leitura && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-base font-semibold">Mapeamento de colunas</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Verifique como cada coluna da planilha foi associada aos campos do sistema.
+                {leitura.headers.some((_, i) => colMapeamento[i] === "ignorar") && (
+                  <span className="ml-1 font-medium text-amber-600 dark:text-amber-400">
+                    Colunas em destaque precisam de atenção.
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <MapeamentoTable
+              headers={leitura.headers}
+              mapeamento={colMapeamento}
+              onChange={handleMapeamentoChange}
+            />
+
+            {!mapeamentoValido && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Mapeie as colunas obrigatórias antes de continuar:{" "}
+                  <strong>
+                    {mapeamentoFaltando
+                      .map((c) => CAMPO_LABELS[c])
+                      .join(" e ")}
+                  </strong>
+                </span>
+              </div>
+            )}
+
+            <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
+              <strong className="text-foreground">Dica:</strong> Colunas marcadas como
+              &ldquo;Ignorar coluna&rdquo; não serão importadas. A ordem não afeta o resultado.
+            </div>
+
+            <StepFooter
+              onBack={() => setStep("upload")}
+              nextLabel="Confirmar mapeamento →"
+              nextDisabled={!mapeamentoValido}
+              onNext={handleMapeamentoNext}
+            />
+          </div>
+        )}
+
+        {/* ── Etapa 4: Pré-visualização ─────────────────────────────── */}
+        {step === "preview" && preview && (
           <div className="space-y-5">
             <div>
               <h2 className="text-base font-semibold">Pré-visualização</h2>
@@ -617,42 +802,105 @@ export function ImportacaoWizard({ condominios }: Props) {
             <ProprietariosTable preview={preview} />
             <AvisosList erros={preview.erros} />
 
-            <div className="flex items-center justify-between border-t border-border/40 pt-4">
-              <Button
-                variant="ghost"
-                onClick={() => setStep("upload")}
-                disabled={step === "importando"}
-              >
-                ← Voltar
-              </Button>
-              <Button
-                onClick={handleImportar}
-                disabled={step === "importando" || preview.proprietarios.length === 0}
-                className="gap-2"
-              >
-                {step === "importando" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Importando…
-                  </>
-                ) : (
-                  <>
-                    Confirmar importação
-                    <CheckCircle2 className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
+            <StepFooter
+              onBack={() => setStep("mapeamento")}
+              nextLabel="Confirmar importação"
+              nextDisabled={preview.proprietarios.length === 0}
+              onNext={handleImportar}
+            />
+          </div>
+        )}
+
+        {/* ── Etapa 5: Importando ───────────────────────────────────── */}
+        {step === "importando" && (
+          <div className="flex flex-col items-center gap-4 py-10">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
+              <Loader2 className="h-7 w-7 animate-spin text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-semibold">Importando…</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Criando proprietários e vinculando unidades
+              </p>
             </div>
           </div>
         )}
 
-        {/* ── Passo 3: Resultado ─────────────────────────────────────── */}
+        {/* ── Etapa 6: Resultado ────────────────────────────────────── */}
         {step === "resultado" && resultado && (
-          <ResultadoCard
-            resultado={resultado}
-            condominioNome={condominioNome}
-            onReset={reset}
-          />
+          <div className="flex flex-col items-center gap-6 py-4 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/20">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">Importação concluída!</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Condomínio:{" "}
+                <span className="font-medium text-foreground">{condominioNome}</span>
+              </p>
+              {tempoImportacao > 0 && (
+                <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {formatTempo(tempoImportacao)}
+                </p>
+              )}
+            </div>
+
+            <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Proprietários criados", value: resultado.proprietariosCriados, color: "text-emerald-500" },
+                { label: "Proprietários atualizados", value: resultado.proprietariosAtualizados, color: "text-blue-500" },
+                { label: "Unidades criadas", value: resultado.unidadesCriadas, color: "text-violet-500" },
+                { label: "Ignoradas", value: resultado.unidadesIgnoradas, color: "text-muted-foreground" },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-border/60 bg-card px-3 py-3 text-center"
+                >
+                  <p className={cn("text-2xl font-bold tabular-nums", color)}>{value}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {resultado.erros.length > 0 && (
+              <div className="w-full rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-left">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {resultado.erros.length}{" "}
+                  {resultado.erros.length === 1 ? "erro" : "erros"} durante a importação
+                </p>
+                <ul className="space-y-1">
+                  {resultado.erros.slice(0, 8).map((e, i) => (
+                    <li key={i} className="text-xs text-muted-foreground">
+                      {e}
+                    </li>
+                  ))}
+                  {resultado.erros.length > 8 && (
+                    <li className="text-xs text-muted-foreground opacity-60">
+                      … e mais {resultado.erros.length - 8} erros
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button
+                variant="outline"
+                render={
+                  <Link href={`${ROUTES.condominios}/${resultado.condominioId}`} />
+                }
+              >
+                <Building2 className="h-4 w-4" />
+                Ver condomínio
+              </Button>
+              <Button onClick={reset} variant="ghost">
+                Nova importação
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </div>
