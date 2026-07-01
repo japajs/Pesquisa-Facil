@@ -274,8 +274,8 @@ function MapeamentoTable({
                     className={cn(
                       "flex h-8 w-full max-w-[220px] rounded-lg border px-2 py-1 text-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50",
                       naoDetectado
-                        ? "border-amber-400/60 bg-amber-50 dark:bg-amber-900/20"
-                        : "border-input bg-transparent"
+                        ? "border-amber-400/60 bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-100"
+                        : "border-input bg-background text-foreground"
                     )}
                   >
                     {(
@@ -683,7 +683,7 @@ export function ImportacaoWizard({ condominios }: Props) {
                 <select
                   value={condominioId}
                   onChange={(e) => setCondominioId(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Selecione um condomínio…</option>
                   {condominios.map((c) => (
