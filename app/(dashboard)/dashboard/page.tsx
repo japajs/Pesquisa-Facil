@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
-import { getCondoDashboardStats, getRecentVotacoes } from "@/services/dashboard"
+import { getCondoDashboardStats, getRecentAssembleias } from "@/services/dashboard"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { RecentSurveysTable } from "@/components/dashboard/recent-surveys-table"
-import type { CondoDashboardStats, VotacaoRecente } from "@/types"
+import type { CondoDashboardStats, AssembleiaRecente } from "@/types"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -10,7 +10,7 @@ const EMPTY_STATS: CondoDashboardStats = {
   total_condominios: 0,
   total_proprietarios: 0,
   total_unidades: 0,
-  total_votacoes: 0,
+  total_assembleias: 0,
   total_votos_enviados: 0,
   total_votos_recebidos: 0,
   participacao_geral: 0,
@@ -18,21 +18,21 @@ const EMPTY_STATS: CondoDashboardStats = {
 
 async function fetchDashboardData(): Promise<{
   stats: CondoDashboardStats
-  votacoes: VotacaoRecente[]
+  assembleias: AssembleiaRecente[]
 }> {
   try {
-    const [stats, votacoes] = await Promise.all([
+    const [stats, assembleias] = await Promise.all([
       getCondoDashboardStats(),
-      getRecentVotacoes(6),
+      getRecentAssembleias(6),
     ])
-    return { stats, votacoes }
+    return { stats, assembleias }
   } catch {
-    return { stats: EMPTY_STATS, votacoes: [] }
+    return { stats: EMPTY_STATS, assembleias: [] }
   }
 }
 
 export default async function DashboardPage() {
-  const { stats, votacoes } = await fetchDashboardData()
+  const { stats, assembleias } = await fetchDashboardData()
 
   return (
     <div className="flex flex-col gap-8 p-6 pt-8">
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
 
       <StatsCards stats={stats} />
 
-      <RecentSurveysTable votacoes={votacoes} />
+      <RecentSurveysTable assembleias={assembleias} />
     </div>
   )
 }

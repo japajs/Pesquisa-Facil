@@ -8,13 +8,13 @@ export interface CondoDashboardStats {
   total_condominios: number
   total_proprietarios: number
   total_unidades: number
-  total_votacoes: number
+  total_assembleias: number
   total_votos_enviados: number
   total_votos_recebidos: number
   participacao_geral: number // percentual
 }
 
-export interface VotacaoRecente {
+export interface AssembleiaRecente {
   id: string
   titulo: string
   created_at: string
@@ -62,52 +62,69 @@ export interface Proprietario {
   unidades?: Unidade[]
 }
 
-// ─── Condo Survey (votação ponderada) ─────────────────────────────────────
+// ─── Assembleia ────────────────────────────────────────────────────────────
 
-export type CondoVotoResposta = "Sim" | "Não" | "Abstenção"
-export type CondoVotoStatus = "rascunho" | "aberta" | "encerrada"
+export type AssembleiaStatus = "rascunho" | "aberta" | "encerrada"
+export type AssembleiaRespostaValor = "Sim" | "Não" | "Abstenção"
 
-export interface CondoSurvey {
+export interface Assembleia {
   id: string
   condominio_id: string
   titulo: string
   descricao: string | null
-  pergunta: string
-  status: CondoVotoStatus
+  status: AssembleiaStatus
   data_abertura: string | null
   data_encerramento: string | null
   created_at: string
+  updated_at: string
+  // joined
+  pautas?: Pauta[]
 }
 
-export interface CondoSurveySend {
+export interface Pauta {
   id: string
-  condo_survey_id: string
+  assembleia_id: string
+  ordem: number
+  titulo: string
+  descricao: string | null
+  ativa: boolean
+  created_at: string
+}
+
+export interface AssembleiaSend {
+  id: string
+  assembleia_id: string
   proprietario_id: string
   token: string
   status: SendStatus
   sent_at: string | null
   created_at: string
   // joined
-  condo_survey?: Pick<CondoSurvey, "id" | "titulo" | "descricao" | "pergunta" | "status" | "data_encerramento">
+  assembleia?: Pick<Assembleia, "id" | "titulo" | "descricao" | "status" | "data_encerramento"> & {
+    pautas?: Pauta[]
+  }
   proprietario?: Pick<Proprietario, "id" | "nome" | "email">
 }
 
-export interface CondoSurveyResponse {
+export interface AssembleiaResposta {
   id: string
   send_id: string
-  resposta: CondoVotoResposta
+  pauta_id: string
+  resposta: AssembleiaRespostaValor
   created_at: string
-  // joined
-  send?: Pick<CondoSurveySend, "id" | "token" | "condo_survey_id" | "proprietario_id"> & {
-    proprietario?: Proprietario
-  }
 }
 
-// ─── Apuração ──────────────────────────────────────────────────────────────
-// Sempre calculada dinamicamente — nunca lida de um campo "peso" salvo.
+// ─── Apuração de Assembleia ────────────────────────────────────────────────
 
-export interface CondoApuracao {
+export interface PautaApuracao {
+  pauta: Pauta
   por_participantes: { sim: number; nao: number; abstencao: number }
   ponderado: { sim: number; nao: number; abstencao: number }
   total_apartamentos_representados: number
+}
+
+export interface AssembleiaApuracao {
+  pautas: PautaApuracao[]
+  total_enviados: number
+  total_respondidos: number
 }

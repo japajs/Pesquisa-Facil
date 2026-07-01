@@ -7,8 +7,8 @@ export const ROUTES = {
   condominios: "/condominios",
   configuracoes: "/configuracoes",
   publicCondoVoto: (token: string) => `/v/${token}`,
-  condominioVotacao: (condominioId: string, votacaoId: string) =>
-    `/condominios/${condominioId}/votacoes/${votacaoId}`,
+  condominioAssembleia: (condominioId: string, assembleiaId: string) =>
+    `/condominios/${condominioId}/assembleias/${assembleiaId}`,
 } as const
 
 export const AUTH_COOKIE_NAME = "pf_session"

@@ -81,43 +81,70 @@ export type Database = {
         }
         Relationships: []
       }
-      condo_surveys: {
+      assembleias: {
         Row: {
           id: string
           condominio_id: string
           titulo: string
           descricao: string | null
-          pergunta: string
           status: "rascunho" | "aberta" | "encerrada"
           data_abertura: string | null
           data_encerramento: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
           condominio_id: string
           titulo: string
           descricao?: string | null
-          pergunta: string
           status?: "rascunho" | "aberta" | "encerrada"
           data_abertura?: string | null
           data_encerramento?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           titulo?: string
           descricao?: string | null
-          pergunta?: string
           status?: "rascunho" | "aberta" | "encerrada"
           data_abertura?: string | null
           data_encerramento?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
-      condo_survey_sends: {
+      pautas: {
         Row: {
           id: string
-          condo_survey_id: string
+          assembleia_id: string
+          ordem: number
+          titulo: string
+          descricao: string | null
+          ativa: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          assembleia_id: string
+          ordem: number
+          titulo: string
+          descricao?: string | null
+          ativa?: boolean
+          created_at?: string
+        }
+        Update: {
+          ordem?: number
+          titulo?: string
+          descricao?: string | null
+          ativa?: boolean
+        }
+        Relationships: []
+      }
+      assembleia_sends: {
+        Row: {
+          id: string
+          assembleia_id: string
           proprietario_id: string
           token: string
           status: "pending" | "sent" | "failed"
@@ -126,7 +153,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          condo_survey_id: string
+          assembleia_id: string
           proprietario_id: string
           token: string
           status?: "pending" | "sent" | "failed"
@@ -134,21 +161,24 @@ export type Database = {
           created_at?: string
         }
         Update: {
+          token?: string
           status?: "pending" | "sent" | "failed"
           sent_at?: string | null
         }
         Relationships: []
       }
-      condo_survey_responses: {
+      assembleia_respostas: {
         Row: {
           id: string
           send_id: string
+          pauta_id: string
           resposta: "Sim" | "Não" | "Abstenção"
           created_at: string
         }
         Insert: {
           id?: string
           send_id: string
+          pauta_id: string
           resposta: "Sim" | "Não" | "Abstenção"
           created_at?: string
         }
@@ -184,11 +214,14 @@ export type DbProprietarioInsert = Database["public"]["Tables"]["proprietarios"]
 export type DbUnidade = Database["public"]["Tables"]["unidades"]["Row"]
 export type DbUnidadeInsert = Database["public"]["Tables"]["unidades"]["Insert"]
 
-export type DbCondoSurvey = Database["public"]["Tables"]["condo_surveys"]["Row"]
-export type DbCondoSurveyInsert = Database["public"]["Tables"]["condo_surveys"]["Insert"]
+export type DbAssembleia = Database["public"]["Tables"]["assembleias"]["Row"]
+export type DbAssembleiaInsert = Database["public"]["Tables"]["assembleias"]["Insert"]
 
-export type DbCondoSurveySend = Database["public"]["Tables"]["condo_survey_sends"]["Row"]
-export type DbCondoSurveySendInsert = Database["public"]["Tables"]["condo_survey_sends"]["Insert"]
+export type DbPauta = Database["public"]["Tables"]["pautas"]["Row"]
+export type DbPautaInsert = Database["public"]["Tables"]["pautas"]["Insert"]
 
-export type DbCondoSurveyResponse = Database["public"]["Tables"]["condo_survey_responses"]["Row"]
-export type DbCondoSurveyResponseInsert = Database["public"]["Tables"]["condo_survey_responses"]["Insert"]
+export type DbAssembleiaSend = Database["public"]["Tables"]["assembleia_sends"]["Row"]
+export type DbAssembleiaSendInsert = Database["public"]["Tables"]["assembleia_sends"]["Insert"]
+
+export type DbAssembleiaResposta = Database["public"]["Tables"]["assembleia_respostas"]["Row"]
+export type DbAssembleiaRespostaInsert = Database["public"]["Tables"]["assembleia_respostas"]["Insert"]

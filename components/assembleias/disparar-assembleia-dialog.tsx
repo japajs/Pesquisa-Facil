@@ -13,28 +13,26 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { enviarVotacaoAction, type EnviarVotacaoResult } from "@/app/actions/condo-votos"
+import { enviarAssembleiaAction, type EnviarAssembleiaResult } from "@/app/actions/assembleia-votos"
 import { getPesoParticipante } from "@/lib/peso"
-import type { CondoSurvey, Proprietario } from "@/types"
+import type { Assembleia, Proprietario } from "@/types"
 
 type Step = "compose" | "sending" | "done"
 
-interface DispararVotacaoDialogProps {
-  condoSurvey: CondoSurvey
+interface DispararAssembleiaDialogProps {
+  assembleia: Assembleia
   proprietarios: Proprietario[]
 }
 
-export function DispararVotacaoDialog({
-  condoSurvey,
-  proprietarios,
-}: DispararVotacaoDialogProps) {
+export function DispararAssembleiaDialog({ assembleia, proprietarios }: DispararAssembleiaDialogProps) {
   const [open, setOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [step, setStep] = useState<Step>("compose")
-  const [result, setResult] = useState<EnviarVotacaoResult | null>(null)
+  const [result, setResult] = useState<EnviarAssembleiaResult | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const allSelected = proprietarios.length > 0 && proprietarios.every((p) => selectedIds.has(p.id))
+  const pautaCount = assembleia.pautas?.length ?? 0
 
   function toggleProprietario(id: string) {
     setSelectedIds((prev) => {
@@ -45,11 +43,7 @@ export function DispararVotacaoDialog({
   }
 
   function toggleAll() {
-    if (allSelected) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(proprietarios.map((p) => p.id)))
-    }
+    setSelectedIds(allSelected ? new Set() : new Set(proprietarios.map((p) => p.id)))
   }
 
   function reset() {
@@ -70,14 +64,11 @@ export function DispararVotacaoDialog({
     }
     setStep("sending")
     startTransition(async () => {
-      const res = await enviarVotacaoAction(condoSurvey.id, [...selectedIds])
+      const res = await enviarAssembleiaAction(assembleia.id, [...selectedIds])
       setResult(res)
       setStep("done")
-      if (res.error) {
-        toast.error(res.error)
-      } else {
-        toast.success(`${res.sent} e-mails enviados com sucesso.`)
-      }
+      if (res.error) toast.error(res.error)
+      else toast.success(`${res.sent} e-mails enviados com sucesso.`)
     })
   }
 
@@ -95,14 +86,20 @@ export function DispararVotacaoDialog({
 
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Disparar votação</DialogTitle>
-          <DialogDescription className="truncate">{condoSurvey.titulo}</DialogDescription>
+          <DialogTitle>Disparar assembleia</DialogTitle>
+          <DialogDescription>
+            <span className="truncate">{assembleia.titulo}</span>
+            {pautaCount > 0 && (
+              <span className="ml-1.5 text-xs">
+                · {pautaCount} {pautaCount === 1 ? "pauta" : "pautas"}
+              </span>
+            )}
+          </DialogDescription>
         </DialogHeader>
 
         {(step === "compose" || step === "sending") && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
-              {/* Select all */}
+            <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
               <label className="flex cursor-pointer items-center gap-2.5 border-b border-border/40 bg-muted/30 px-3 py-2 hover:bg-accent/30">
                 <input
                   type="checkbox"
@@ -115,8 +112,7 @@ export function DispararVotacaoDialog({
                 </span>
               </label>
 
-              {/* Proprietarios */}
-              <div className="max-h-56 overflow-y-auto divide-y divide-border/30">
+              <div className="max-h-56 divide-y divide-border/30 overflow-y-auto">
                 {proprietarios.length === 0 ? (
                   <p className="px-3 py-4 text-center text-sm text-muted-foreground">
                     Nenhum proprietário cadastrado.
@@ -150,7 +146,7 @@ export function DispararVotacaoDialog({
             </div>
 
             {selectedIds.size > 0 && (
-              <p className="text-xs text-muted-foreground text-right">
+              <p className="text-right text-xs text-muted-foreground">
                 {selectedIds.size} proprietário{selectedIds.size !== 1 ? "s" : ""} ·{" "}
                 {totalApartamentos} apartamento{totalApartamentos !== 1 ? "s" : ""} representados
               </p>
@@ -191,7 +187,9 @@ export function DispararVotacaoDialog({
         <DialogFooter>
           {step === "compose" && (
             <>
-              <Button variant="ghost" onClick={() => handleOpenChange(false)}>Cancelar</Button>
+              <Button variant="ghost" onClick={() => handleOpenChange(false)}>
+                Cancelar
+              </Button>
               <Button onClick={handleSend} disabled={selectedIds.size === 0} className="gap-2">
                 <Send className="h-4 w-4" />
                 Enviar para {selectedIds.size || "…"}

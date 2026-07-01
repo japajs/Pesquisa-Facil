@@ -1,0 +1,68 @@
+import type { Metadata } from "next"
+import { notFound } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
+import { getAssembleiaById } from "@/services/assembleias"
+import { getCondominioById } from "@/services/condominios"
+import { getApuracaoAssembleia } from "@/services/assembleia-votos"
+import { ApuracaoAssembleia } from "@/components/assembleias/apuracao-assembleia"
+import { ROUTES } from "@/lib/constants"
+
+interface Props {
+  params: Promise<{ id: string; assembleiaId: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { assembleiaId } = await params
+  try {
+    const assembleia = await getAssembleiaById(assembleiaId)
+    return { title: assembleia?.titulo ?? "Apuração" }
+  } catch {
+    return { title: "Apuração" }
+  }
+}
+
+export default async function ApuracaoAssembleiaPage({ params }: Props) {
+  const { id: condominioId, assembleiaId } = await params
+
+  const [condominio, assembleia] = await Promise.all([
+    getCondominioById(condominioId).catch(() => null),
+    getAssembleiaById(assembleiaId).catch(() => null),
+  ])
+
+  if (!condominio || !assembleia) notFound()
+
+  const pautas = assembleia.pautas ?? []
+
+  const apuracao = await getApuracaoAssembleia(assembleiaId, pautas).catch(() => ({
+    pautas: pautas.map((p) => ({
+      pauta: p,
+      por_participantes: { sim: 0, nao: 0, abstencao: 0 },
+      ponderado: { sim: 0, nao: 0, abstencao: 0 },
+      total_apartamentos_representados: 0,
+    })),
+    total_enviados: 0,
+    total_respondidos: 0,
+  }))
+
+  return (
+    <div className="flex flex-col gap-8 p-6 pt-8">
+      {/* Back */}
+      <Link
+        href={`${ROUTES.condominios}/${condominioId}`}
+        className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {condominio.nome}
+      </Link>
+
+      {/* Heading */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary/70">Apuração</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{assembleia.titulo}</h1>
+      </div>
+
+      <ApuracaoAssembleia assembleia={assembleia} apuracao={apuracao} />
+    </div>
+  )
+}

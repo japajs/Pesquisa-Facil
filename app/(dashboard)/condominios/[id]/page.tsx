@@ -4,11 +4,11 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { getCondominioById } from "@/services/condominios"
 import { getAllProprietarios } from "@/services/proprietarios"
-import { getAllCondoSurveys } from "@/services/condo-surveys"
+import { getAllAssembleias } from "@/services/assembleias"
 import { CriarProprietarioDialog } from "@/components/proprietarios/criar-proprietario-dialog"
 import { ProprietariosList } from "@/components/proprietarios/proprietarios-list"
-import { CriarVotacaoDialog } from "@/components/votacoes/criar-votacao-dialog"
-import { VotacoesList } from "@/components/votacoes/votacoes-list"
+import { CriarAssembleiaDialog } from "@/components/assembleias/criar-assembleia-dialog"
+import { AssembleiasList } from "@/components/assembleias/assembleias-list"
 import { ROUTES } from "@/lib/constants"
 
 interface Props {
@@ -31,9 +31,9 @@ export default async function CondominioDetailPage({ params }: Props) {
   const condominio = await getCondominioById(id).catch(() => null)
   if (!condominio) notFound()
 
-  const [proprietarios, votacoes] = await Promise.all([
+  const [proprietarios, assembleias] = await Promise.all([
     getAllProprietarios(id).catch(() => []),
-    getAllCondoSurveys(id).catch(() => []),
+    getAllAssembleias(id).catch(() => []),
   ])
 
   return (
@@ -68,18 +68,23 @@ export default async function CondominioDetailPage({ params }: Props) {
         <ProprietariosList proprietarios={proprietarios} condominioId={id} />
       </section>
 
-      {/* Votações */}
+      {/* Assembleias */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">Votações</h2>
+            <h2 className="text-base font-semibold">Assembleias</h2>
             <p className="text-sm text-muted-foreground">
-              {votacoes.length} {votacoes.length === 1 ? "votação criada" : "votações criadas"}
+              {assembleias.length}{" "}
+              {assembleias.length === 1 ? "assembleia criada" : "assembleias criadas"}
             </p>
           </div>
-          <CriarVotacaoDialog condominioId={id} />
+          <CriarAssembleiaDialog condominioId={id} />
         </div>
-        <VotacoesList votacoes={votacoes} condominioId={id} proprietarios={proprietarios} />
+        <AssembleiasList
+          assembleias={assembleias}
+          condominioId={id}
+          proprietarios={proprietarios}
+        />
       </section>
     </div>
   )

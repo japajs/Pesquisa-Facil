@@ -20,34 +20,40 @@ export interface EmailBatchResult {
   failed: string[] // sendIds that failed
 }
 
-// ─── Condo voto email template ─────────────────────────────────────────────
+// ─── Assembleia email template ────────────────────────────────────────────────
 
-interface CondoTemplateInput {
+interface AssembleiaTemplateInput {
   proprietarioNome: string
-  condoSurveyTitulo: string
-  condoSurveyDescricao: string | null
-  condoSurveyPergunta: string
+  assembleiaTitulo: string
+  assembleiaDescricao: string | null
+  pautas: { titulo: string }[]
   votoUrl: string
 }
 
-function buildCondoVotoEmailHtml({
+function buildAssembleiaEmailHtml({
   proprietarioNome,
-  condoSurveyTitulo,
-  condoSurveyDescricao,
-  condoSurveyPergunta,
+  assembleiaTitulo,
+  assembleiaDescricao,
+  pautas,
   votoUrl,
-}: CondoTemplateInput): string {
+}: AssembleiaTemplateInput): string {
   const accent = "#6366f1"
-  const description = condoSurveyDescricao
-    ? `<p style="font-size:15px;color:#6b7280;margin:0 0 28px;line-height:1.6;">${condoSurveyDescricao}</p>`
+  const description = assembleiaDescricao
+    ? `<p style="font-size:15px;color:#6b7280;margin:0 0 20px;line-height:1.6;">${assembleiaDescricao}</p>`
     : ""
+  const pautasList = pautas
+    .map(
+      (p, i) =>
+        `<li style="font-size:14px;color:#374151;padding:4px 0;line-height:1.5;">${i + 1}. ${p.titulo}</li>`
+    )
+    .join("")
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>${condoSurveyTitulo}</title>
+  <title>${assembleiaTitulo}</title>
 </head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
@@ -72,11 +78,16 @@ function buildCondoVotoEmailHtml({
                 Olá, ${proprietarioNome}!
               </h1>
               <p style="font-size:15px;color:#374151;margin:0 0 20px;line-height:1.6;">
-                Você foi convidado(a) a votar na votação
-                <strong>&ldquo;${condoSurveyTitulo}&rdquo;</strong>:
-                <br/>&ldquo;${condoSurveyPergunta}&rdquo;
+                Você foi convidado(a) a participar da assembleia
+                <strong>&ldquo;${assembleiaTitulo}&rdquo;</strong>.
               </p>
               ${description}
+              <p style="font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">
+                Pautas
+              </p>
+              <ul style="margin:0 0 28px;padding-left:0;list-style:none;">
+                ${pautasList}
+              </ul>
               <a href="${votoUrl}"
                  style="display:inline-block;background:${accent};color:#ffffff;font-size:15px;
                         font-weight:600;padding:14px 28px;border-radius:8px;text-decoration:none;
@@ -113,19 +124,19 @@ function buildCondoVotoEmailHtml({
 </html>`
 }
 
-export interface CondoVotoEmailInput {
+export interface AssembleiaEmailInput {
   sendId: string
   to: string
   proprietarioNome: string
-  condoSurveyTitulo: string
-  condoSurveyDescricao: string | null
-  condoSurveyPergunta: string
+  assembleiaTitulo: string
+  assembleiaDescricao: string | null
+  pautas: { titulo: string }[]
   votoUrl: string
 }
 
 // Sends emails in batches of 100 (Resend's batch limit).
-export async function sendCondoVotoEmailBatch(
-  emails: CondoVotoEmailInput[]
+export async function sendAssembleiaEmailBatch(
+  emails: AssembleiaEmailInput[]
 ): Promise<EmailBatchResult> {
   const resend = getResend()
   const from = getFromEmail()
@@ -140,12 +151,12 @@ export async function sendCondoVotoEmailBatch(
       const batch = chunk.map((e) => ({
         from,
         to: e.to,
-        subject: `Votação: ${e.condoSurveyTitulo}`,
-        html: buildCondoVotoEmailHtml({
+        subject: `Assembleia: ${e.assembleiaTitulo}`,
+        html: buildAssembleiaEmailHtml({
           proprietarioNome: e.proprietarioNome,
-          condoSurveyTitulo: e.condoSurveyTitulo,
-          condoSurveyDescricao: e.condoSurveyDescricao,
-          condoSurveyPergunta: e.condoSurveyPergunta,
+          assembleiaTitulo: e.assembleiaTitulo,
+          assembleiaDescricao: e.assembleiaDescricao,
+          pautas: e.pautas,
           votoUrl: e.votoUrl,
         }),
       }))
@@ -159,3 +170,4 @@ export async function sendCondoVotoEmailBatch(
 
   return { sent, failed }
 }
+

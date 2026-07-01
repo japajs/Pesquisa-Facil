@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { CheckCircle2, LockKeyhole } from "lucide-react"
-import { getCondoSendByToken, getVotoBySendId } from "@/services/condo-votos"
-import { updateCondoSurveyStatus } from "@/services/condo-surveys"
+import { getAssembleiaSendByToken, getRespostasBySendId } from "@/services/assembleia-votos"
+import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
-import { CondoVotoForm } from "@/components/condo-voto/condo-voto-form"
+import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { APP_NAME } from "@/lib/constants"
 
 interface Props {
@@ -14,46 +14,46 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params
   try {
-    const send = await getCondoSendByToken(token)
-    return { title: send?.condo_survey?.titulo ?? APP_NAME }
+    const send = await getAssembleiaSendByToken(token)
+    return { title: send?.assembleia?.titulo ?? APP_NAME }
   } catch {
     return { title: APP_NAME }
   }
 }
 
-export default async function PublicCondoVotoPage({ params }: Props) {
+export default async function PublicVotoPage({ params }: Props) {
   const { token } = await params
 
-  // Localiza o registro de envio pelo token — é dele que vem o proprietario_id.
-  // O peso de voto nunca trafega no token, só é calculado na apuração.
   let send
   try {
-    send = await getCondoSendByToken(token)
+    send = await getAssembleiaSendByToken(token)
   } catch {
     notFound()
   }
-  if (!send || !send.condo_survey) notFound()
+  if (!send || !send.assembleia) notFound()
+
+  const assembleia = send.assembleia
+  const pautas = assembleia.pautas ?? []
 
   let alreadyAnswered = false
   try {
-    const existing = await getVotoBySendId(send.id)
-    if (existing) alreadyAnswered = true
+    const respostas = await getRespostasBySendId(send.id)
+    if (respostas.length > 0) alreadyAnswered = true
   } catch {
-    // Treat errors as not answered — let the DB unique constraint handle duplicates
+    // Treat as not answered — DB unique constraint prevents double votes
   }
 
-  const condoSurvey = send.condo_survey
+  let status = assembleia.status
 
-  // Auto-encerra se passou da data de encerramento e a opção está ativa
   if (
-    condoSurvey.status === "aberta" &&
-    condoSurvey.data_encerramento &&
-    new Date(condoSurvey.data_encerramento) < new Date()
+    status === "aberta" &&
+    assembleia.data_encerramento &&
+    new Date(assembleia.data_encerramento) < new Date()
   ) {
     const autoClose = await getConfiguracao("votacao_encerramento_automatico").catch(() => null)
     if (autoClose === "true") {
-      await updateCondoSurveyStatus(condoSurvey.id, "encerrada").catch(() => {})
-      condoSurvey.status = "encerrada"
+      await updateAssembleiaStatus(assembleia.id, "encerrada").catch(() => {})
+      status = "encerrada"
     }
   }
 
@@ -68,25 +68,25 @@ export default async function PublicCondoVotoPage({ params }: Props) {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="mb-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70">
-            Votação de condomínio
+            Assembleia de condomínio
           </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{condoSurvey.titulo}</h1>
-          {condoSurvey.descricao && (
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{assembleia.titulo}</h1>
+          {assembleia.descricao && (
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {condoSurvey.descricao}
+              {assembleia.descricao}
             </p>
           )}
         </div>
 
-        {condoSurvey.status === "encerrada" ? (
+        {status === "encerrada" ? (
           <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 ring-1 ring-border">
               <LockKeyhole className="h-7 w-7 text-muted-foreground" />
             </div>
             <div>
-              <p className="font-medium">Votação encerrada</p>
+              <p className="font-medium">Assembleia encerrada</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Esta votação não está mais aceitando votos.
+                Esta assembleia não está mais aceitando votos.
               </p>
             </div>
           </div>
@@ -96,17 +96,17 @@ export default async function PublicCondoVotoPage({ params }: Props) {
               <CheckCircle2 className="h-7 w-7 text-emerald-400" />
             </div>
             <div>
-              <p className="font-medium">Voto já registrado</p>
+              <p className="font-medium">Votos já registrados</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Você já votou nesta votação. Obrigado!
+                Você já votou nesta assembleia. Obrigado!
               </p>
             </div>
           </div>
         ) : (
-          <CondoVotoForm
-            condoSurveyTitulo={condoSurvey.titulo}
-            pergunta={condoSurvey.pergunta}
+          <AssembleiaVotoForm
             sendId={send.id}
+            pautas={pautas}
+            assembleiaTitulo={assembleia.titulo}
           />
         )}
       </div>

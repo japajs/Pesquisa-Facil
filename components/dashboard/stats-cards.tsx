@@ -1,4 +1,4 @@
-import { Building2, Home, Users, Vote } from "lucide-react"
+import { Building2, ClipboardList, Home, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { CondoDashboardStats } from "@/types"
 
@@ -33,10 +33,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
       bg: "bg-violet-400/10",
     },
     {
-      title: "Votações",
-      value: stats.total_votacoes,
+      title: "Assembleias",
+      value: stats.total_assembleias,
       description: "criadas no total",
-      icon: Vote,
+      icon: ClipboardList,
       color: "text-amber-400",
       bg: "bg-amber-400/10",
     },
@@ -74,7 +74,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
           <div>
             <p className="text-sm font-medium text-muted-foreground">Participação geral</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {stats.total_votos_recebidos} votos recebidos de {stats.total_votos_enviados} enviados
+              {stats.total_votos_recebidos} respondidos de {stats.total_votos_enviados} convites
             </p>
           </div>
           <div className="flex items-end gap-3">
