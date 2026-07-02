@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE } from "./constants"
+import type { SessionUser, UserPerfil } from "@/types"
 
 function getSecret(): Uint8Array {
   const password = process.env.AUTH_PASSWORD
@@ -8,8 +9,13 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(password)
 }
 
-export async function createSession(): Promise<void> {
-  const token = await new SignJWT({ authenticated: true })
+export async function createSession(user: SessionUser): Promise<void> {
+  const token = await new SignJWT({
+    userId: user.userId,
+    email: user.email,
+    nome: user.nome,
+    perfil: user.perfil,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${AUTH_COOKIE_MAX_AGE}s`)
@@ -35,17 +41,26 @@ export async function getSessionToken(): Promise<string | undefined> {
   return cookieStore.get(AUTH_COOKIE_NAME)?.value
 }
 
-export async function verifySessionToken(token: string): Promise<boolean> {
+export async function getSession(): Promise<SessionUser | null> {
+  const token = await getSessionToken()
+  if (!token) return null
   try {
-    await jwtVerify(token, getSecret())
-    return true
+    const { payload } = await jwtVerify(token, getSecret())
+    const { userId, email, nome, perfil } = payload
+    if (
+      typeof userId !== "string" ||
+      typeof email !== "string" ||
+      typeof nome !== "string" ||
+      typeof perfil !== "string"
+    ) {
+      return null
+    }
+    return { userId, email, nome, perfil: perfil as UserPerfil }
   } catch {
-    return false
+    return null
   }
 }
 
 export async function isAuthenticated(): Promise<boolean> {
-  const token = await getSessionToken()
-  if (!token) return false
-  return verifySessionToken(token)
+  return (await getSession()) !== null
 }

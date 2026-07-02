@@ -1,3 +1,23 @@
+// ─── Usuários e sessão ────────────────────────────────────────────────────────
+
+export type UserPerfil = "administrador" | "operador" | "visualizador"
+
+export interface SessionUser {
+  userId: string
+  email: string
+  nome: string
+  perfil: UserPerfil
+}
+
+export interface Usuario {
+  id: string
+  nome: string
+  email: string
+  perfil: UserPerfil
+  ativo: boolean
+  created_at: string
+}
+
 // ─── Send status (compartilhado entre envios) ────────────────────────────────
 
 export type SendStatus = "sent" | "failed" | "pending"

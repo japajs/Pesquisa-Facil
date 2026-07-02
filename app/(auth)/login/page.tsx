@@ -29,7 +29,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Pesquisa Fácil</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Entre com sua senha para acessar o painel
+            Entre com seu e-mail e senha para acessar o painel
           </p>
         </div>
 

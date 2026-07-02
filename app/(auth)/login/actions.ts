@@ -2,64 +2,53 @@
 
 import { z } from "zod"
 import { redirect } from "next/navigation"
+import { compare } from "bcryptjs"
 import { createSession } from "@/lib/auth"
-import { getConfiguracao } from "@/services/configuracoes"
+import { findUsuarioByEmail, hasAnyUsuario } from "@/services/usuarios"
 
 const loginSchema = z.object({
+  email: z.string().email("E-mail inválido"),
   password: z.string().min(1, "Senha obrigatória"),
   from: z.string().optional(),
 })
 
-export type LoginState = {
-  error?: string
-} | null
+export type LoginState = { error?: string } | null
 
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
+  const hasUsers = await hasAnyUsuario()
+  if (!hasUsers) redirect("/setup")
+
   const result = loginSchema.safeParse({
+    email: formData.get("email"),
     password: formData.get("password"),
     from: formData.get("from"),
   })
 
   if (!result.success) {
-    return { error: "Senha inválida" }
+    return { error: result.error.issues[0]?.message ?? "Dados inválidos" }
   }
 
-  const { password, from } = result.data
-  const envPassword = process.env.AUTH_PASSWORD
+  const { email, password, from } = result.data
 
-  if (!envPassword) {
-    return { error: "Servidor mal configurado. Contate o administrador." }
+  // Delay artificial para dificultar enumeração de usuários por tempo de resposta
+  await new Promise((r) => setTimeout(r, 400))
+
+  const user = await findUsuarioByEmail(email)
+  if (!user) {
+    return { error: "E-mail ou senha incorretos." }
   }
 
-  // Senha do banco sobrescreve env var se estiver definida
-  const dbPassword = await getConfiguracao("auth_password").catch(() => null)
-  const expectedPassword =
-    dbPassword && dbPassword.trim() ? dbPassword.trim() : envPassword
-
-  // Constant-time comparison to prevent timing attacks
-  const encoder = new TextEncoder()
-  const a = encoder.encode(password)
-  const b = encoder.encode(expectedPassword)
-
-  let match = a.length === b.length
-  const len = Math.min(a.length, b.length)
-  for (let i = 0; i < len; i++) {
-    if (a[i] !== b[i]) match = false
+  const senhaCorreta = await compare(password, user.senha_hash)
+  if (!senhaCorreta) {
+    return { error: "E-mail ou senha incorretos." }
   }
 
-  if (!match) {
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    return { error: "Senha incorreta. Tente novamente." }
-  }
+  await createSession({
+    userId: user.id,
+    email: user.email,
+    nome: user.nome,
+    perfil: user.perfil,
+  })
 
-  await createSession()
-
-  const destination = from && from.startsWith("/") ? from : "/dashboard"
-  redirect(destination)
-}
-
-export async function logoutAction(): Promise<void> {
-  const { destroySession } = await import("@/lib/auth")
-  await destroySession()
-  redirect("/login")
+  redirect(from && from.startsWith("/") ? from : "/dashboard")
 }
