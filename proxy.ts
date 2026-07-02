@@ -3,7 +3,11 @@ import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
 import { AUTH_COOKIE_NAME } from "@/lib/constants"
 
-const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes"]
+// Rotas que não exigem autenticação
+const PUBLIC_PREFIXES = ["/login", "/setup", "/v/"]
+
+// Rotas que exigem autenticação
+const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes", "/importacao"]
 
 function getSecret(): Uint8Array | null {
   const password = process.env.AUTH_PASSWORD
@@ -15,8 +19,9 @@ async function isValidSession(token: string): Promise<boolean> {
   const secret = getSecret()
   if (!secret) return false
   try {
-    await jwtVerify(token, secret)
-    return true
+    const { payload } = await jwtVerify(token, secret)
+    // JWT precisa ter userId (tokens antigos de senha única serão invalidados)
+    return typeof payload.userId === "string"
   } catch {
     return false
   }
@@ -24,23 +29,32 @@ async function isValidSession(token: string): Promise<boolean> {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  if (!isProtected) return NextResponse.next()
-
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value
+  const isPublic = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
 
-  if (!token || !(await isValidSession(token))) {
-    const loginUrl = new URL("/login", request.url)
-    loginUrl.searchParams.set("from", pathname)
-    const response = NextResponse.redirect(loginUrl)
-    response.cookies.delete(AUTH_COOKIE_NAME)
-    return response
+  // Usuário já autenticado não deve acessar /login ou /setup
+  if (isPublic && token) {
+    const valid = await isValidSession(token)
+    if (valid && (pathname.startsWith("/login") || pathname.startsWith("/setup"))) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+  }
+
+  // Rotas protegidas exigem token válido
+  if (isProtected) {
+    if (!token || !(await isValidSession(token))) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("from", pathname)
+      const response = NextResponse.redirect(loginUrl)
+      response.cookies.delete(AUTH_COOKIE_NAME)
+      return response
+    }
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|s/|v/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
 }
