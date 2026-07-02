@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { compare } from "bcryptjs"
 import { createSession } from "@/lib/auth"
 import { findUsuarioByEmail, hasAnyUsuario } from "@/services/usuarios"
+import { logAudit } from "@/services/auditoria"
 
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -43,11 +44,15 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     return { error: "E-mail ou senha incorretos." }
   }
 
-  await createSession({
-    userId: user.id,
-    email: user.email,
-    nome: user.nome,
-    perfil: user.perfil,
+  const sessionUser = { userId: user.id, email: user.email, nome: user.nome, perfil: user.perfil }
+
+  await createSession(sessionUser)
+
+  await logAudit({
+    session: sessionUser,
+    acao: "login",
+    modulo: "auth",
+    descricao: "Login realizado",
   })
 
   redirect(from && from.startsWith("/") ? from : "/dashboard")

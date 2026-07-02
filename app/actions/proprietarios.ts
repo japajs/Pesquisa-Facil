@@ -6,6 +6,8 @@ import {
   deleteProprietario,
 } from "@/services/proprietarios"
 import { createUnidade, deleteUnidade } from "@/services/unidades"
+import { getSession } from "@/lib/auth"
+import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
 
 export async function createProprietarioAction(input: {
@@ -37,6 +39,16 @@ export async function createProprietarioAction(input: {
     )
 
     revalidatePath(`${ROUTES.condominios}/${input.condominio_id}`)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "criar",
+      modulo: "proprietarios",
+      descricao: `Proprietário criado: ${input.nome.trim()} (${input.unidades.length} unidade${input.unidades.length !== 1 ? "s" : ""})`,
+      entidade: "proprietario",
+      entidadeId: proprietario.id,
+      condominioId: input.condominio_id,
+    })
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao criar proprietário."
@@ -54,6 +66,16 @@ export async function deleteProprietarioAction(
   try {
     await deleteProprietario(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "excluir",
+      modulo: "proprietarios",
+      descricao: "Proprietário excluído",
+      entidade: "proprietario",
+      entidadeId: id,
+      condominioId,
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao excluir proprietário." }
@@ -67,8 +89,18 @@ export async function addUnidadeAction(
 ): Promise<{ success: boolean; error?: string }> {
   if (!numero.trim()) return { success: false, error: "Número da unidade obrigatório." }
   try {
-    await createUnidade({ proprietario_id: proprietarioId, numero: numero.trim(), bloco: null })
+    const unidade = await createUnidade({ proprietario_id: proprietarioId, numero: numero.trim(), bloco: null })
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "criar",
+      modulo: "unidades",
+      descricao: `Unidade adicionada: ${numero.trim()}`,
+      entidade: "unidade",
+      entidadeId: unidade.id,
+      condominioId,
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao adicionar unidade." }
@@ -82,6 +114,16 @@ export async function removeUnidadeAction(
   try {
     await deleteUnidade(unidadeId)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "excluir",
+      modulo: "unidades",
+      descricao: "Unidade removida",
+      entidade: "unidade",
+      entidadeId: unidadeId,
+      condominioId,
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao remover unidade." }

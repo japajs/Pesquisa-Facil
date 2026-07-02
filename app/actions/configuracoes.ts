@@ -2,8 +2,13 @@
 
 import { revalidatePath } from "next/cache"
 import { Resend } from "resend"
+import { compare, hash } from "bcryptjs"
 import { APP_NAME, ROUTES } from "@/lib/constants"
 import { getConfiguracao, setConfiguracao } from "@/services/configuracoes"
+import { getSession } from "@/lib/auth"
+import { logAudit } from "@/services/auditoria"
+import { findUsuarioByEmail } from "@/services/usuarios"
+import { updateUsuarioSenha } from "@/services/usuarios"
 
 // ─── Conta ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +19,13 @@ export async function updateAdminNomeAction(
   try {
     await setConfiguracao("admin_nome", nome.trim())
     revalidatePath(ROUTES.configuracoes)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "editar",
+      modulo: "configuracoes",
+      descricao: "Nome do administrador atualizado",
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -28,6 +40,13 @@ export async function updateAdminEmailAction(
   try {
     await setConfiguracao("admin_email", email.trim())
     revalidatePath(ROUTES.configuracoes)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "editar",
+      modulo: "configuracoes",
+      descricao: "E-mail do administrador atualizado",
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -41,24 +60,19 @@ export async function updateSenhaAction(
   if (!novaSenha || novaSenha.length < 8)
     return { success: false, error: "Nova senha deve ter pelo menos 8 caracteres." }
 
-  // Verifica senha atual contra DB (se existir) ou env var
-  const dbPassword = await getConfiguracao("auth_password")
-  const senhaEfetiva =
-    dbPassword && dbPassword.trim() ? dbPassword.trim() : process.env.AUTH_PASSWORD ?? ""
+  const session = await getSession()
+  if (!session) return { success: false, error: "Não autenticado." }
 
-  const encoder = new TextEncoder()
-  const a = encoder.encode(senhaAtual)
-  const b = encoder.encode(senhaEfetiva)
-  let match = a.length === b.length
-  const len = Math.min(a.length, b.length)
-  for (let i = 0; i < len; i++) {
-    if (a[i] !== b[i]) match = false
-  }
+  const user = await findUsuarioByEmail(session.email)
+  if (!user) return { success: false, error: "Usuário não encontrado." }
 
-  if (!match) return { success: false, error: "Senha atual incorreta." }
+  const correta = await compare(senhaAtual, user.senha_hash)
+  if (!correta) return { success: false, error: "Senha atual incorreta." }
 
   try {
-    await setConfiguracao("auth_password", novaSenha)
+    const novaSenhaHash = await hash(novaSenha, 12)
+    await updateUsuarioSenha(user.id, novaSenhaHash)
+    await logAudit({ session, acao: "editar", modulo: "auth", descricao: "Senha alterada" })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -74,6 +88,13 @@ export async function updateEmailNomeRemetenteAction(
   try {
     await setConfiguracao("email_nome_remetente", nome.trim())
     revalidatePath(ROUTES.configuracoes)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "editar",
+      modulo: "configuracoes",
+      descricao: "Nome do remetente de e-mail atualizado",
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -127,6 +148,13 @@ export async function updateVotacaoDefaultsAction(defaults: {
       ),
     ])
     revalidatePath(ROUTES.configuracoes)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "editar",
+      modulo: "configuracoes",
+      descricao: "Configurações de votação atualizadas",
+    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }

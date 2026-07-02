@@ -9,6 +9,8 @@ import { CriarProprietarioDialog } from "@/components/proprietarios/criar-propri
 import { ProprietariosList } from "@/components/proprietarios/proprietarios-list"
 import { CriarAssembleiaDialog } from "@/components/assembleias/criar-assembleia-dialog"
 import { AssembleiasList } from "@/components/assembleias/assembleias-list"
+import { CondominioInfoCard } from "@/components/condominios/condominio-info-card"
+import { ExportarProprietariosButton } from "@/components/condominios/exportar-proprietarios-button"
 import { ROUTES } from "@/lib/constants"
 
 interface Props {
@@ -37,7 +39,7 @@ export default async function CondominioDetailPage({ params }: Props) {
   ])
 
   return (
-    <div className="flex flex-col gap-8 p-6 pt-8">
+    <div className="flex flex-col gap-6 p-6 pt-8">
       {/* Back */}
       <Link
         href={ROUTES.condominios}
@@ -52,6 +54,9 @@ export default async function CondominioDetailPage({ params }: Props) {
         <h1 className="text-2xl font-semibold tracking-tight">{condominio.nome}</h1>
       </div>
 
+      {/* Informações do condomínio */}
+      <CondominioInfoCard condominio={condominio} />
+
       {/* Proprietários */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -63,7 +68,12 @@ export default async function CondominioDetailPage({ params }: Props) {
               é calculado pelo número de unidades vinculadas
             </p>
           </div>
-          <CriarProprietarioDialog condominioId={id} />
+          <div className="flex items-center gap-2">
+            {proprietarios.length > 0 && (
+              <ExportarProprietariosButton condominioId={id} condominioNome={condominio.nome} />
+            )}
+            <CriarProprietarioDialog condominioId={id} />
+          </div>
         </div>
         <ProprietariosList proprietarios={proprietarios} condominioId={id} />
       </section>

@@ -1,5 +1,5 @@
-export const APP_NAME = "Sistema de Votação"
-export const APP_VERSION = "1.0.0"
+export const APP_NAME = "CondoAssembleia"
+export const APP_VERSION = "1.0"
 
 export const ROUTES = {
   login: "/login",
@@ -7,6 +7,7 @@ export const ROUTES = {
   condominios: "/condominios",
   configuracoes: "/configuracoes",
   importacao: "/importacao",
+  auditoria: "/auditoria",
   publicCondoVoto: (token: string) => `/v/${token}`,
   condominioAssembleia: (condominioId: string, assembleiaId: string) =>
     `/condominios/${condominioId}/assembleias/${assembleiaId}`,

@@ -25,7 +25,7 @@ const DEFAULTS: Configuracoes = {
   admin_nome: "Administrador",
   admin_email: "admin@exemplo.com",
   auth_password: "",
-  email_nome_remetente: "Sistema de Votação",
+  email_nome_remetente: "CondoAssembleia",
   votacao_resposta_unica: true,
   votacao_ponderada: true,
   votacao_permite_abstencao: true,

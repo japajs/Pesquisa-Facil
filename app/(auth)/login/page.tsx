@@ -27,9 +27,9 @@ export default function LoginPage() {
               <path d="m9 12 2 2 4-4" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Pesquisa Fácil</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">CondoAssembleia</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Entre com seu e-mail e senha para acessar o painel
+            Sistema de Assembleias Eletrônicas para Condomínios
           </p>
         </div>
 
@@ -38,7 +38,7 @@ export default function LoginPage() {
         </Suspense>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Acesso restrito a administradores
+          Acesso restrito — CondoAssembleia
         </p>
       </div>
     </div>

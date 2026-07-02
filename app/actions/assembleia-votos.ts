@@ -10,6 +10,8 @@ import {
 } from "@/services/assembleia-votos"
 import { sendAssembleiaEmailBatch } from "@/services/email"
 import { generateSurveyToken } from "@/lib/tokens"
+import { getSession } from "@/lib/auth"
+import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
 import type { AssembleiaRespostaValor } from "@/types"
 
@@ -91,6 +93,17 @@ export async function enviarAssembleiaAction(
   ])
 
   revalidatePath(ROUTES.dashboard)
+
+  const session = await getSession()
+  await logAudit({
+    session,
+    acao: "enviar_email",
+    modulo: "assembleias",
+    descricao: `Assembleia "${assembleia.titulo}" enviada para ${sentIds.length} proprietário${sentIds.length !== 1 ? "s" : ""} (${failedEmailIds.length + failedIds.length} falha${failedEmailIds.length + failedIds.length !== 1 ? "s" : ""})`,
+    entidade: "assembleia",
+    entidadeId: assembleiaId,
+    condominioId: assembleia.condominio_id,
+  })
 
   return {
     sent: sentIds.length,

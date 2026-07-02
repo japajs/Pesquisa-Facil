@@ -81,7 +81,7 @@ export function EmailSection({ fromEmail, nomeRemetente, apiKeyConfigured }: Ema
             <Input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Sistema de Votação"
+              placeholder="CondoAssembleia"
               className="max-w-sm"
             />
             <Button

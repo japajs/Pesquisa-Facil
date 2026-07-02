@@ -3,6 +3,38 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          id: string
+          usuario_id: string | null
+          usuario_nome: string
+          usuario_email: string
+          acao: string
+          modulo: string
+          descricao: string
+          entidade: string | null
+          entidade_id: string | null
+          condominio_id: string | null
+          condominio_nome: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          usuario_id?: string | null
+          usuario_nome?: string
+          usuario_email?: string
+          acao: string
+          modulo: string
+          descricao: string
+          entidade?: string | null
+          entidade_id?: string | null
+          condominio_id?: string | null
+          condominio_nome?: string | null
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
       usuarios: {
         Row: {
           id: string
@@ -52,15 +84,24 @@ export type Database = {
         Row: {
           id: string
           nome: string
+          endereco: string | null
+          sindico_nome: string | null
+          sindico_contato: string | null
           created_at: string
         }
         Insert: {
           id?: string
           nome: string
+          endereco?: string | null
+          sindico_nome?: string | null
+          sindico_contato?: string | null
           created_at?: string
         }
         Update: {
           nome?: string
+          endereco?: string | null
+          sindico_nome?: string | null
+          sindico_contato?: string | null
         }
         Relationships: []
       }

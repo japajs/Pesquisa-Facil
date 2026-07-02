@@ -6,10 +6,11 @@ import {
   BarChart3,
   Building2,
   FileSpreadsheet,
+  Gavel,
   LogOut,
   Settings,
+  Shield,
   UserCircle,
-  Vote,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/app/actions/auth"
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/dashboard",     label: "Dashboard",    icon: BarChart3        },
   { href: "/condominios",   label: "Condomínios",  icon: Building2        },
   { href: "/importacao",    label: "Importação",   icon: FileSpreadsheet  },
+  { href: "/auditoria",     label: "Auditoria",    icon: Shield           },
   { href: "/configuracoes", label: "Configurações", icon: Settings        },
 ] as const
 
@@ -47,7 +49,7 @@ export function Sidebar({ user }: Props) {
       {/* Brand */}
       <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-          <Vote className="h-4 w-4 text-primary" />
+          <Gavel className="h-4 w-4 text-primary" />
         </div>
         <span className="text-sm font-semibold tracking-tight text-foreground">{APP_NAME}</span>
       </div>

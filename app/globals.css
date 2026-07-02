@@ -130,3 +130,18 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  aside,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .rounded-xl {
+    border-radius: 8px;
+  }
+}

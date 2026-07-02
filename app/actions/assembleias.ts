@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { createAssembleia, deleteAssembleia, updateAssembleiaStatus } from "@/services/assembleias"
 import { createPautasBatch } from "@/services/pautas"
+import { getSession } from "@/lib/auth"
+import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
 import type { AssembleiaStatus } from "@/types"
 
@@ -39,6 +41,16 @@ export async function createAssembleiaAction(input: {
     )
 
     revalidatePath(`${ROUTES.condominios}/${input.condominio_id}`)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "criar",
+      modulo: "assembleias",
+      descricao: `Assembleia criada: ${input.titulo.trim()} (${input.pautas.length} pauta${input.pautas.length > 1 ? "s" : ""})`,
+      entidade: "assembleia",
+      entidadeId: assembleia.id,
+      condominioId: input.condominio_id,
+    })
     return { success: true }
   } catch (err) {
     return {
@@ -55,6 +67,16 @@ export async function deleteAssembleiaAction(
   try {
     await deleteAssembleia(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    const session = await getSession()
+    await logAudit({
+      session,
+      acao: "excluir",
+      modulo: "assembleias",
+      descricao: "Assembleia excluída",
+      entidade: "assembleia",
+      entidadeId: id,
+      condominioId,
+    })
     return { success: true }
   } catch (err) {
     return {
@@ -72,6 +94,21 @@ export async function updateAssembleiaStatusAction(
   try {
     await updateAssembleiaStatus(id, status)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    const session = await getSession()
+    const acaoMap: Record<AssembleiaStatus, "criar" | "encerrar" | "reabrir"> = {
+      rascunho: "reabrir",
+      aberta: "reabrir",
+      encerrada: "encerrar",
+    }
+    await logAudit({
+      session,
+      acao: acaoMap[status],
+      modulo: "assembleias",
+      descricao: `Status da assembleia alterado para "${status}"`,
+      entidade: "assembleia",
+      entidadeId: id,
+      condominioId,
+    })
     return { success: true }
   } catch (err) {
     return {

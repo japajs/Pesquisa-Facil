@@ -1,3 +1,8 @@
+"use client"
+
+import { Printer } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { DonutChart } from "@/components/ui/donut-chart"
 import type { Assembleia, AssembleiaApuracao, PautaApuracao } from "@/types"
 
 interface Props {
@@ -40,6 +45,12 @@ export function ApuracaoAssembleia({ assembleia, apuracao }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Cabeçalho de impressão — visível apenas no print */}
+      <div className="hidden print:flex items-center justify-between border-b border-gray-300 pb-4 mb-2">
+        <span className="text-lg font-bold text-gray-900">CondoAssembleia</span>
+        <span className="text-xs text-gray-500">Sistema de Assembleias Eletrônicas para Condomínios</span>
+      </div>
+
       {/* Cabeçalho da assembleia */}
       <div className="space-y-3 rounded-xl border border-border/60 bg-card p-5">
         <div className="flex items-start justify-between gap-3">
@@ -52,11 +63,22 @@ export function ApuracaoAssembleia({ assembleia, apuracao }: Props) {
               {(assembleia.pautas?.length ?? 0) === 1 ? "pauta" : "pautas"}
             </p>
           </div>
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[assembleia.status] ?? STATUS_CLASS.rascunho}`}
-          >
-            {STATUS_LABEL[assembleia.status] ?? assembleia.status}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[assembleia.status] ?? STATUS_CLASS.rascunho}`}
+            >
+              {STATUS_LABEL[assembleia.status] ?? assembleia.status}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              className="gap-1.5 print:hidden"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Imprimir / PDF
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-6 border-t border-border/40 pt-3 text-xs text-muted-foreground">
@@ -110,6 +132,34 @@ function PautaApuracaoSection({ index, item }: { index: number; item: PautaApura
   const pctP = (n: number) => (totalP > 0 ? Math.round((n / totalP) * 100) : 0)
   const pctW = (n: number) => (totalW > 0 ? Math.round((n / totalW) * 100) : 0)
 
+  const segmentsP = [
+    { value: por_participantes.sim, color: "#22c55e" },
+    { value: por_participantes.nao, color: "#ef4444" },
+    { value: por_participantes.abstencao, color: "#f59e0b" },
+  ]
+  const segmentsW = [
+    { value: ponderado.sim, color: "#22c55e" },
+    { value: ponderado.nao, color: "#ef4444" },
+    { value: ponderado.abstencao, color: "#f59e0b" },
+  ]
+
+  const vencedorP =
+    totalP > 0
+      ? por_participantes.sim > por_participantes.nao
+        ? "SIM"
+        : por_participantes.nao > por_participantes.sim
+          ? "NÃO"
+          : "EMPATE"
+      : null
+  const vencedorW =
+    totalW > 0
+      ? ponderado.sim > ponderado.nao
+        ? "SIM"
+        : ponderado.nao > ponderado.sim
+          ? "NÃO"
+          : "EMPATE"
+      : null
+
   return (
     <div className="space-y-3">
       {/* Título da pauta */}
@@ -126,44 +176,42 @@ function PautaApuracaoSection({ index, item }: { index: number; item: PautaApura
 
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Por participantes */}
-        <div className="space-y-4 rounded-xl border border-border/60 bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <div className="rounded-xl border border-border/60 bg-card p-5">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Por participantes
           </p>
-          <ResultBar
-            sim={por_participantes.sim}
-            nao={por_participantes.nao}
-            abstencao={por_participantes.abstencao}
-            pctSim={pctP(por_participantes.sim)}
-            pctNao={pctP(por_participantes.nao)}
-            pctAbstencao={pctP(por_participantes.abstencao)}
-            unit="pessoa"
-            unitPlural="pessoas"
-          />
+          <div className="flex items-center gap-5">
+            <DonutChart
+              segments={segmentsP}
+              centerLabel={vencedorP ?? "—"}
+              centerSub={totalP > 0 ? `${totalP} votos` : "sem votos"}
+            />
+            <div className="flex-1 space-y-3">
+              <Bar label="SIM" count={por_participantes.sim} pct={pctP(por_participantes.sim)} colorBar="bg-emerald-500" colorText="text-emerald-500" unit="pessoa" unitPlural="pessoas" />
+              <Bar label="NÃO" count={por_participantes.nao} pct={pctP(por_participantes.nao)} colorBar="bg-rose-500" colorText="text-rose-500" unit="pessoa" unitPlural="pessoas" />
+              <Bar label="ABST." count={por_participantes.abstencao} pct={pctP(por_participantes.abstencao)} colorBar="bg-amber-500" colorText="text-amber-500" unit="pessoa" unitPlural="pessoas" />
+            </div>
+          </div>
         </div>
 
         {/* Ponderado */}
-        <div className="space-y-4 rounded-xl border border-border/60 bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <div className="rounded-xl border border-border/60 bg-card p-5">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Resultado ponderado
           </p>
-          <ResultBar
-            sim={ponderado.sim}
-            nao={ponderado.nao}
-            abstencao={ponderado.abstencao}
-            pctSim={pctW(ponderado.sim)}
-            pctNao={pctW(ponderado.nao)}
-            pctAbstencao={pctW(ponderado.abstencao)}
-            unit="apartamento"
-            unitPlural="apartamentos"
-          />
+          <div className="flex items-center gap-5">
+            <DonutChart
+              segments={segmentsW}
+              centerLabel={vencedorW ?? "—"}
+              centerSub={`${total_apartamentos_representados} apts`}
+            />
+            <div className="flex-1 space-y-3">
+              <Bar label="SIM" count={ponderado.sim} pct={pctW(ponderado.sim)} colorBar="bg-emerald-500" colorText="text-emerald-500" unit="apt" unitPlural="apts" />
+              <Bar label="NÃO" count={ponderado.nao} pct={pctW(ponderado.nao)} colorBar="bg-rose-500" colorText="text-rose-500" unit="apt" unitPlural="apts" />
+              <Bar label="ABST." count={ponderado.abstencao} pct={pctW(ponderado.abstencao)} colorBar="bg-amber-500" colorText="text-amber-500" unit="apt" unitPlural="apts" />
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Total de apartamentos */}
-      <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-5 py-3.5">
-        <p className="text-sm text-muted-foreground">Apartamentos representados</p>
-        <p className="text-lg font-semibold tabular-nums">{total_apartamentos_representados}</p>
       </div>
     </div>
   )
@@ -201,22 +249,6 @@ function Bar({
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
-  )
-}
-
-function ResultBar({
-  sim, nao, abstencao, pctSim, pctNao, pctAbstencao, unit, unitPlural,
-}: {
-  sim: number; nao: number; abstencao: number
-  pctSim: number; pctNao: number; pctAbstencao: number
-  unit: string; unitPlural: string
-}) {
-  return (
-    <div className="space-y-3">
-      <Bar label="SIM" count={sim} pct={pctSim} colorBar="bg-emerald-500" colorText="text-emerald-500" unit={unit} unitPlural={unitPlural} />
-      <Bar label="NÃO" count={nao} pct={pctNao} colorBar="bg-rose-500" colorText="text-rose-500" unit={unit} unitPlural={unitPlural} />
-      <Bar label="ABSTENÇÃO" count={abstencao} pct={pctAbstencao} colorBar="bg-amber-500" colorText="text-amber-500" unit={unit} unitPlural={unitPlural} />
     </div>
   )
 }

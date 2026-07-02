@@ -1,8 +1,24 @@
 import { createServerClient } from "@/lib/supabase/server"
 import type { Condominio } from "@/types"
 
-function rowToCondominio(row: { id: string; nome: string; created_at: string }): Condominio {
-  return { id: row.id, nome: row.nome, created_at: row.created_at }
+type DbRow = {
+  id: string
+  nome: string
+  endereco: string | null
+  sindico_nome: string | null
+  sindico_contato: string | null
+  created_at: string
+}
+
+function rowToCondominio(row: DbRow): Condominio {
+  return {
+    id: row.id,
+    nome: row.nome,
+    endereco: row.endereco,
+    sindico_nome: row.sindico_nome,
+    sindico_contato: row.sindico_contato,
+    created_at: row.created_at,
+  }
 }
 
 export async function getAllCondominios(): Promise<Condominio[]> {
@@ -13,7 +29,7 @@ export async function getAllCondominios(): Promise<Condominio[]> {
     .order("nome", { ascending: true })
 
   if (error) throw new Error(error.message)
-  return (data ?? []).map(rowToCondominio)
+  return (data ?? []).map((r) => rowToCondominio(r as DbRow))
 }
 
 export async function getCondominioById(id: string): Promise<Condominio | null> {
@@ -24,7 +40,7 @@ export async function getCondominioById(id: string): Promise<Condominio | null> 
     if (error.code === "PGRST116") return null
     throw new Error(error.message)
   }
-  return rowToCondominio(data)
+  return rowToCondominio(data as DbRow)
 }
 
 export async function createCondominio(input: Pick<Condominio, "nome">): Promise<Condominio> {
@@ -36,7 +52,7 @@ export async function createCondominio(input: Pick<Condominio, "nome">): Promise
     .single()
 
   if (error) throw new Error(error.message)
-  return rowToCondominio(data)
+  return rowToCondominio(data as DbRow)
 }
 
 export async function updateCondominio(
@@ -52,7 +68,27 @@ export async function updateCondominio(
     .single()
 
   if (error) throw new Error(error.message)
-  return rowToCondominio(data)
+  return rowToCondominio(data as DbRow)
+}
+
+export async function updateCondominioInfo(
+  id: string,
+  input: {
+    endereco?: string | null
+    sindico_nome?: string | null
+    sindico_contato?: string | null
+  }
+): Promise<Condominio> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("condominios")
+    .update(input)
+    .eq("id", id)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return rowToCondominio(data as DbRow)
 }
 
 export async function deleteCondominio(id: string): Promise<void> {

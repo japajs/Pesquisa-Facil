@@ -1,5 +1,6 @@
 import { Building2, ClipboardList, Home, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DonutChart } from "@/components/ui/donut-chart"
 import type { CondoDashboardStats } from "@/types"
 
 interface StatsCardsProps {
@@ -42,6 +43,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
     },
   ]
 
+  const respondidos = stats.total_votos_recebidos
+  const naoRespondidos = Math.max(0, stats.total_votos_enviados - stats.total_votos_recebidos)
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -70,22 +74,46 @@ export function StatsCards({ stats }: StatsCardsProps) {
 
       {/* Participação geral */}
       <Card className="border-border/60 bg-card">
-        <CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Participação geral</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {stats.total_votos_recebidos} respondidos de {stats.total_votos_enviados} convites
-            </p>
+        <CardContent className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:gap-8">
+          <div className="flex items-center gap-5">
+            <DonutChart
+              segments={[
+                { value: respondidos, color: "#22c55e" },
+                { value: naoRespondidos, color: "#e5e7eb" },
+              ]}
+              size={80}
+              thickness={10}
+              centerLabel={`${stats.participacao_geral}%`}
+            />
+            <div>
+              <p className="text-sm font-medium text-foreground">Participação geral</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {respondidos.toLocaleString("pt-BR")} respondidos de{" "}
+                {stats.total_votos_enviados.toLocaleString("pt-BR")} convites
+              </p>
+            </div>
           </div>
-          <div className="flex items-end gap-3">
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {stats.participacao_geral}%
-            </span>
-            <div className="mb-1 h-2 w-32 overflow-hidden rounded-full bg-muted">
+
+          <div className="flex-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span>Respondidos</span>
+              <span className="font-medium text-foreground">{stats.participacao_geral}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-primary transition-all"
+                className="h-full rounded-full bg-emerald-500 transition-all"
                 style={{ width: `${stats.participacao_geral}%` }}
               />
+            </div>
+            <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {respondidos} respondidos
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                {naoRespondidos} pendentes
+              </span>
             </div>
           </div>
         </CardContent>

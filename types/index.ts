@@ -18,6 +18,45 @@ export interface Usuario {
   created_at: string
 }
 
+// ─── Auditoria ────────────────────────────────────────────────────────────────
+
+export type AcaoAuditoria =
+  | "login"
+  | "logout"
+  | "criar"
+  | "editar"
+  | "excluir"
+  | "importar"
+  | "exportar"
+  | "enviar_email"
+  | "encerrar"
+  | "reabrir"
+
+export type ModuloAuditoria =
+  | "auth"
+  | "condominios"
+  | "proprietarios"
+  | "unidades"
+  | "assembleias"
+  | "pautas"
+  | "importacao"
+  | "configuracoes"
+
+export interface AuditLog {
+  id: string
+  usuario_id: string | null
+  usuario_nome: string
+  usuario_email: string
+  acao: AcaoAuditoria
+  modulo: ModuloAuditoria
+  descricao: string
+  entidade: string | null
+  entidade_id: string | null
+  condominio_id: string | null
+  condominio_nome: string | null
+  created_at: string
+}
+
 // ─── Send status (compartilhado entre envios) ────────────────────────────────
 
 export type SendStatus = "sent" | "failed" | "pending"
@@ -56,6 +95,9 @@ export interface ApiResponse<T = unknown> {
 export interface Condominio {
   id: string
   nome: string
+  endereco: string | null
+  sindico_nome: string | null
+  sindico_contato: string | null
   created_at: string
 }
 

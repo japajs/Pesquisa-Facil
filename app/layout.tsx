@@ -19,10 +19,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Sistema de Votação",
-    template: "%s | Sistema de Votação",
+    default: "CondoAssembleia",
+    template: "%s | CondoAssembleia",
   },
-  description: "Sistema de votação eletrônica para condomínios",
+  description: "Sistema de Assembleias Eletrônicas para Condomínios.",
+  openGraph: {
+    title: "CondoAssembleia",
+    description: "Sistema de Assembleias Eletrônicas para Condomínios.",
+    type: "website",
+  },
 }
 
 export default function RootLayout({

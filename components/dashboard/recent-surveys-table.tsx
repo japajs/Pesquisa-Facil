@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import { ROUTES } from "@/lib/constants"
 import type { AssembleiaRecente } from "@/types"
 
@@ -23,6 +24,24 @@ function formatDate(dateString: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(dateString))
+}
+
+function ParticipacaoBar({ respondidos, enviados }: { respondidos: number; enviados: number }) {
+  const pct = enviados > 0 ? Math.round((respondidos / enviados) * 100) : 0
+  const color =
+    pct >= 75 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-rose-500"
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-sm font-medium tabular-nums">
+        {respondidos}/{enviados}
+      </span>
+      <span className="text-xs text-muted-foreground">({pct}%)</span>
+    </div>
+  )
 }
 
 export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
@@ -56,44 +75,38 @@ export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
               <TableRow className="border-border/60 hover:bg-transparent">
                 <TableHead className="pl-6 text-xs">Assembleia</TableHead>
                 <TableHead className="text-xs">Condomínio</TableHead>
-                <TableHead className="text-right text-xs">Participação</TableHead>
+                <TableHead className="text-xs">Participação</TableHead>
                 <TableHead className="pr-6 text-right text-xs">Criada em</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assembleias.map((a) => {
-                const pct =
-                  a.total_enviados > 0
-                    ? Math.round((a.total_respondidos / a.total_enviados) * 100)
-                    : 0
-                return (
-                  <TableRow
-                    key={a.id}
-                    className="border-border/60 transition-colors hover:bg-accent/30"
-                  >
-                    <TableCell className="pl-6">
-                      <Link
-                        href={ROUTES.condominioAssembleia(a.condominio_id, a.id)}
-                        className="font-medium text-foreground hover:text-primary hover:underline"
-                      >
-                        {a.titulo}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {a.condominio_nome}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-sm font-medium tabular-nums">
-                        {a.total_respondidos}/{a.total_enviados}
-                      </span>
-                      <span className="ml-1 text-xs text-muted-foreground">({pct}%)</span>
-                    </TableCell>
-                    <TableCell className="pr-6 text-right text-xs text-muted-foreground">
-                      {formatDate(a.created_at)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {assembleias.map((a) => (
+                <TableRow
+                  key={a.id}
+                  className="border-border/60 transition-colors hover:bg-accent/30"
+                >
+                  <TableCell className="pl-6">
+                    <Link
+                      href={ROUTES.condominioAssembleia(a.condominio_id, a.id)}
+                      className="font-medium text-foreground hover:text-primary hover:underline"
+                    >
+                      {a.titulo}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {a.condominio_nome}
+                  </TableCell>
+                  <TableCell>
+                    <ParticipacaoBar
+                      respondidos={a.total_respondidos}
+                      enviados={a.total_enviados}
+                    />
+                  </TableCell>
+                  <TableCell className="pr-6 text-right text-xs text-muted-foreground">
+                    {formatDate(a.created_at)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
