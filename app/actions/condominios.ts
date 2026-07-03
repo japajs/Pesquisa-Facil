@@ -66,6 +66,7 @@ export async function deleteCondominioAction(
   try {
     await deleteCondominio(id)
     revalidatePath(ROUTES.condominios)
+    revalidatePath(`${ROUTES.condominios}/${id}`)
     const session = await getSession()
     await logAudit({
       session,

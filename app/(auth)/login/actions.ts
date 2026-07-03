@@ -3,9 +3,11 @@
 import { z } from "zod"
 import { redirect } from "next/navigation"
 import { compare } from "bcryptjs"
+import { headers } from "next/headers"
 import { createSession } from "@/lib/auth"
 import { findUsuarioByEmail, hasAnyUsuario } from "@/services/usuarios"
 import { logAudit } from "@/services/auditoria"
+import { checkRateLimit } from "@/lib/rate-limit"
 
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -16,6 +18,11 @@ const loginSchema = z.object({
 export type LoginState = { error?: string } | null
 
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  if (!checkRateLimit(`login:${ip}`)) {
+    return { error: "Muitas tentativas. Aguarde um momento e tente novamente." }
+  }
+
   const hasUsers = await hasAnyUsuario()
   if (!hasUsers) redirect("/setup")
 

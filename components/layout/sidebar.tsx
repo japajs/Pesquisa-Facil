@@ -12,6 +12,7 @@ import {
   Settings,
   Shield,
   UserCircle,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/app/actions/auth"
@@ -41,9 +42,10 @@ const PERFIL_COLORS: Record<UserPerfil, string> = {
 
 interface Props {
   user: SessionUser
+  onClose?: () => void
 }
 
-export function Sidebar({ user }: Props) {
+export function Sidebar({ user, onClose }: Props) {
   const pathname = usePathname()
 
   return (
@@ -54,6 +56,15 @@ export function Sidebar({ user }: Props) {
           <Gavel className="h-4 w-4 text-primary" />
         </div>
         <span className="text-sm font-semibold tracking-tight text-foreground">{APP_NAME}</span>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
+            aria-label="Fechar menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

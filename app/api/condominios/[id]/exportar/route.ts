@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
-import { isAuthenticated } from "@/lib/auth"
+import { getSession } from "@/lib/auth"
 import { getCondominioById } from "@/services/condominios"
 import { getAllProprietarios } from "@/services/proprietarios"
 
@@ -8,8 +8,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await isAuthenticated()
-  if (!auth) return new NextResponse("Unauthorized", { status: 401 })
+  const session = await getSession()
+  if (!session) return new NextResponse("Unauthorized", { status: 401 })
+  if (session.perfil === "visualizador") return new NextResponse("Forbidden", { status: 403 })
 
   const { id } = await params
 

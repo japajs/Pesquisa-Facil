@@ -5,6 +5,17 @@ import Link from "next/link"
 import { ClipboardList, BarChart3, Trash2, LockKeyhole, Unlock } from "lucide-react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { DispararAssembleiaDialog } from "./disparar-assembleia-dialog"
 import { deleteAssembleiaAction, updateAssembleiaStatusAction } from "@/app/actions/assembleias"
@@ -66,12 +77,6 @@ function AssembleiaRow({
   const pautaCount = assembleia.pautas?.length ?? 0
 
   function handleDelete() {
-    if (
-      !confirm(
-        `Excluir "${assembleia.titulo}"? As pautas e votos registrados também serão removidos.`
-      )
-    )
-      return
     startTransition(async () => {
       const result = await deleteAssembleiaAction(assembleia.id, condominioId)
       if (!result.success) toast.error(result.error)
@@ -139,7 +144,9 @@ function AssembleiaRow({
           </Button>
         )}
 
-        <DispararAssembleiaDialog assembleia={assembleia} proprietarios={proprietarios} />
+        {assembleia.status !== "encerrada" && (
+          <DispararAssembleiaDialog assembleia={assembleia} proprietarios={proprietarios} />
+        )}
 
         <Link
           href={ROUTES.condominioAssembleia(condominioId, assembleia.id)}
@@ -152,16 +159,37 @@ function AssembleiaRow({
           <span className="sr-only">Ver apuração</span>
         </Link>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleDelete}
-          disabled={isPending}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          <span className="sr-only">Excluir assembleia</span>
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="sr-only">Excluir assembleia</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir assembleia?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong>"{assembleia.titulo}"</strong> e todos os votos registrados serão removidos
+                permanentemente. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )
