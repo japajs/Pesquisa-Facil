@@ -1,6 +1,6 @@
 "use client"
 
-import { Printer } from "lucide-react"
+import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
 import type { Assembleia, AssembleiaApuracao, PautaApuracao } from "@/types"
@@ -8,6 +8,7 @@ import type { Assembleia, AssembleiaApuracao, PautaApuracao } from "@/types"
 interface Props {
   assembleia: Assembleia
   apuracao: AssembleiaApuracao
+  canExport?: boolean
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -33,7 +34,7 @@ function formatDate(dateString: string | null) {
   }).format(new Date(dateString))
 }
 
-export function ApuracaoAssembleia({ assembleia, apuracao }: Props) {
+export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: Props) {
   const { total_enviados, total_respondidos } = apuracao
   const participacao =
     total_enviados > 0 ? Math.round((total_respondidos / total_enviados) * 100) : 0
@@ -69,15 +70,47 @@ export function ApuracaoAssembleia({ assembleia, apuracao }: Props) {
             >
               {STATUS_LABEL[assembleia.status] ?? assembleia.status}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.print()}
-              className="gap-1.5 print:hidden"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              Imprimir / PDF
-            </Button>
+            <div className="flex items-center gap-2 print:hidden">
+              {canExport && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const a = document.createElement("a")
+                      a.href = `/api/relatorios/apuracao/${assembleia.id}/pdf`
+                      a.click()
+                    }}
+                    className="gap-1.5"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const a = document.createElement("a")
+                      a.href = `/api/relatorios/apuracao/${assembleia.id}/xlsx`
+                      a.click()
+                    }}
+                    className="gap-1.5"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                    Excel
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                className="gap-1.5"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Imprimir
+              </Button>
+            </div>
           </div>
         </div>
 

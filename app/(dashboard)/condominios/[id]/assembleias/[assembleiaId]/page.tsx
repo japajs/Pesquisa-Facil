@@ -6,6 +6,7 @@ import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
 import { ApuracaoAssembleia } from "@/components/assembleias/apuracao-assembleia"
+import { getSession } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 interface Props {
@@ -25,7 +26,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ApuracaoAssembleiaPage({ params }: Props) {
   const { id: condominioId, assembleiaId } = await params
 
-  const [condominio, assembleia] = await Promise.all([
+  const [session, condominio, assembleia] = await Promise.all([
+    getSession(),
     getCondominioById(condominioId).catch(() => null),
     getAssembleiaById(assembleiaId).catch(() => null),
   ])
@@ -62,7 +64,11 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">{assembleia.titulo}</h1>
       </div>
 
-      <ApuracaoAssembleia assembleia={assembleia} apuracao={apuracao} />
+      <ApuracaoAssembleia
+        assembleia={assembleia}
+        apuracao={apuracao}
+        canExport={session?.perfil !== "visualizador"}
+      />
     </div>
   )
 }

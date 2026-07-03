@@ -6,6 +6,7 @@ import {
   BarChart3,
   Building2,
   FileSpreadsheet,
+  FileText,
   Gavel,
   LogOut,
   Settings,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/dashboard",     label: "Dashboard",    icon: BarChart3        },
   { href: "/condominios",   label: "Condomínios",  icon: Building2        },
   { href: "/importacao",    label: "Importação",   icon: FileSpreadsheet  },
+  { href: "/relatorios",    label: "Relatórios",   icon: FileText         },
   { href: "/auditoria",     label: "Auditoria",    icon: Shield           },
   { href: "/configuracoes", label: "Configurações", icon: Settings        },
 ] as const
