@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { Gavel } from "lucide-react"
 import { LoginForm } from "./login-form"
 import { Skeleton } from "@/components/ui/skeleton"
+import { APP_NAME } from "@/lib/constants"
 
 export const metadata: Metadata = { title: "Entrar" }
 
@@ -15,7 +16,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card shadow-sm">
             <Gavel className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">CondoAssembleia</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{APP_NAME}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Sistema de Assembleias Eletrônicas para Condomínios
           </p>
@@ -26,7 +27,7 @@ export default function LoginPage() {
         </Suspense>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Acesso restrito — CondoAssembleia
+          Acesso restrito — {APP_NAME}
         </p>
       </div>
     </div>
