@@ -128,7 +128,7 @@ function AssembleiaRow({
             disabled={isPending}
             className="h-8 gap-1.5 px-2.5 text-xs text-emerald-500 hover:text-emerald-600"
           >
-            <Unlock className="h-3.5 w-3.5" />
+            <Unlock className="h-4 w-4" />
             Abrir
           </Button>
         )}
@@ -140,7 +140,7 @@ function AssembleiaRow({
             disabled={isPending}
             className="h-8 gap-1.5 px-2.5 text-xs text-rose-500 hover:text-rose-600"
           >
-            <LockKeyhole className="h-3.5 w-3.5" />
+            <LockKeyhole className="h-4 w-4" />
             Encerrar
           </Button>
         )}
@@ -153,11 +153,12 @@ function AssembleiaRow({
           href={ROUTES.condominioAssembleia(condominioId, assembleia.id)}
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "h-8 w-8 p-0 text-muted-foreground"
+            "text-muted-foreground"
           )}
         >
-          <BarChart3 className="h-3.5 w-3.5" />
-          <span className="sr-only">Ver apuração</span>
+          <BarChart3 className="h-4 w-4" />
+          <span className="hidden sm:inline">Apuração</span>
+          <span className="sm:hidden sr-only">Ver apuração</span>
         </Link>
 
         <Button
@@ -165,9 +166,9 @@ function AssembleiaRow({
           size="sm"
           onClick={() => setDeleteOpen(true)}
           disabled={isPending}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+          className="text-muted-foreground hover:text-destructive"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
           <span className="sr-only">Excluir assembleia</span>
         </Button>
 

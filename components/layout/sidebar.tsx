@@ -68,7 +68,7 @@ export function Sidebar({ user, onClose }: Props) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-0.5 p-2.5">
+      <nav className="flex-1 space-y-1 p-3">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href || pathname.startsWith(href + "/")
           return (
@@ -76,13 +76,13 @@ export function Sidebar({ user, onClose }: Props) {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                "flex items-center gap-3 rounded-md px-3 py-3 text-base font-medium transition-all duration-150",
                 isActive
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className="h-5 w-5 shrink-0" />
               {label}
             </Link>
           )
@@ -93,7 +93,7 @@ export function Sidebar({ user, onClose }: Props) {
       <div className="space-y-1 border-t border-border p-2.5">
         {/* Info do usuário */}
         <div className="flex items-center gap-2.5 rounded-md px-3 py-2">
-          <UserCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <UserCircle className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-foreground">{user.nome}</p>
             <span
@@ -111,9 +111,9 @@ export function Sidebar({ user, onClose }: Props) {
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-all duration-150 hover:bg-accent hover:text-foreground"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-base font-medium text-muted-foreground transition-all duration-150 hover:bg-accent hover:text-foreground"
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-5 w-5 shrink-0" />
             Sair
           </button>
         </form>
