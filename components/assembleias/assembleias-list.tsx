@@ -1,6 +1,6 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import { ClipboardList, BarChart3, Trash2, LockKeyhole, Unlock } from "lucide-react"
 import { toast } from "sonner"
@@ -14,7 +14,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { DispararAssembleiaDialog } from "./disparar-assembleia-dialog"
@@ -74,9 +73,11 @@ function AssembleiaRow({
   proprietarios: Proprietario[]
 }) {
   const [isPending, startTransition] = useTransition()
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const pautaCount = assembleia.pautas?.length ?? 0
 
   function handleDelete() {
+    setDeleteOpen(false)
     startTransition(async () => {
       const result = await deleteAssembleiaAction(assembleia.id, condominioId)
       if (!result.success) toast.error(result.error)
@@ -159,18 +160,18 @@ function AssembleiaRow({
           <span className="sr-only">Ver apuração</span>
         </Link>
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={isPending}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span className="sr-only">Excluir assembleia</span>
-            </Button>
-          </AlertDialogTrigger>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setDeleteOpen(true)}
+          disabled={isPending}
+          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className="sr-only">Excluir assembleia</span>
+        </Button>
+
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir assembleia?</AlertDialogTitle>
