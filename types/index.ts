@@ -31,6 +31,7 @@ export type AcaoAuditoria =
   | "enviar_email"
   | "encerrar"
   | "reabrir"
+  | "visualizar_resultado"
 
 export type ModuloAuditoria =
   | "auth"
@@ -163,8 +164,9 @@ export interface AssembleiaSend {
   sent_at: string | null
   created_at: string
   // joined
-  assembleia?: Pick<Assembleia, "id" | "titulo" | "descricao" | "status" | "data_encerramento"> & {
+  assembleia?: Pick<Assembleia, "id" | "titulo" | "descricao" | "status" | "data_abertura" | "data_encerramento"> & {
     pautas?: Pauta[]
+    condominio_nome?: string | null
   }
   proprietario?: Pick<Proprietario, "id" | "nome" | "email">
 }

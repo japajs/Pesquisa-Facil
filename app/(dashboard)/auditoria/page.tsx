@@ -22,6 +22,7 @@ const ACAO_LABELS: Record<AcaoAuditoria, string> = {
   enviar_email: "Enviar E-mail",
   encerrar: "Encerrar",
   reabrir: "Reabrir",
+  visualizar_resultado: "Ver Resultado",
 }
 
 const MODULO_LABELS: Record<ModuloAuditoria, string> = {
@@ -46,6 +47,7 @@ const ACAO_COLORS: Record<AcaoAuditoria, string> = {
   enviar_email: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   encerrar: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
   reabrir: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  visualizar_resultado: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

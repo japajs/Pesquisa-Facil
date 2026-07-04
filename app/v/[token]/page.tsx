@@ -1,10 +1,16 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { CheckCircle2, LockKeyhole } from "lucide-react"
-import { getAssembleiaSendByToken, getRespostasBySendId } from "@/services/assembleia-votos"
+import { CheckCircle2, Clock } from "lucide-react"
+import {
+  getAssembleiaSendByToken,
+  getRespostasBySendId,
+  getApuracaoAssembleia,
+} from "@/services/assembleia-votos"
 import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
+import { logAudit } from "@/services/auditoria"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
+import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
 import { APP_NAME } from "@/lib/constants"
 
 interface Props {
@@ -19,6 +25,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   } catch {
     return { title: APP_NAME }
   }
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—"
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(iso))
 }
 
 export default async function PublicVotoPage({ params }: Props) {
@@ -40,7 +58,7 @@ export default async function PublicVotoPage({ params }: Props) {
     const respostas = await getRespostasBySendId(send.id)
     if (respostas.length > 0) alreadyAnswered = true
   } catch {
-    // Treat as not answered — DB unique constraint prevents double votes
+    // DB unique constraint prevents double votes even if this check fails
   }
 
   let status = assembleia.status
@@ -57,58 +75,138 @@ export default async function PublicVotoPage({ params }: Props) {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b border-border/40 bg-card/40 backdrop-blur-sm">
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          <p className="text-xs font-medium text-muted-foreground">{APP_NAME}</p>
-        </div>
+  const header = (
+    <div className="border-b border-border/40 bg-card/40 backdrop-blur-sm">
+      <div className="mx-auto max-w-2xl px-4 py-3">
+        <p className="text-xs font-medium text-muted-foreground">{APP_NAME}</p>
       </div>
+    </div>
+  )
 
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary/70">
-            Assembleia de condomínio
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{assembleia.titulo}</h1>
-          {assembleia.descricao && (
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {assembleia.descricao}
-            </p>
-          )}
-        </div>
+  const heading = (
+    <div className="mb-8">
+      <p className="text-xs font-semibold uppercase tracking-widest text-primary/70">
+        Assembleia de condomínio
+      </p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight">{assembleia.titulo}</h1>
+      {assembleia.descricao && (
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{assembleia.descricao}</p>
+      )}
+    </div>
+  )
 
-        {status === "encerrada" ? (
+  // ── Situação 1: Rascunho — votação ainda não iniciada ──────────────────────
+  if (status === "rascunho") {
+    return (
+      <div className="min-h-screen bg-background">
+        {header}
+        <div className="mx-auto max-w-2xl px-4 py-10">
+          {heading}
           <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 ring-1 ring-border">
-              <LockKeyhole className="h-7 w-7 text-muted-foreground" />
+              <Clock className="h-7 w-7 text-muted-foreground" />
             </div>
             <div>
-              <p className="font-medium">Assembleia encerrada</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Esta assembleia não está mais aceitando votos.
-              </p>
+              <p className="font-medium">Votação ainda não iniciada</p>
+              {assembleia.data_abertura ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Abertura prevista para{" "}
+                  <span className="font-medium text-foreground">
+                    {formatDate(assembleia.data_abertura)}
+                  </span>
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A data de abertura será informada em breve.
+                </p>
+              )}
             </div>
           </div>
-        ) : alreadyAnswered ? (
+        </div>
+      </div>
+    )
+  }
+
+  // ── Situação 4: Encerrada — exibir resultados ──────────────────────────────
+  if (status === "encerrada") {
+    const apuracao = await getApuracaoAssembleia(assembleia.id, pautas).catch(() => null)
+
+    void logAudit({
+      session: null,
+      acao: "visualizar_resultado",
+      modulo: "assembleias",
+      descricao: `${send.proprietario?.nome ?? "Proprietário"} consultou os resultados da assembleia "${assembleia.titulo}"`,
+      entidade: "assembleia",
+      entidadeId: assembleia.id,
+      condominioNome: assembleia.condominio_nome ?? null,
+    })
+
+    return (
+      <div className="min-h-screen bg-background">
+        {header}
+        <div className="mx-auto max-w-2xl px-4 py-10">
+          {heading}
+          {apuracao ? (
+            <ResultadoAssembleia
+              condominio_nome={assembleia.condominio_nome ?? null}
+              data_abertura={assembleia.data_abertura ?? null}
+              data_encerramento={assembleia.data_encerramento ?? null}
+              apuracao={apuracao}
+            />
+          ) : (
+            <div className="rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                Resultado em processamento. Tente novamente em instantes.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Situação 3: Em andamento + já votou ────────────────────────────────────
+  if (alreadyAnswered) {
+    return (
+      <div className="min-h-screen bg-background">
+        {header}
+        <div className="mx-auto max-w-2xl px-4 py-10">
+          {heading}
           <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/10 ring-1 ring-emerald-400/20">
               <CheckCircle2 className="h-7 w-7 text-emerald-400" />
             </div>
             <div>
-              <p className="font-medium">Votos já registrados</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Você já votou nesta assembleia. Obrigado!
+              <p className="font-medium">Seu voto foi registrado com sucesso</p>
+              <p className="mt-1 text-sm text-muted-foreground">Obrigado por participar.</p>
+            </div>
+            <div className="w-full rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-sm">
+              <p className="font-medium text-foreground">Status da assembleia</p>
+              <p className="mt-1 flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                Em andamento
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Os resultados serão divulgados somente após o encerramento da votação.
               </p>
             </div>
           </div>
-        ) : (
-          <AssembleiaVotoForm
-            sendId={send.id}
-            pautas={pautas}
-            assembleiaTitulo={assembleia.titulo}
-          />
-        )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Situação 2: Em andamento + ainda não votou ─────────────────────────────
+  return (
+    <div className="min-h-screen bg-background">
+      {header}
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        {heading}
+        <AssembleiaVotoForm
+          sendId={send.id}
+          pautas={pautas}
+          assembleiaTitulo={assembleia.titulo}
+        />
       </div>
     </div>
   )

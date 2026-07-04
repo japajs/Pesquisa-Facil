@@ -25,7 +25,9 @@ type JoinedAssembleia = {
   titulo: string
   descricao: string | null
   status: AssembleiaStatus
+  data_abertura: string | null
   data_encerramento: string | null
+  condominios: { nome: string } | null
   pautas: JoinedPauta[] | null
 }
 
@@ -42,7 +44,7 @@ type JoinedSend = {
 }
 
 const SELECT_SEND_JOINED =
-  "*, assembleias(id, titulo, descricao, status, data_encerramento, pautas(id, assembleia_id, ordem, titulo, descricao, ativa, created_at)), proprietarios(id, nome, email)"
+  "*, assembleias(id, titulo, descricao, status, data_abertura, data_encerramento, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, created_at)), proprietarios(id, nome, email)"
 
 function rowToSend(row: JoinedSend): AssembleiaSend {
   const a = row.assembleias
@@ -60,7 +62,9 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
           titulo: a.titulo,
           descricao: a.descricao,
           status: a.status,
+          data_abertura: a.data_abertura,
           data_encerramento: a.data_encerramento,
+          condominio_nome: a.condominios?.nome ?? null,
           pautas: (a.pautas ?? [])
             .map((p) => ({
               id: p.id,
