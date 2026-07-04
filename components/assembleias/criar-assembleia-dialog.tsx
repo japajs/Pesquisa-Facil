@@ -93,7 +93,7 @@ export function CriarAssembleiaDialog({ condominioId }: { condominioId: string }
         </DialogHeader>
 
         {/* Conteúdo scrollável — header e footer ficam fixos */}
-        <div className="max-h-[62vh] overflow-y-auto space-y-4 pr-1">
+        <div className="max-h-[62vh] overflow-y-auto space-y-4 px-1">
           <div className="space-y-1.5">
             <Label htmlFor="titulo-asm">Título</Label>
             <Input
