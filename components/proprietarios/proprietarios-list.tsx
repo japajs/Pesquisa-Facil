@@ -102,7 +102,7 @@ function ProprietarioRow({
             size="sm"
             onClick={handleDeleteProprietario}
             disabled={isPendingDelete}
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span className="sr-only">Excluir proprietário</span>
@@ -136,21 +136,21 @@ function ProprietarioRow({
               value={novaUnidade}
               onChange={(e) => setNovaUnidade(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddUnidade()}
-              className="h-6 w-16 px-2 text-xs"
+              className="h-9 w-20 px-2 text-xs"
               autoFocus
             />
             <button
               type="button"
               onClick={handleAddUnidade}
               disabled={isPendingAdd || !novaUnidade.trim()}
-              className="text-xs text-primary hover:underline disabled:opacity-40"
+              className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded px-2 text-xs text-primary hover:underline disabled:opacity-40"
             >
               OK
             </button>
             <button
               type="button"
               onClick={() => { setShowAdd(false); setNovaUnidade("") }}
-              className="text-xs text-muted-foreground hover:underline"
+              className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded px-2 text-xs text-muted-foreground hover:underline"
             >
               ✕
             </button>
@@ -159,7 +159,7 @@ function ProprietarioRow({
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-0.5 rounded border border-dashed border-border/60 px-1.5 py-0.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+            className="flex min-h-[36px] items-center gap-0.5 rounded border border-dashed border-border/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
           >
             <Plus className="h-3 w-3" />
             Add

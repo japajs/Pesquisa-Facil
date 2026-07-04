@@ -54,7 +54,7 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
 
       {/* Cabeçalho da assembleia */}
       <div className="space-y-3 rounded-xl border border-border/60 bg-card p-5">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             {assembleia.descricao && (
               <p className="text-sm text-muted-foreground">{assembleia.descricao}</p>
@@ -64,13 +64,13 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
               {(assembleia.pautas?.length ?? 0) === 1 ? "pauta" : "pautas"}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[assembleia.status] ?? STATUS_CLASS.rascunho}`}
             >
               {STATUS_LABEL[assembleia.status] ?? assembleia.status}
             </span>
-            <div className="flex items-center gap-2 print:hidden">
+            <div className="flex flex-wrap items-center gap-2 print:hidden">
               {canExport && (
                 <>
                   <Button

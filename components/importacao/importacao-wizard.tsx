@@ -223,7 +223,7 @@ function MapeamentoTable({
     .map(([, c]) => c)
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60">
+    <div className="overflow-x-auto rounded-xl border border-border/60">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border/60 bg-muted/30">
@@ -257,7 +257,7 @@ function MapeamentoTable({
                     )}
                     <span
                       className={cn(
-                        "font-medium",
+                        "block max-w-[180px] truncate font-medium",
                         naoDetectado && "text-amber-700 dark:text-amber-400"
                       )}
                     >
@@ -272,7 +272,7 @@ function MapeamentoTable({
                       onChange(colIdx, e.target.value as CampoImportacao)
                     }
                     className={cn(
-                      "flex h-8 w-full max-w-[220px] rounded-lg border px-2 py-1 text-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50",
+                      "flex h-10 w-full max-w-[220px] rounded-lg border px-2 py-1 text-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50",
                       naoDetectado
                         ? "border-amber-400/60 bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-100"
                         : "border-input bg-background text-foreground"
@@ -336,7 +336,7 @@ function SummaryCards({ preview }: { preview: ImportacaoPreview }) {
 
 function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60">
+    <div className="overflow-x-auto rounded-xl border border-border/60">
       <div className="max-h-[36vh] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-card">
@@ -683,7 +683,7 @@ export function ImportacaoWizard({ condominios }: Props) {
                 <select
                   value={condominioId}
                   onChange={(e) => setCondominioId(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Selecione um condomínio…</option>
                   {condominios.map((c) => (

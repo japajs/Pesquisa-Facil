@@ -53,7 +53,7 @@ function NomeForm({ initialNome }: { initialNome: string }) {
         <p className="text-sm font-medium">Nome do administrador</p>
         <p className="text-xs text-muted-foreground">Exibido no sistema.</p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
         <Input
           value={nome}
           onChange={(e) => setNome(e.target.value)}
@@ -65,7 +65,7 @@ function NomeForm({ initialNome }: { initialNome: string }) {
           variant="outline"
           onClick={handleSave}
           disabled={isPending || nome === initialNome || !nome.trim()}
-          className="gap-1.5"
+          className="shrink-0 gap-1.5"
         >
           {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           Salvar
@@ -93,7 +93,7 @@ function EmailForm({ initialEmail }: { initialEmail: string }) {
         <p className="text-sm font-medium">E-mail do administrador</p>
         <p className="text-xs text-muted-foreground">Usado para receber e-mails de teste.</p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
         <Input
           type="email"
           value={email}
@@ -106,7 +106,7 @@ function EmailForm({ initialEmail }: { initialEmail: string }) {
           variant="outline"
           onClick={handleSave}
           disabled={isPending || email === initialEmail || !email.trim()}
-          className="gap-1.5"
+          className="shrink-0 gap-1.5"
         >
           {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           Salvar
@@ -180,11 +180,11 @@ function SenhaForm() {
           />
         </div>
         <Button
-          size="sm"
+          size="default"
           variant="outline"
           onClick={handleSave}
           disabled={isPending || !canSave}
-          className="w-fit gap-1.5"
+          className="w-full gap-1.5 sm:w-fit"
         >
           {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           Alterar senha

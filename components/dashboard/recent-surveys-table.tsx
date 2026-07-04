@@ -70,45 +70,47 @@ export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
             </Link>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border/60 hover:bg-transparent">
-                <TableHead className="pl-6 text-xs">Assembleia</TableHead>
-                <TableHead className="text-xs">Condomínio</TableHead>
-                <TableHead className="text-xs">Participação</TableHead>
-                <TableHead className="pr-6 text-right text-xs">Criada em</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assembleias.map((a) => (
-                <TableRow
-                  key={a.id}
-                  className="border-border/60 transition-colors hover:bg-accent/30"
-                >
-                  <TableCell className="pl-6">
-                    <Link
-                      href={ROUTES.condominioAssembleia(a.condominio_id, a.id)}
-                      className="font-medium text-foreground hover:text-primary hover:underline"
-                    >
-                      {a.titulo}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {a.condominio_nome}
-                  </TableCell>
-                  <TableCell>
-                    <ParticipacaoBar
-                      respondidos={a.total_respondidos}
-                      enviados={a.total_enviados}
-                    />
-                  </TableCell>
-                  <TableCell className="pr-6 text-right text-xs text-muted-foreground">
-                    {formatDate(a.created_at)}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/60 hover:bg-transparent">
+                  <TableHead className="pl-6 text-xs">Assembleia</TableHead>
+                  <TableHead className="hidden text-xs sm:table-cell">Condomínio</TableHead>
+                  <TableHead className="text-xs">Participação</TableHead>
+                  <TableHead className="hidden pr-6 text-right text-xs sm:table-cell">Criada em</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {assembleias.map((a) => (
+                  <TableRow
+                    key={a.id}
+                    className="border-border/60 transition-colors hover:bg-accent/30"
+                  >
+                    <TableCell className="pl-6">
+                      <Link
+                        href={ROUTES.condominioAssembleia(a.condominio_id, a.id)}
+                        className="font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {a.titulo}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
+                      {a.condominio_nome}
+                    </TableCell>
+                    <TableCell>
+                      <ParticipacaoBar
+                        respondidos={a.total_respondidos}
+                        enviados={a.total_enviados}
+                      />
+                    </TableCell>
+                    <TableCell className="hidden pr-6 text-right text-xs text-muted-foreground sm:table-cell">
+                      {formatDate(a.created_at)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

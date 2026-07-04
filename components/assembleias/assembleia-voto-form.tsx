@@ -130,17 +130,17 @@ export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) 
         </p>
       )}
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           {allAnswered
             ? `${pautas.length} ${pautas.length === 1 ? "pauta respondida" : "pautas respondidas"}`
             : `${unansweredCount} ${unansweredCount === 1 ? "pauta pendente" : "pautas pendentes"}`}
         </p>
-        <Button onClick={handleSubmit} disabled={isPending} className="gap-2">
+        <Button onClick={handleSubmit} disabled={isPending} className="w-full sm:w-auto">
           {isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <Send className="h-4 w-4" />
+            <Send className="size-4" />
           )}
           {isPending ? "Enviando…" : "Confirmar votos"}
         </Button>

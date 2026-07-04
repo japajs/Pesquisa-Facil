@@ -83,21 +83,21 @@ function CondominioRow({
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") { setNome(condo.nome); setEditing(false) } }}
-            className="h-8 text-sm"
+            className="text-sm"
             autoFocus
           />
           <button
             type="button"
             onClick={handleRename}
             disabled={isPendingRename || !nome.trim()}
-            className="text-xs text-primary hover:underline disabled:opacity-40"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-2 text-xs text-primary hover:underline disabled:opacity-40"
           >
             OK
           </button>
           <button
             type="button"
             onClick={() => { setNome(condo.nome); setEditing(false) }}
-            className="text-xs text-muted-foreground hover:underline"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-2 text-xs text-muted-foreground hover:underline"
           >
             ✕
           </button>
@@ -123,7 +123,7 @@ function CondominioRow({
             variant="ghost"
             size="sm"
             onClick={() => setEditing(true)}
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
           >
             <Pencil className="h-3.5 w-3.5" />
             <span className="sr-only">Renomear</span>
@@ -134,7 +134,7 @@ function CondominioRow({
           size="sm"
           onClick={handleDelete}
           disabled={isPendingDelete}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+          className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
         >
           <Trash2 className="h-3.5 w-3.5" />
           <span className="sr-only">Excluir</span>

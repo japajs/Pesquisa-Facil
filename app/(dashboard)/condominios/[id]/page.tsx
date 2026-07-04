@@ -59,7 +59,7 @@ export default async function CondominioDetailPage({ params }: Props) {
 
       {/* Proprietários */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold">Proprietários</h2>
             <p className="text-sm text-muted-foreground">
@@ -68,7 +68,7 @@ export default async function CondominioDetailPage({ params }: Props) {
               é calculado pelo número de unidades vinculadas
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {proprietarios.length > 0 && (
               <ExportarProprietariosButton condominioId={id} condominioNome={condominio.nome} />
             )}
@@ -80,7 +80,7 @@ export default async function CondominioDetailPage({ params }: Props) {
 
       {/* Assembleias */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold">Assembleias</h2>
             <p className="text-sm text-muted-foreground">
@@ -88,7 +88,9 @@ export default async function CondominioDetailPage({ params }: Props) {
               {assembleias.length === 1 ? "assembleia criada" : "assembleias criadas"}
             </p>
           </div>
-          <CriarAssembleiaDialog condominioId={id} />
+          <div className="shrink-0">
+            <CriarAssembleiaDialog condominioId={id} />
+          </div>
         </div>
         <AssembleiasList
           assembleias={assembleias}

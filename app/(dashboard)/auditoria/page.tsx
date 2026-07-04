@@ -138,7 +138,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             type="text"
             defaultValue={sp.busca ?? ""}
             placeholder="Buscar na descrição…"
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -151,7 +151,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             id="modulo"
             name="modulo"
             defaultValue={sp.modulo ?? ""}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">Todos</option>
             {(Object.entries(MODULO_LABELS) as [ModuloAuditoria, string][]).map(([v, l]) => (
@@ -169,7 +169,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             id="acao"
             name="acao"
             defaultValue={sp.acao ?? ""}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">Todas</option>
             {(Object.entries(ACAO_LABELS) as [AcaoAuditoria, string][]).map(([v, l]) => (
@@ -188,7 +188,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             name="data_inicio"
             type="date"
             defaultValue={sp.data_inicio ?? ""}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -202,7 +202,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             name="data_fim"
             type="date"
             defaultValue={sp.data_fim ?? ""}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -210,14 +210,14 @@ export default async function AuditoriaPage({ searchParams }: Props) {
         <div className="flex items-end gap-2">
           <button
             type="submit"
-            className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            className="h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             Filtrar
           </button>
           {hasFilters && (
             <Link
               href="/auditoria"
-              className="h-9 rounded-md border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground flex items-center"
+              className="flex h-11 items-center rounded-md border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               Limpar
             </Link>
@@ -314,7 +314,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             {pagina > 1 ? (
               <Link
                 href={buildUrl(sp, pagina - 1)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex min-h-[44px] items-center rounded-md border border-border px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 ← Anterior
               </Link>
@@ -327,7 +327,7 @@ export default async function AuditoriaPage({ searchParams }: Props) {
             {pagina < totalPaginas ? (
               <Link
                 href={buildUrl(sp, pagina + 1)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex min-h-[44px] items-center rounded-md border border-border px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 Próxima →
               </Link>

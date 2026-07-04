@@ -126,7 +126,7 @@ function AssembleiaRow({
             size="sm"
             onClick={() => handleStatusChange("aberta")}
             disabled={isPending}
-            className="h-8 gap-1.5 px-2.5 text-xs text-emerald-500 hover:text-emerald-600"
+            className="gap-1.5 px-2.5 text-xs text-emerald-500 hover:text-emerald-600"
           >
             <Unlock className="h-4 w-4" />
             Abrir
@@ -138,7 +138,7 @@ function AssembleiaRow({
             size="sm"
             onClick={() => handleStatusChange("encerrada")}
             disabled={isPending}
-            className="h-8 gap-1.5 px-2.5 text-xs text-rose-500 hover:text-rose-600"
+            className="gap-1.5 px-2.5 text-xs text-rose-500 hover:text-rose-600"
           >
             <LockKeyhole className="h-4 w-4" />
             Encerrar

@@ -98,7 +98,7 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
               <select
                 value={condApurId}
                 onChange={(e) => setCondApurId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
               >
                 <option value="">Selecione um condomínio…</option>
                 {condominios.map((c) => (
@@ -115,7 +115,7 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
                 value={assembleiaId}
                 onChange={(e) => setAssembleiaId(e.target.value)}
                 disabled={!condApurId || loadingAss}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">
                   {loadingAss
@@ -161,8 +161,8 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
               <Button
                 onClick={handlePdf}
                 disabled={!assembleiaId || !canExport || exportingPdf}
-                size="sm"
-                className="w-full gap-2"
+                size="default"
+                className="w-full"
               >
                 {exportingPdf ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -196,9 +196,9 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
               <Button
                 onClick={handleXlsx}
                 disabled={!assembleiaId || !canExport || exportingXlsx}
-                size="sm"
+                size="default"
                 variant="outline"
-                className="w-full gap-2"
+                className="w-full"
               >
                 {exportingXlsx ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -229,12 +229,12 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
           </div>
 
           <div className="p-6 space-y-4">
-            <div className="space-y-1.5 max-w-sm">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Condomínio</label>
               <select
                 value={condPropId}
                 onChange={(e) => setCondPropId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
               >
                 <option value="">Selecione um condomínio…</option>
                 {condominios.map((c) => (
@@ -248,7 +248,7 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
             <Button
               onClick={handleProp}
               disabled={!condPropId || exportingProp}
-              size="sm"
+              size="default"
               variant="outline"
               className="gap-2"
             >

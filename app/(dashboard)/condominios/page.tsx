@@ -19,7 +19,7 @@ export default async function CondominiosPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6 pt-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Condomínios</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -27,7 +27,9 @@ export default async function CondominiosPage() {
             {condominios.length === 1 ? "condomínio cadastrado" : "condomínios cadastrados"}
           </p>
         </div>
-        <CriarCondominioDialog />
+        <div className="shrink-0">
+          <CriarCondominioDialog />
+        </div>
       </div>
 
       <CondominiosList condominios={condominios} />
