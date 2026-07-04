@@ -87,7 +87,7 @@ export function CriarAssembleiaDialog({ condominioId }: { condominioId: string }
         Nova assembleia
       </DialogTrigger>
 
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nova assembleia</DialogTitle>
         </DialogHeader>

@@ -45,7 +45,7 @@ export function CriarCondominioDialog() {
         Novo condomínio
       </DialogTrigger>
 
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Novo condomínio</DialogTitle>
         </DialogHeader>

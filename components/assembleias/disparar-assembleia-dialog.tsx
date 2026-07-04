@@ -84,7 +84,7 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
         Disparar
       </DialogTrigger>
 
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Disparar assembleia</DialogTitle>
           <DialogDescription>

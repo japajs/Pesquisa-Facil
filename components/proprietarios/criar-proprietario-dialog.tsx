@@ -79,7 +79,7 @@ export function CriarProprietarioDialog({ condominioId }: CriarProprietarioDialo
         Novo proprietário
       </DialogTrigger>
 
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Novo proprietário</DialogTitle>
         </DialogHeader>
