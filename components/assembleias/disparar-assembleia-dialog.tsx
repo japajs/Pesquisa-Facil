@@ -190,15 +190,15 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
               <Button variant="ghost" onClick={() => handleOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSend} disabled={selectedIds.size === 0} className="gap-2">
-                <Send className="h-4 w-4" />
+              <Button onClick={handleSend} disabled={selectedIds.size === 0}>
+                <Send className="size-4" />
                 Enviar para {selectedIds.size || "…"}
               </Button>
             </>
           )}
           {step === "sending" && (
-            <Button disabled className="w-full gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
+            <Button disabled className="w-full">
+              <Loader2 className="size-4 animate-spin" />
               Enviando…
             </Button>
           )}
