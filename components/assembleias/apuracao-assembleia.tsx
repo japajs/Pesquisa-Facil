@@ -41,7 +41,8 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
 
   const temVotos = apuracao.pautas.some(
     (p) =>
-      p.por_participantes.sim + p.por_participantes.nao + p.por_participantes.abstencao > 0
+      p.por_participantes.sim + p.por_participantes.nao + p.por_participantes.abstencao > 0 ||
+      (p.opcoes_resultado?.some((o) => o.participantes > 0) ?? false)
   )
 
   return (
@@ -156,8 +157,92 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
   )
 }
 
+// Paleta cíclica para pautas de múltipla escolha (N opções variáveis).
+const CORES_OPCOES = [
+  { bar: "bg-indigo-500", text: "text-indigo-500", hex: "#6366f1" },
+  { bar: "bg-sky-500", text: "text-sky-500", hex: "#0ea5e9" },
+  { bar: "bg-emerald-500", text: "text-emerald-500", hex: "#22c55e" },
+  { bar: "bg-fuchsia-500", text: "text-fuchsia-500", hex: "#d946ef" },
+  { bar: "bg-orange-500", text: "text-orange-500", hex: "#f97316" },
+  { bar: "bg-teal-500", text: "text-teal-500", hex: "#14b8a6" },
+]
+
 function PautaApuracaoSection({ index, item }: { index: number; item: PautaApuracao }) {
-  const { pauta, por_participantes, ponderado, total_apartamentos_representados } = item
+  const { pauta } = item
+
+  return (
+    <div className="space-y-3">
+      {/* Título da pauta */}
+      <div className="flex items-baseline gap-2">
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-primary/60">
+          Pauta {index + 1}
+        </span>
+        <h2 className="text-base font-semibold tracking-tight">{pauta.titulo}</h2>
+      </div>
+
+      {pauta.descricao && <p className="text-sm text-muted-foreground">{pauta.descricao}</p>}
+
+      {pauta.tipo === "multipla_escolha" ? (
+        <MultiplaEscolhaApuracao item={item} />
+      ) : (
+        <SimNaoApuracao item={item} />
+      )}
+    </div>
+  )
+}
+
+function MultiplaEscolhaApuracao({ item }: { item: PautaApuracao }) {
+  const { ponderado, opcoes_resultado = [] } = item
+
+  const ordenadas = [...opcoes_resultado].sort((a, b) => b.ponderado - a.ponderado)
+  const totalW = ordenadas.reduce((sum, o) => sum + o.ponderado, 0) + ponderado.abstencao
+  const totalP = ordenadas.reduce((sum, o) => sum + o.participantes, 0) + item.por_participantes.abstencao
+  const pctW = (n: number) => (totalW > 0 ? Math.round((n / totalW) * 100) : 0)
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Resultado ponderado (por unidade)
+        </p>
+        <span className="text-xs text-muted-foreground">
+          {totalP} {totalP === 1 ? "participante" : "participantes"}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {ordenadas.map((opcao, i) => {
+          const cor = CORES_OPCOES[i % CORES_OPCOES.length]!
+          return (
+            <Bar
+              key={opcao.opcao_id}
+              label={opcao.label}
+              count={opcao.ponderado}
+              pct={pctW(opcao.ponderado)}
+              colorBar={cor.bar}
+              colorText={cor.text}
+              unit="unidade"
+              unitPlural="unidades"
+            />
+          )
+        })}
+        {item.por_participantes.abstencao > 0 && (
+          <Bar
+            label="Abstenção"
+            count={ponderado.abstencao}
+            pct={pctW(ponderado.abstencao)}
+            colorBar="bg-amber-500"
+            colorText="text-amber-500"
+            unit="unidade"
+            unitPlural="unidades"
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SimNaoApuracao({ item }: { item: PautaApuracao }) {
+  const { por_participantes, ponderado, total_apartamentos_representados } = item
 
   const totalP = por_participantes.sim + por_participantes.nao + por_participantes.abstencao
   const totalW = ponderado.sim + ponderado.nao + ponderado.abstencao
@@ -194,19 +279,7 @@ function PautaApuracaoSection({ index, item }: { index: number; item: PautaApura
       : null
 
   return (
-    <div className="space-y-3">
-      {/* Título da pauta */}
-      <div className="flex items-baseline gap-2">
-        <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-primary/60">
-          Pauta {index + 1}
-        </span>
-        <h2 className="text-base font-semibold tracking-tight">{pauta.titulo}</h2>
-      </div>
-
-      {pauta.descricao && (
-        <p className="text-sm text-muted-foreground">{pauta.descricao}</p>
-      )}
-
+    <>
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Por participantes */}
         <div className="rounded-xl border border-border/60 bg-card p-5">
@@ -246,7 +319,7 @@ function PautaApuracaoSection({ index, item }: { index: number; item: PautaApura
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

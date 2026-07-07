@@ -6,9 +6,19 @@ import type {
   AssembleiaRespostaValor,
   AssembleiaApuracao,
   AssembleiaStatus,
+  OpcaoApuracao,
   Pauta,
+  PautaOpcao,
   SendStatus,
 } from "@/types"
+
+type JoinedPautaOpcao = {
+  id: string
+  pauta_id: string
+  ordem: number
+  label: string
+  created_at: string
+}
 
 type JoinedPauta = {
   id: string
@@ -17,7 +27,20 @@ type JoinedPauta = {
   titulo: string
   descricao: string | null
   ativa: boolean
+  tipo: Pauta["tipo"]
+  permite_abstencao: boolean
   created_at: string
+  pauta_opcoes: JoinedPautaOpcao[] | null
+}
+
+function rowToPautaOpcao(row: JoinedPautaOpcao): PautaOpcao {
+  return {
+    id: row.id,
+    pauta_id: row.pauta_id,
+    ordem: row.ordem,
+    label: row.label,
+    created_at: row.created_at,
+  }
 }
 
 type JoinedAssembleia = {
@@ -31,7 +54,22 @@ type JoinedAssembleia = {
   pautas: JoinedPauta[] | null
 }
 
-type JoinedSend = {
+type RawUnidadeSnapshot = { numero: string; bloco: string | null }
+
+type JoinedSendSnapshot = {
+  nome_snapshot: string | null
+  cpf_snapshot: string | null
+  email_snapshot: string | null
+  telefone_snapshot: string | null
+  quantidade_unidades_snapshot: number | null
+  unidades_snapshot: RawUnidadeSnapshot[] | null
+  peso_snapshot: number | null
+  votado_em: string | null
+  ip_snapshot: string | null
+  user_agent_snapshot: string | null
+}
+
+type JoinedSend = JoinedSendSnapshot & {
   id: string
   assembleia_id: string
   proprietario_id: string
@@ -44,7 +82,7 @@ type JoinedSend = {
 }
 
 const SELECT_SEND_JOINED =
-  "*, assembleias(id, titulo, descricao, status, data_abertura, data_encerramento, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, created_at)), proprietarios(id, nome, email)"
+  "*, assembleias(id, titulo, descricao, status, data_abertura, data_encerramento, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
 
 function rowToSend(row: JoinedSend): AssembleiaSend {
   const a = row.assembleias
@@ -55,6 +93,16 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
     token: row.token,
     status: row.status,
     sent_at: row.sent_at,
+    nome_snapshot: row.nome_snapshot,
+    cpf_snapshot: row.cpf_snapshot,
+    email_snapshot: row.email_snapshot,
+    telefone_snapshot: row.telefone_snapshot,
+    quantidade_unidades_snapshot: row.quantidade_unidades_snapshot,
+    unidades_snapshot: row.unidades_snapshot,
+    peso_snapshot: row.peso_snapshot,
+    votado_em: row.votado_em,
+    ip_snapshot: row.ip_snapshot,
+    user_agent_snapshot: row.user_agent_snapshot,
     created_at: row.created_at,
     assembleia: a
       ? {
@@ -73,7 +121,12 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
               titulo: p.titulo,
               descricao: p.descricao,
               ativa: p.ativa,
+              tipo: p.tipo,
+              permite_abstencao: p.permite_abstencao,
               created_at: p.created_at,
+              opcoes: p.pauta_opcoes
+                ? [...p.pauta_opcoes].sort((x, y) => x.ordem - y.ordem).map(rowToPautaOpcao)
+                : undefined,
             }))
             .sort((x, y) => x.ordem - y.ordem),
         }
@@ -119,6 +172,16 @@ export async function upsertAssembleiaSend(input: {
     token: data.token,
     status: data.status as SendStatus,
     sent_at: data.sent_at,
+    nome_snapshot: data.nome_snapshot,
+    cpf_snapshot: data.cpf_snapshot,
+    email_snapshot: data.email_snapshot,
+    telefone_snapshot: data.telefone_snapshot,
+    quantidade_unidades_snapshot: data.quantidade_unidades_snapshot,
+    unidades_snapshot: data.unidades_snapshot as { numero: string; bloco: string | null }[] | null,
+    peso_snapshot: data.peso_snapshot,
+    votado_em: data.votado_em,
+    ip_snapshot: data.ip_snapshot,
+    user_agent_snapshot: data.user_agent_snapshot,
     created_at: data.created_at,
   }
 }
@@ -148,28 +211,172 @@ export async function getRespostasBySendId(sendId: string): Promise<AssembleiaRe
   return (data ?? []) as unknown as AssembleiaResposta[]
 }
 
+export interface RespostaInput {
+  pauta_id: string
+  // Para pauta "sim_nao": `resposta` obrigatório. Para "multipla_escolha":
+  // ou `opcao_id` (voto na opção), ou `resposta: "Abstenção"` — nunca os dois.
+  resposta?: AssembleiaRespostaValor
+  opcao_id?: string
+}
+
+type SendComProprietarioCompleto = {
+  proprietarios: {
+    nome: string
+    cpf: string | null
+    email: string | null
+    telefone: string | null
+    unidades: { numero: string; bloco: string | null }[] | null
+  } | null
+}
+
+export interface ContextoVoto {
+  ip?: string | null
+  userAgent?: string | null
+}
+
+// O peso — e, desde a Etapa 3, a identidade completa do proprietário e suas
+// unidades — é capturado UMA ÚNICA VEZ aqui, no momento em que o voto é
+// registrado, e gravado como snapshot definitivo (`assembleia_respostas.peso`
+// e as colunas `*_snapshot` de `assembleia_sends`). Nunca mais recalculado
+// depois: uma transferência de unidade ou uma edição de cadastro após o
+// voto não altera nada do que já foi registrado (ver lib/peso.ts).
 export async function createAssembleiaRespostas(
   sendId: string,
-  respostas: { pauta_id: string; resposta: AssembleiaRespostaValor }[]
+  respostas: RespostaInput[],
+  contexto: ContextoVoto = {}
 ): Promise<void> {
   const db = createServerClient()
-  const { error } = await db
-    .from("assembleia_respostas")
-    .insert(respostas.map((r) => ({ send_id: sendId, ...r })))
+
+  const { data: sendRow, error: sendError } = await db
+    .from("assembleia_sends")
+    .select("proprietarios(nome, cpf, email, telefone, unidades(numero, bloco))")
+    .eq("id", sendId)
+    .single()
+
+  if (sendError) throw new Error(sendError.message)
+  const proprietario = (sendRow as unknown as SendComProprietarioCompleto).proprietarios
+  const unidades = proprietario?.unidades ?? []
+  const peso = getPesoParticipante({ unidades })
+
+  const { error } = await db.from("assembleia_respostas").insert(
+    respostas.map((r) => ({
+      send_id: sendId,
+      pauta_id: r.pauta_id,
+      resposta: r.resposta ?? null,
+      opcao_id: r.opcao_id ?? null,
+      peso,
+    }))
+  )
 
   if (error) throw new Error(error.message)
+
+  // Snapshot definitivo em assembleia_sends — não afeta assembleia_respostas.peso
+  // acima (já gravado) nem a apuração (que só lê aquele campo).
+  const { error: snapshotError } = await db
+    .from("assembleia_sends")
+    .update({
+      nome_snapshot: proprietario?.nome ?? null,
+      cpf_snapshot: proprietario?.cpf ?? null,
+      email_snapshot: proprietario?.email ?? null,
+      telefone_snapshot: proprietario?.telefone ?? null,
+      quantidade_unidades_snapshot: unidades.length,
+      unidades_snapshot: unidades,
+      peso_snapshot: peso,
+      votado_em: new Date().toISOString(),
+      ip_snapshot: contexto.ip ?? null,
+      user_agent_snapshot: contexto.userAgent ?? null,
+    })
+    .eq("id", sendId)
+
+  if (snapshotError) throw new Error(snapshotError.message)
 }
 
 type ApuracaoRow = {
   pauta_id: string
-  resposta: AssembleiaRespostaValor
-  assembleia_sends: {
-    proprietarios: { unidades: { id: string }[] | null } | null
-  } | null
+  resposta: AssembleiaRespostaValor | null
+  opcao_id: string | null
+  peso: number
 }
 
-// O peso de cada voto é recalculado dinamicamente a partir das unidades atuais
-// do proprietário — nunca um campo salvo. Ver lib/peso.ts.
+// Apuração de uma pauta "sim_nao" — lê o peso congelado em cada resposta
+// (nunca recalculado a partir das unidades atuais do proprietário).
+function apurarSimNao(pautaRows: ApuracaoRow[]) {
+  let participantesSim = 0
+  let participantesNao = 0
+  let participantesAbstencao = 0
+  let ponderadoSim = 0
+  let ponderadoNao = 0
+  let ponderadoAbstencao = 0
+  let totalApartamentos = 0
+
+  for (const row of pautaRows) {
+    const peso = row.peso
+    totalApartamentos += peso
+
+    if (row.resposta === "Sim") {
+      participantesSim += 1
+      ponderadoSim += peso
+    } else if (row.resposta === "Abstenção") {
+      participantesAbstencao += 1
+      ponderadoAbstencao += peso
+    } else {
+      participantesNao += 1
+      ponderadoNao += peso
+    }
+  }
+
+  return {
+    por_participantes: { sim: participantesSim, nao: participantesNao, abstencao: participantesAbstencao },
+    ponderado: { sim: ponderadoSim, nao: ponderadoNao, abstencao: ponderadoAbstencao },
+    total_apartamentos_representados: totalApartamentos,
+  }
+}
+
+// Apuração de uma pauta "multipla_escolha" — agrupa por opção votada; quem
+// se absteve (resposta = "Abstenção", opcao_id nulo) entra no campo
+// `abstencao`, no mesmo formato usado pelas pautas "sim_nao". Peso também
+// vem congelado de `row.peso`, nunca recalculado.
+function apurarMultiplaEscolha(pauta: Pauta, pautaRows: ApuracaoRow[]) {
+  const porOpcao = new Map<string, { participantes: number; ponderado: number }>()
+  for (const opcao of pauta.opcoes ?? []) {
+    porOpcao.set(opcao.id, { participantes: 0, ponderado: 0 })
+  }
+
+  let participantesAbstencao = 0
+  let ponderadoAbstencao = 0
+  let totalApartamentos = 0
+
+  for (const row of pautaRows) {
+    const peso = row.peso
+    totalApartamentos += peso
+
+    if (row.opcao_id) {
+      const acc = porOpcao.get(row.opcao_id) ?? { participantes: 0, ponderado: 0 }
+      acc.participantes += 1
+      acc.ponderado += peso
+      porOpcao.set(row.opcao_id, acc)
+    } else if (row.resposta === "Abstenção") {
+      participantesAbstencao += 1
+      ponderadoAbstencao += peso
+    }
+  }
+
+  const opcoes_resultado: OpcaoApuracao[] = (pauta.opcoes ?? []).map((opcao) => {
+    const acc = porOpcao.get(opcao.id) ?? { participantes: 0, ponderado: 0 }
+    return { opcao_id: opcao.id, label: opcao.label, ...acc }
+  })
+
+  return {
+    por_participantes: { sim: 0, nao: 0, abstencao: participantesAbstencao },
+    ponderado: { sim: 0, nao: 0, abstencao: ponderadoAbstencao },
+    total_apartamentos_representados: totalApartamentos,
+    opcoes_resultado,
+  }
+}
+
+// O peso de cada resposta já vem congelado em `peso` (ver createAssembleiaRespostas)
+// — a apuração só soma o que foi gravado no momento do voto, nunca recalcula
+// a partir das unidades atuais do proprietário.
 export async function getApuracaoAssembleia(
   assembleiaId: string,
   pautas: Pauta[]
@@ -179,7 +386,7 @@ export async function getApuracaoAssembleia(
   const [respostasRes, sendsCount] = await Promise.all([
     db
       .from("assembleia_respostas")
-      .select("pauta_id, resposta, assembleia_sends!inner(assembleia_id, proprietarios(unidades(id)))")
+      .select("pauta_id, resposta, opcao_id, peso, assembleia_sends!inner(assembleia_id)")
       .eq("assembleia_sends.assembleia_id", assembleiaId),
     db
       .from("assembleia_sends")
@@ -202,38 +409,12 @@ export async function getApuracaoAssembleia(
 
   const pautaApuracoes = pautas.map((pauta) => {
     const pautaRows = byPauta.get(pauta.id) ?? []
+    const resultado =
+      pauta.tipo === "multipla_escolha"
+        ? apurarMultiplaEscolha(pauta, pautaRows)
+        : apurarSimNao(pautaRows)
 
-    let participantesSim = 0
-    let participantesNao = 0
-    let participantesAbstencao = 0
-    let ponderadoSim = 0
-    let ponderadoNao = 0
-    let ponderadoAbstencao = 0
-    let totalApartamentos = 0
-
-    for (const row of pautaRows) {
-      const unidades = row.assembleia_sends?.proprietarios?.unidades ?? []
-      const peso = getPesoParticipante({ unidades })
-      totalApartamentos += peso
-
-      if (row.resposta === "Sim") {
-        participantesSim += 1
-        ponderadoSim += peso
-      } else if (row.resposta === "Abstenção") {
-        participantesAbstencao += 1
-        ponderadoAbstencao += peso
-      } else {
-        participantesNao += 1
-        ponderadoNao += peso
-      }
-    }
-
-    return {
-      pauta,
-      por_participantes: { sim: participantesSim, nao: participantesNao, abstencao: participantesAbstencao },
-      ponderado: { sim: ponderadoSim, nao: ponderadoNao, abstencao: ponderadoAbstencao },
-      total_apartamentos_representados: totalApartamentos,
-    }
+    return { pauta, ...resultado }
   })
 
   // Total de respondidos = respostas para a primeira pauta ativa
@@ -248,4 +429,24 @@ export async function getApuracaoAssembleia(
     total_enviados,
     total_respondidos,
   }
+}
+
+// Proprietários que já registraram voto em QUALQUER assembleia deste
+// condomínio (passada ou em andamento) — usado para restringir a edição de
+// CPF (Etapa 2: só editável livremente antes do primeiro voto).
+export async function getProprietariosQueJaVotaram(condominioId: string): Promise<Set<string>> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("assembleia_respostas")
+    .select("assembleia_sends!inner(proprietario_id, assembleias!inner(condominio_id))")
+    .eq("assembleia_sends.assembleias.condominio_id", condominioId)
+
+  if (error) throw new Error(error.message)
+
+  type Row = { assembleia_sends: { proprietario_id: string } | null }
+  return new Set(
+    ((data ?? []) as unknown as Row[])
+      .map((r) => r.assembleia_sends?.proprietario_id)
+      .filter((id): id is string => Boolean(id))
+  )
 }

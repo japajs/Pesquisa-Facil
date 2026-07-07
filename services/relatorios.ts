@@ -26,12 +26,17 @@ export async function getParticipantesByAssembleia(
     id: string
     status: string
     sent_at: string | null
+    nome_snapshot: string | null
+    email_snapshot: string | null
+    telefone_snapshot: string | null
     proprietarios: { nome: string; email: string | null; telefone: string | null } | null
   }
 
   const { data: sends } = await db
     .from("assembleia_sends")
-    .select("id, status, sent_at, proprietarios(nome, email, telefone)")
+    .select(
+      "id, status, sent_at, nome_snapshot, email_snapshot, telefone_snapshot, proprietarios(nome, email, telefone)"
+    )
     .eq("assembleia_id", assembleiaId)
 
   if (!sends || sends.length === 0) return []
@@ -45,14 +50,20 @@ export async function getParticipantesByAssembleia(
 
   const respondedIds = new Set<string>((respostas ?? []).map((r) => r.send_id as string))
 
-  return (sends as unknown as SendRow[]).map((s) => ({
-    nome: s.proprietarios?.nome ?? "—",
-    email: s.proprietarios?.email ?? null,
-    telefone: s.proprietarios?.telefone ?? null,
-    respondeu: respondedIds.has(s.id),
-    send_status: s.status,
-    sent_at: s.sent_at,
-  }))
+  // Etapa 3 — integridade histórica: quem já votou tem os dados congelados
+  // no momento do voto (snapshot); o cadastro atual só é usado para quem
+  // ainda não votou, já que não existe nenhum snapshot para congelar.
+  return (sends as unknown as SendRow[]).map((s) => {
+    const respondeu = respondedIds.has(s.id)
+    return {
+      nome: (respondeu ? s.nome_snapshot : null) ?? s.proprietarios?.nome ?? "—",
+      email: (respondeu ? s.email_snapshot : null) ?? s.proprietarios?.email ?? null,
+      telefone: (respondeu ? s.telefone_snapshot : null) ?? s.proprietarios?.telefone ?? null,
+      respondeu,
+      send_status: s.status,
+      sent_at: s.sent_at,
+    }
+  })
 }
 
 export async function getUnidadesRelatorio(condominioId: string): Promise<UnidadeRelatorio[]> {

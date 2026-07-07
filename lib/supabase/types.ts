@@ -16,6 +16,10 @@ export type Database = {
           entidade_id: string | null
           condominio_id: string | null
           condominio_nome: string | null
+          campo: string | null
+          valor_anterior: string | null
+          valor_novo: string | null
+          motivo: string | null
           created_at: string
         }
         Insert: {
@@ -30,6 +34,10 @@ export type Database = {
           entidade_id?: string | null
           condominio_id?: string | null
           condominio_nome?: string | null
+          campo?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+          motivo?: string | null
           created_at?: string
         }
         Update: Record<string, never>
@@ -113,6 +121,7 @@ export type Database = {
           email: string | null
           cpf: string | null
           telefone: string | null
+          observacoes: string | null
           created_at: string
         }
         Insert: {
@@ -122,6 +131,7 @@ export type Database = {
           email?: string | null
           cpf?: string | null
           telefone?: string | null
+          observacoes?: string | null
           created_at?: string
         }
         Update: {
@@ -129,6 +139,7 @@ export type Database = {
           email?: string | null
           cpf?: string | null
           telefone?: string | null
+          observacoes?: string | null
         }
         Relationships: []
       }
@@ -150,6 +161,7 @@ export type Database = {
         Update: {
           numero?: string
           bloco?: string | null
+          proprietario_id?: string
         }
         Relationships: []
       }
@@ -194,6 +206,8 @@ export type Database = {
           titulo: string
           descricao: string | null
           ativa: boolean
+          tipo: "sim_nao" | "multipla_escolha"
+          permite_abstencao: boolean
           created_at: string
         }
         Insert: {
@@ -203,6 +217,8 @@ export type Database = {
           titulo: string
           descricao?: string | null
           ativa?: boolean
+          tipo?: "sim_nao" | "multipla_escolha"
+          permite_abstencao?: boolean
           created_at?: string
         }
         Update: {
@@ -210,6 +226,29 @@ export type Database = {
           titulo?: string
           descricao?: string | null
           ativa?: boolean
+          tipo?: "sim_nao" | "multipla_escolha"
+          permite_abstencao?: boolean
+        }
+        Relationships: []
+      }
+      pauta_opcoes: {
+        Row: {
+          id: string
+          pauta_id: string
+          ordem: number
+          label: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pauta_id: string
+          ordem: number
+          label: string
+          created_at?: string
+        }
+        Update: {
+          ordem?: number
+          label?: string
         }
         Relationships: []
       }
@@ -221,6 +260,16 @@ export type Database = {
           token: string
           status: "pending" | "sent" | "failed"
           sent_at: string | null
+          nome_snapshot: string | null
+          cpf_snapshot: string | null
+          email_snapshot: string | null
+          telefone_snapshot: string | null
+          quantidade_unidades_snapshot: number | null
+          unidades_snapshot: Json | null
+          peso_snapshot: number | null
+          votado_em: string | null
+          ip_snapshot: string | null
+          user_agent_snapshot: string | null
           created_at: string
         }
         Insert: {
@@ -230,12 +279,32 @@ export type Database = {
           token: string
           status?: "pending" | "sent" | "failed"
           sent_at?: string | null
+          nome_snapshot?: string | null
+          cpf_snapshot?: string | null
+          email_snapshot?: string | null
+          telefone_snapshot?: string | null
+          quantidade_unidades_snapshot?: number | null
+          unidades_snapshot?: Json | null
+          peso_snapshot?: number | null
+          votado_em?: string | null
+          ip_snapshot?: string | null
+          user_agent_snapshot?: string | null
           created_at?: string
         }
         Update: {
           token?: string
           status?: "pending" | "sent" | "failed"
           sent_at?: string | null
+          nome_snapshot?: string | null
+          cpf_snapshot?: string | null
+          email_snapshot?: string | null
+          telefone_snapshot?: string | null
+          quantidade_unidades_snapshot?: number | null
+          unidades_snapshot?: Json | null
+          peso_snapshot?: number | null
+          votado_em?: string | null
+          ip_snapshot?: string | null
+          user_agent_snapshot?: string | null
         }
         Relationships: []
       }
@@ -244,18 +313,24 @@ export type Database = {
           id: string
           send_id: string
           pauta_id: string
-          resposta: "Sim" | "Não" | "Abstenção"
+          resposta: "Sim" | "Não" | "Abstenção" | null
+          opcao_id: string | null
+          peso: number
           created_at: string
         }
         Insert: {
           id?: string
           send_id: string
           pauta_id: string
-          resposta: "Sim" | "Não" | "Abstenção"
+          resposta?: "Sim" | "Não" | "Abstenção" | null
+          opcao_id?: string | null
+          peso: number
           created_at?: string
         }
         Update: {
-          resposta?: "Sim" | "Não" | "Abstenção"
+          resposta?: "Sim" | "Não" | "Abstenção" | null
+          opcao_id?: string | null
+          peso?: number
         }
         Relationships: []
       }
@@ -291,6 +366,9 @@ export type DbAssembleiaInsert = Database["public"]["Tables"]["assembleias"]["In
 
 export type DbPauta = Database["public"]["Tables"]["pautas"]["Row"]
 export type DbPautaInsert = Database["public"]["Tables"]["pautas"]["Insert"]
+
+export type DbPautaOpcao = Database["public"]["Tables"]["pauta_opcoes"]["Row"]
+export type DbPautaOpcaoInsert = Database["public"]["Tables"]["pauta_opcoes"]["Insert"]
 
 export type DbAssembleiaSend = Database["public"]["Tables"]["assembleia_sends"]["Row"]
 export type DbAssembleiaSendInsert = Database["public"]["Tables"]["assembleia_sends"]["Insert"]

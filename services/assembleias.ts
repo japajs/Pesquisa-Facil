@@ -1,5 +1,13 @@
 import { createServerClient } from "@/lib/supabase/server"
-import type { Assembleia, AssembleiaStatus, Pauta } from "@/types"
+import type { Assembleia, AssembleiaStatus, Pauta, PautaOpcao } from "@/types"
+
+type JoinedPautaOpcao = {
+  id: string
+  pauta_id: string
+  ordem: number
+  label: string
+  created_at: string
+}
 
 type JoinedPauta = {
   id: string
@@ -8,7 +16,10 @@ type JoinedPauta = {
   titulo: string
   descricao: string | null
   ativa: boolean
+  tipo: Pauta["tipo"]
+  permite_abstencao: boolean
   created_at: string
+  pauta_opcoes: JoinedPautaOpcao[] | null
 }
 
 type JoinedAssembleia = {
@@ -24,6 +35,16 @@ type JoinedAssembleia = {
   pautas: JoinedPauta[] | null
 }
 
+function rowToPautaOpcao(row: JoinedPautaOpcao): PautaOpcao {
+  return {
+    id: row.id,
+    pauta_id: row.pauta_id,
+    ordem: row.ordem,
+    label: row.label,
+    created_at: row.created_at,
+  }
+}
+
 function rowToPauta(row: JoinedPauta): Pauta {
   return {
     id: row.id,
@@ -32,7 +53,12 @@ function rowToPauta(row: JoinedPauta): Pauta {
     titulo: row.titulo,
     descricao: row.descricao,
     ativa: row.ativa,
+    tipo: row.tipo,
+    permite_abstencao: row.permite_abstencao,
     created_at: row.created_at,
+    opcoes: row.pauta_opcoes
+      ? [...row.pauta_opcoes].sort((a, b) => a.ordem - b.ordem).map(rowToPautaOpcao)
+      : undefined,
   }
 }
 
@@ -51,7 +77,7 @@ function rowToAssembleia(row: JoinedAssembleia): Assembleia {
   }
 }
 
-const SELECT_WITH_PAUTAS = "*, pautas(*)"
+const SELECT_WITH_PAUTAS = "*, pautas(*, pauta_opcoes(*))"
 
 export async function getAllAssembleias(condominioId: string): Promise<Assembleia[]> {
   const db = createServerClient()

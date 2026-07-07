@@ -55,6 +55,11 @@ export interface AuditLog {
   entidade_id: string | null
   condominio_id: string | null
   condominio_nome: string | null
+  // histórico estruturado (Etapa 2) — nem toda ação preenche estes campos
+  campo: string | null
+  valor_anterior: string | null
+  valor_novo: string | null
+  motivo: string | null
   created_at: string
 }
 
@@ -121,6 +126,7 @@ export interface Proprietario {
   email: string | null
   cpf: string | null
   telefone: string | null
+  observacoes: string | null
   created_at: string
   // joined
   unidades?: Unidade[]
@@ -130,6 +136,7 @@ export interface Proprietario {
 
 export type AssembleiaStatus = "rascunho" | "aberta" | "encerrada"
 export type AssembleiaRespostaValor = "Sim" | "Não" | "Abstenção"
+export type PautaTipo = "sim_nao" | "multipla_escolha"
 
 export interface Assembleia {
   id: string
@@ -145,6 +152,14 @@ export interface Assembleia {
   pautas?: Pauta[]
 }
 
+export interface PautaOpcao {
+  id: string
+  pauta_id: string
+  ordem: number
+  label: string
+  created_at: string
+}
+
 export interface Pauta {
   id: string
   assembleia_id: string
@@ -152,10 +167,32 @@ export interface Pauta {
   titulo: string
   descricao: string | null
   ativa: boolean
+  tipo: PautaTipo
+  permite_abstencao: boolean
   created_at: string
+  // joined — só populado para pautas do tipo "multipla_escolha"
+  opcoes?: PautaOpcao[]
 }
 
-export interface AssembleiaSend {
+// Fotografia da situação cadastral do proprietário no instante em que ele
+// registrou o voto (Etapa 3). Preenchida uma única vez, dentro de
+// createAssembleiaRespostas — nunca reescrita depois. Fica `null` enquanto o
+// proprietário não vota; depois disso, é definitiva e nunca mais muda,
+// mesmo que o cadastro ou as unidades dele mudem em seguida.
+export interface AssembleiaSendSnapshot {
+  nome_snapshot: string | null
+  cpf_snapshot: string | null
+  email_snapshot: string | null
+  telefone_snapshot: string | null
+  quantidade_unidades_snapshot: number | null
+  unidades_snapshot: { numero: string; bloco: string | null }[] | null
+  peso_snapshot: number | null
+  votado_em: string | null
+  ip_snapshot: string | null
+  user_agent_snapshot: string | null
+}
+
+export interface AssembleiaSend extends AssembleiaSendSnapshot {
   id: string
   assembleia_id: string
   proprietario_id: string
@@ -175,17 +212,38 @@ export interface AssembleiaResposta {
   id: string
   send_id: string
   pauta_id: string
-  resposta: AssembleiaRespostaValor
+  // Exatamente um dos dois é preenchido: `resposta` para pautas "sim_nao"
+  // (ou abstenção em "multipla_escolha"), `opcao_id` para o voto em uma
+  // opção de pauta "multipla_escolha".
+  resposta: AssembleiaRespostaValor | null
+  opcao_id: string | null
+  // Congelado no momento do voto — nunca recalculado depois (ver lib/peso.ts
+  // e services/assembleia-votos.ts). Transferências/edições de unidade após
+  // o voto não alteram este valor.
+  peso: number
   created_at: string
 }
 
 // ─── Apuração de Assembleia ────────────────────────────────────────────────
 
+export interface OpcaoApuracao {
+  opcao_id: string
+  label: string
+  participantes: number
+  ponderado: number
+}
+
 export interface PautaApuracao {
   pauta: Pauta
+  // Para pautas "sim_nao": preenchidos normalmente.
+  // Para pautas "multipla_escolha": sim/nao ficam zerados — o resultado
+  // fica em `opcoes_resultado`; abstencao continua representando quem se
+  // absteve, se a pauta permitir.
   por_participantes: { sim: number; nao: number; abstencao: number }
   ponderado: { sim: number; nao: number; abstencao: number }
   total_apartamentos_representados: number
+  // joined — só populado para pautas do tipo "multipla_escolha"
+  opcoes_resultado?: OpcaoApuracao[]
 }
 
 export interface AssembleiaApuracao {

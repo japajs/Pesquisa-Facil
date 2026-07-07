@@ -11,14 +11,22 @@ import {
   removeUnidadeAction,
 } from "@/app/actions/proprietarios"
 import { getPesoParticipante } from "@/lib/peso"
+import { EditarProprietarioDialog } from "@/components/proprietarios/editar-proprietario-dialog"
 import type { Proprietario } from "@/types"
 
 interface ProprietariosListProps {
   proprietarios: Proprietario[]
   condominioId: string
+  proprietariosQueJaVotaram?: Set<string>
+  isAdmin?: boolean
 }
 
-export function ProprietariosList({ proprietarios, condominioId }: ProprietariosListProps) {
+export function ProprietariosList({
+  proprietarios,
+  condominioId,
+  proprietariosQueJaVotaram,
+  isAdmin = false,
+}: ProprietariosListProps) {
   if (proprietarios.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-10 text-center">
@@ -31,7 +39,14 @@ export function ProprietariosList({ proprietarios, condominioId }: Proprietarios
   return (
     <div className="rounded-xl border border-border/60 bg-card divide-y divide-border/40">
       {proprietarios.map((p) => (
-        <ProprietarioRow key={p.id} proprietario={p} condominioId={condominioId} />
+        <ProprietarioRow
+          key={p.id}
+          proprietario={p}
+          condominioId={condominioId}
+          todosProprietarios={proprietarios}
+          jaVotou={proprietariosQueJaVotaram?.has(p.id) ?? false}
+          isAdmin={isAdmin}
+        />
       ))}
     </div>
   )
@@ -40,9 +55,15 @@ export function ProprietariosList({ proprietarios, condominioId }: Proprietarios
 function ProprietarioRow({
   proprietario,
   condominioId,
+  todosProprietarios,
+  jaVotou,
+  isAdmin,
 }: {
   proprietario: Proprietario
   condominioId: string
+  todosProprietarios: Proprietario[]
+  jaVotou: boolean
+  isAdmin: boolean
 }) {
   const [novaUnidade, setNovaUnidade] = useState("")
   const [showAdd, setShowAdd] = useState(false)
@@ -97,6 +118,13 @@ function ProprietarioRow({
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
             Peso {peso}
           </span>
+          <EditarProprietarioDialog
+            proprietario={proprietario}
+            condominioId={condominioId}
+            todosProprietarios={todosProprietarios}
+            jaVotou={jaVotou}
+            isAdmin={isAdmin}
+          />
           <Button
             variant="ghost"
             size="sm"

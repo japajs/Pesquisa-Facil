@@ -69,6 +69,7 @@ type SearchParamsRaw = {
   busca?: string
   data_inicio?: string
   data_fim?: string
+  entidade_id?: string
   pagina?: string
 }
 
@@ -79,6 +80,7 @@ function buildUrl(sp: SearchParamsRaw, pagina: number): string {
   if (sp.acao) p.set("acao", sp.acao)
   if (sp.data_inicio) p.set("data_inicio", sp.data_inicio)
   if (sp.data_fim) p.set("data_fim", sp.data_fim)
+  if (sp.entidade_id) p.set("entidade_id", sp.entidade_id)
   if (pagina > 1) p.set("pagina", String(pagina))
   const qs = p.toString()
   return `/auditoria${qs ? "?" + qs : ""}`
@@ -101,12 +103,15 @@ export default async function AuditoriaPage({ searchParams }: Props) {
     busca: sp.busca || undefined,
     dataInicio: sp.data_inicio || undefined,
     dataFim: sp.data_fim || undefined,
+    entidadeId: sp.entidade_id || undefined,
     limit: POR_PAGINA,
     offset,
   }).catch(() => ({ logs: [] as AuditLog[], total: 0 }))
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-  const hasFilters = !!(sp.modulo || sp.acao || sp.busca || sp.data_inicio || sp.data_fim)
+  const hasFilters = !!(
+    sp.modulo || sp.acao || sp.busca || sp.data_inicio || sp.data_fim || sp.entidade_id
+  )
 
   return (
     <div className="flex flex-col gap-6 p-6 pt-8">

@@ -72,7 +72,10 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
   boldRow(wsResumo, 20, 2)
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo Geral")
 
-  /* ── Tab 2: Resultados por Pauta ─────────────────────────────────────── */
+  /* ── Tab 2: Resultados por Pauta (apenas pautas Sim/Não) ─────────────── */
+  const pautasSimNao = apuracao.pautas.filter((p) => p.pauta.tipo !== "multipla_escolha")
+  const pautasMultiplaEscolha = apuracao.pautas.filter((p) => p.pauta.tipo === "multipla_escolha")
+
   const resHeader = [
     "#",
     "Pauta",
@@ -94,7 +97,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     "Resultado (ponderado)",
   ]
 
-  const resRows = apuracao.pautas.map((p, i) => {
+  const resRows = pautasSimNao.map((p, i) => {
     const tp = p.por_participantes.sim + p.por_participantes.nao + p.por_participantes.abstencao
     const tw = p.ponderado.sim + p.ponderado.nao + p.ponderado.abstencao
     const vP =
@@ -147,6 +150,49 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
   ]
   boldRow(wsRes, 0, resHeader.length)
   XLSX.utils.book_append_sheet(wb, wsRes, "Resultados por Pauta")
+
+  /* ── Tab (opcional): Múltipla Escolha ─────────────────────────────────
+     Só é adicionada quando existe ao menos uma pauta desse tipo — uma
+     assembleia só com pautas Sim/Não gera o mesmo workbook de sempre. */
+  if (pautasMultiplaEscolha.length > 0) {
+    const meHeader = ["Pauta", "Opção", "Participantes", "% part.", "Unidades (ponderado)", "% ponderado"]
+    const meRows: (string | number)[][] = []
+
+    pautasMultiplaEscolha.forEach((p) => {
+      const opcoes = [...(p.opcoes_resultado ?? [])].sort((a, b) => b.ponderado - a.ponderado)
+      const totalParticipantes =
+        opcoes.reduce((sum, o) => sum + o.participantes, 0) + p.por_participantes.abstencao
+      const totalPonderado = opcoes.reduce((sum, o) => sum + o.ponderado, 0) + p.ponderado.abstencao
+
+      meRows.push([p.pauta.titulo])
+      opcoes.forEach((o) => {
+        meRows.push([
+          "",
+          o.label,
+          o.participantes,
+          pctStr(o.participantes, totalParticipantes),
+          o.ponderado,
+          pctStr(o.ponderado, totalPonderado),
+        ])
+      })
+      if (p.ponderado.abstencao > 0) {
+        meRows.push([
+          "",
+          "Abstenção",
+          p.por_participantes.abstencao,
+          pctStr(p.por_participantes.abstencao, totalParticipantes),
+          p.ponderado.abstencao,
+          pctStr(p.ponderado.abstencao, totalPonderado),
+        ])
+      }
+      meRows.push([])
+    })
+
+    const wsMe = XLSX.utils.aoa_to_sheet([meHeader, ...meRows])
+    wsMe["!cols"] = [{ wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 20 }, { wch: 12 }]
+    boldRow(wsMe, 0, meHeader.length)
+    XLSX.utils.book_append_sheet(wb, wsMe, "Múltipla Escolha")
+  }
 
   /* ── Tab 3: Participantes ────────────────────────────────────────────── */
   const partHeader = ["Nome", "E-mail", "Telefone", "Status envio", "Respondeu?", "Enviado em"]

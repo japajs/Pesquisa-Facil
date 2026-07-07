@@ -168,6 +168,81 @@ function calcVerdict(sim: number, nao: number, total: number): string {
   return "EMPATE"
 }
 
+const CORES_OPCOES = ["#4F46E5", "#0EA5E9", "#15803D", "#D946EF", "#EA580C", "#0D9488"]
+
+function PautaMultiplaEscolha({ item }: { item: AssembleiaApuracao["pautas"][number] }) {
+  const { ponderado, por_participantes, opcoes_resultado = [] } = item
+  const opcoes = [...opcoes_resultado].sort((a, b) => b.ponderado - a.ponderado)
+  const tw = opcoes.reduce((sum, o) => sum + o.ponderado, 0) + ponderado.abstencao
+  const tp = opcoes.reduce((sum, o) => sum + o.participantes, 0) + por_participantes.abstencao
+  const vencedora = tw > 0 && opcoes.length > 0 ? opcoes[0] : null
+
+  return (
+    <View style={s.table}>
+      <View style={s.tRowHeader}>
+        <View style={s.tcWide}>
+          <Text style={s.thText}>OPÇÃO</Text>
+        </View>
+        <View style={s.tcNarrow}>
+          <Text style={s.thText}>PARTIC.</Text>
+        </View>
+        <View style={s.tcNarrow}>
+          <Text style={s.thText}>UNID.</Text>
+        </View>
+        <View style={s.tcNarrow}>
+          <Text style={s.thText}>%</Text>
+        </View>
+      </View>
+      {opcoes.map((o, i) => (
+        <View key={o.opcao_id} style={i === opcoes.length - 1 && ponderado.abstencao === 0 ? s.tRowLast : s.tRow}>
+          <View style={s.tcWide}>
+            <Text style={{ ...s.tdText, color: CORES_OPCOES[i % CORES_OPCOES.length], fontFamily: "Helvetica-Bold" }}>
+              {o.label}
+            </Text>
+          </View>
+          <View style={s.tcNarrow}>
+            <Text style={s.tdText}>{o.participantes}</Text>
+          </View>
+          <View style={s.tcNarrow}>
+            <Text style={s.tdText}>{o.ponderado}</Text>
+          </View>
+          <View style={s.tcNarrow}>
+            <Text style={s.tdText}>{pctStr(o.ponderado, tw)}</Text>
+          </View>
+        </View>
+      ))}
+      {ponderado.abstencao > 0 && (
+        <View style={s.tRowLast}>
+          <View style={s.tcWide}>
+            <Text style={s.tdAbst}>ABSTENÇÃO</Text>
+          </View>
+          <View style={s.tcNarrow}>
+            <Text style={s.tdText}>{por_participantes.abstencao}</Text>
+          </View>
+          <View style={s.tcNarrow}>
+            <Text style={s.tdText}>{ponderado.abstencao}</Text>
+          </View>
+          <View style={s.tcNarrow}>
+            <Text style={s.tdText}>{pctStr(ponderado.abstencao, tw)}</Text>
+          </View>
+        </View>
+      )}
+      {vencedora ? (
+        <View style={[s.verdict, { backgroundColor: CORES_OPCOES[opcoes.indexOf(vencedora) % CORES_OPCOES.length] }]}>
+          <Text style={s.verdictText}>{vencedora.label.toUpperCase()}</Text>
+          <Text style={s.verdictSub}>
+            {vencedora.ponderado} unid. · {tp} participante{tp === 1 ? "" : "s"}
+          </Text>
+        </View>
+      ) : (
+        <View style={[s.verdict, { backgroundColor: C.muted }]}>
+          <Text style={s.verdictText}>SEM VOTOS</Text>
+        </View>
+      )}
+    </View>
+  )
+}
+
 export function ApuracaoPDF({
   assembleia,
   condominio,
@@ -274,6 +349,9 @@ export function ApuracaoPDF({
                 <Text style={s.pautaDesc}>{pauta.descricao}</Text>
               ) : null}
 
+              {pauta.tipo === "multipla_escolha" ? (
+                <PautaMultiplaEscolha item={item} />
+              ) : (
               <View style={s.tablePair}>
                 {/* Por participantes */}
                 <View style={[s.tableHalf, { marginRight: 6 }]}>
@@ -394,6 +472,7 @@ export function ApuracaoPDF({
                   </View>
                 </View>
               </View>
+              )}
 
               {i < apuracao.pautas.length - 1 ? <View style={s.divider} /> : null}
             </View>

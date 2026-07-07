@@ -5,6 +5,8 @@ import { ArrowLeft } from "lucide-react"
 import { getCondominioById } from "@/services/condominios"
 import { getAllProprietarios } from "@/services/proprietarios"
 import { getAllAssembleias } from "@/services/assembleias"
+import { getProprietariosQueJaVotaram } from "@/services/assembleia-votos"
+import { getSession } from "@/lib/auth"
 import { CriarProprietarioDialog } from "@/components/proprietarios/criar-proprietario-dialog"
 import { ProprietariosList } from "@/components/proprietarios/proprietarios-list"
 import { CriarAssembleiaDialog } from "@/components/assembleias/criar-assembleia-dialog"
@@ -33,9 +35,11 @@ export default async function CondominioDetailPage({ params }: Props) {
   const condominio = await getCondominioById(id).catch(() => null)
   if (!condominio) notFound()
 
-  const [proprietarios, assembleias] = await Promise.all([
+  const [proprietarios, assembleias, proprietariosQueJaVotaram, session] = await Promise.all([
     getAllProprietarios(id).catch(() => []),
     getAllAssembleias(id).catch(() => []),
+    getProprietariosQueJaVotaram(id).catch(() => new Set<string>()),
+    getSession(),
   ])
 
   return (
@@ -57,27 +61,6 @@ export default async function CondominioDetailPage({ params }: Props) {
       {/* Informações do condomínio */}
       <CondominioInfoCard condominio={condominio} />
 
-      {/* Proprietários */}
-      <section className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Proprietários</h2>
-            <p className="text-sm text-muted-foreground">
-              {proprietarios.length}{" "}
-              {proprietarios.length === 1 ? "proprietário" : "proprietários"} · o peso de cada voto
-              é calculado pelo número de unidades vinculadas
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {proprietarios.length > 0 && (
-              <ExportarProprietariosButton condominioId={id} condominioNome={condominio.nome} />
-            )}
-            <CriarProprietarioDialog condominioId={id} />
-          </div>
-        </div>
-        <ProprietariosList proprietarios={proprietarios} condominioId={id} />
-      </section>
-
       {/* Assembleias */}
       <section className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -96,6 +79,32 @@ export default async function CondominioDetailPage({ params }: Props) {
           assembleias={assembleias}
           condominioId={id}
           proprietarios={proprietarios}
+        />
+      </section>
+
+      {/* Proprietários */}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold">Proprietários</h2>
+            <p className="text-sm text-muted-foreground">
+              {proprietarios.length}{" "}
+              {proprietarios.length === 1 ? "proprietário" : "proprietários"} · o peso de cada voto
+              é calculado pelo número de unidades vinculadas
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {proprietarios.length > 0 && (
+              <ExportarProprietariosButton condominioId={id} condominioNome={condominio.nome} />
+            )}
+            <CriarProprietarioDialog condominioId={id} />
+          </div>
+        </div>
+        <ProprietariosList
+          proprietarios={proprietarios}
+          condominioId={id}
+          proprietariosQueJaVotaram={proprietariosQueJaVotaram}
+          isAdmin={session?.perfil === "administrador"}
         />
       </section>
     </div>

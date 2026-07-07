@@ -5,7 +5,12 @@ import { Loader2, Send, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { registrarVotosAction } from "@/app/actions/assembleia-votos"
+import type { RespostaInput } from "@/services/assembleia-votos"
 import type { AssembleiaRespostaValor, Pauta } from "@/types"
+
+// Guarda o id da opção escolhida (pautas "multipla_escolha") ou um dos
+// valores fixos abaixo (pautas "sim_nao", ou abstenção em qualquer tipo).
+type ValorEscolhido = string
 
 const OPCOES: { valor: AssembleiaRespostaValor; colorSelected: string; colorHover: string }[] = [
   {
@@ -32,7 +37,7 @@ interface Props {
 }
 
 export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) {
-  const [respostas, setRespostas] = useState<Record<string, AssembleiaRespostaValor>>({})
+  const [respostas, setRespostas] = useState<Record<string, ValorEscolhido>>({})
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -40,7 +45,7 @@ export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) 
   const allAnswered = pautas.every((p) => respostas[p.id])
   const unansweredCount = pautas.filter((p) => !respostas[p.id]).length
 
-  function pick(pautaId: string, valor: AssembleiaRespostaValor) {
+  function pick(pautaId: string, valor: ValorEscolhido) {
     setRespostas((prev) => ({ ...prev, [pautaId]: valor }))
     if (error) setError(null)
   }
@@ -53,7 +58,13 @@ export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) 
       return
     }
     startTransition(async () => {
-      const votos = pautas.map((p) => ({ pauta_id: p.id, resposta: respostas[p.id]! }))
+      const votos: RespostaInput[] = pautas.map((p) => {
+        const valor = respostas[p.id]!
+        if (p.tipo === "multipla_escolha" && valor !== "Abstenção") {
+          return { pauta_id: p.id, opcao_id: valor }
+        }
+        return { pauta_id: p.id, resposta: valor as AssembleiaRespostaValor }
+      })
       const result = await registrarVotosAction(sendId, votos)
       if (result.success) {
         setDone(true)
@@ -101,25 +112,64 @@ export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) 
               )}
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              {OPCOES.map(({ valor, colorSelected, colorHover }) => {
-                const selected = resposta === valor
-                return (
+            {pauta.tipo === "multipla_escolha" ? (
+              <div className="flex flex-col gap-2">
+                {(pauta.opcoes ?? []).map((opcao) => {
+                  const selected = resposta === opcao.id
+                  return (
+                    <button
+                      key={opcao.id}
+                      type="button"
+                      onClick={() => pick(pauta.id, opcao.id)}
+                      aria-pressed={selected}
+                      className={cn(
+                        "flex items-center rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all",
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-foreground hover:border-primary/60"
+                      )}
+                    >
+                      {opcao.label}
+                    </button>
+                  )
+                })}
+                {pauta.permite_abstencao && (
                   <button
-                    key={valor}
                     type="button"
-                    onClick={() => pick(pauta.id, valor)}
-                    aria-pressed={selected}
+                    onClick={() => pick(pauta.id, "Abstenção")}
+                    aria-pressed={resposta === "Abstenção"}
                     className={cn(
-                      "flex flex-1 items-center justify-center rounded-xl border-2 py-3.5 text-sm font-medium transition-all",
-                      selected ? colorSelected : colorHover
+                      "flex items-center justify-center rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all",
+                      resposta === "Abstenção"
+                        ? "border-amber-500 bg-amber-500 text-white"
+                        : "border-border bg-card text-foreground hover:border-amber-500/60"
                     )}
                   >
-                    {valor}
+                    Abstenção
                   </button>
-                )
-              })}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {OPCOES.map(({ valor, colorSelected, colorHover }) => {
+                  const selected = resposta === valor
+                  return (
+                    <button
+                      key={valor}
+                      type="button"
+                      onClick={() => pick(pauta.id, valor)}
+                      aria-pressed={selected}
+                      className={cn(
+                        "flex flex-1 items-center justify-center rounded-xl border-2 py-3.5 text-sm font-medium transition-all",
+                        selected ? colorSelected : colorHover
+                      )}
+                    >
+                      {valor}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )
       })}

@@ -17,6 +17,17 @@ function rowToUnidade(row: {
   }
 }
 
+export async function getUnidadeById(id: string): Promise<Unidade | null> {
+  const db = createServerClient()
+  const { data, error } = await db.from("unidades").select("*").eq("id", id).single()
+
+  if (error) {
+    if (error.code === "PGRST116") return null
+    throw new Error(error.message)
+  }
+  return rowToUnidade(data)
+}
+
 export async function getUnidadesByProprietarioId(proprietarioId: string): Promise<Unidade[]> {
   const db = createServerClient()
   const { data, error } = await db
@@ -49,7 +60,7 @@ export async function createUnidade(
 
 export async function updateUnidade(
   id: string,
-  input: Partial<Pick<Unidade, "numero" | "bloco">>
+  input: Partial<Pick<Unidade, "numero" | "bloco" | "proprietario_id">>
 ): Promise<Unidade> {
   const db = createServerClient()
   const { data, error } = await db
@@ -57,6 +68,7 @@ export async function updateUnidade(
     .update({
       ...(input.numero !== undefined && { numero: input.numero }),
       ...(input.bloco !== undefined && { bloco: input.bloco }),
+      ...(input.proprietario_id !== undefined && { proprietario_id: input.proprietario_id }),
     })
     .eq("id", id)
     .select()

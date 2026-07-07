@@ -8,6 +8,7 @@ type JoinedProprietario = {
   email: string | null
   cpf: string | null
   telefone: string | null
+  observacoes: string | null
   created_at: string
   unidades: Unidade[] | null
 }
@@ -20,6 +21,7 @@ function rowToProprietario(row: JoinedProprietario): Proprietario {
     email: row.email,
     cpf: row.cpf,
     telefone: row.telefone,
+    observacoes: row.observacoes,
     created_at: row.created_at,
     unidades: row.unidades ?? [],
   }
@@ -82,7 +84,7 @@ export async function createProprietario(
 
 export async function updateProprietario(
   id: string,
-  input: Partial<Pick<Proprietario, "nome" | "email">>
+  input: Partial<Pick<Proprietario, "nome" | "email" | "cpf" | "telefone" | "observacoes">>
 ): Promise<Proprietario> {
   const db = createServerClient()
   const { data, error } = await db
@@ -90,6 +92,9 @@ export async function updateProprietario(
     .update({
       ...(input.nome !== undefined && { nome: input.nome }),
       ...(input.email !== undefined && { email: input.email }),
+      ...(input.cpf !== undefined && { cpf: input.cpf }),
+      ...(input.telefone !== undefined && { telefone: input.telefone }),
+      ...(input.observacoes !== undefined && { observacoes: input.observacoes }),
     })
     .eq("id", id)
     .select(SELECT_WITH_UNIDADES)

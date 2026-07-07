@@ -1,19 +1,20 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 import { getAssembleiaById } from "@/services/assembleias"
 import { getProprietarioById } from "@/services/proprietarios"
 import {
   upsertAssembleiaSend,
   updateAssembleiaSendStatus,
   createAssembleiaRespostas,
+  type RespostaInput,
 } from "@/services/assembleia-votos"
 import { sendAssembleiaEmailBatch } from "@/services/email"
 import { generateSurveyToken } from "@/lib/tokens"
 import { getSession } from "@/lib/auth"
 import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
-import type { AssembleiaRespostaValor } from "@/types"
 
 export interface EnviarAssembleiaResult {
   sent: number
@@ -113,14 +114,28 @@ export async function enviarAssembleiaAction(
 
 export async function registrarVotosAction(
   sendId: string,
-  respostas: { pauta_id: string; resposta: AssembleiaRespostaValor }[]
+  respostas: RespostaInput[]
 ): Promise<{ success: boolean; error?: string }> {
   if (!sendId || respostas.length === 0) {
     return { success: false, error: "Dados inválidos." }
   }
 
+  // Cada pauta deve ter exatamente uma resposta fixa (Sim/Não/Abstenção) OU
+  // uma opção escolhida — nunca as duas, nunca nenhuma. Mesma regra que a
+  // constraint XOR do banco garante, mas com uma mensagem amigável aqui.
+  const invalida = respostas.some((r) => Boolean(r.resposta) === Boolean(r.opcao_id))
+  if (invalida) {
+    return { success: false, error: "Dados de voto inválidos." }
+  }
+
   try {
-    await createAssembleiaRespostas(sendId, respostas)
+    // Melhor esforço: IP/user-agent viram parte do snapshot histórico do
+    // voto (Etapa 3), mas nunca bloqueiam o registro do voto se faltarem.
+    const h = await headers()
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null
+    const userAgent = h.get("user-agent") ?? null
+
+    await createAssembleiaRespostas(sendId, respostas, { ip, userAgent })
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao registrar votos."

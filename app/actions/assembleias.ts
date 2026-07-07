@@ -6,7 +6,15 @@ import { createPautasBatch } from "@/services/pautas"
 import { getSession } from "@/lib/auth"
 import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
-import type { AssembleiaStatus } from "@/types"
+import type { AssembleiaStatus, PautaTipo } from "@/types"
+
+interface PautaInput {
+  titulo: string
+  descricao: string
+  tipo?: PautaTipo
+  permite_abstencao?: boolean
+  opcoes?: string[]
+}
 
 export async function createAssembleiaAction(input: {
   condominio_id: string
@@ -14,13 +22,25 @@ export async function createAssembleiaAction(input: {
   descricao: string
   data_abertura: string | null
   data_encerramento: string | null
-  pautas: { titulo: string; descricao: string }[]
+  pautas: PautaInput[]
 }): Promise<{ success: boolean; error?: string }> {
   if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
   if (input.pautas.length === 0) return { success: false, error: "Adicione pelo menos uma pauta." }
   if (input.pautas.length > 9) return { success: false, error: "Máximo de 9 pautas por assembleia." }
   if (input.pautas.some((p) => !p.titulo.trim()))
     return { success: false, error: "Todas as pautas precisam ter título." }
+
+  for (const p of input.pautas) {
+    if (p.tipo === "multipla_escolha") {
+      const opcoesValidas = (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+      if (opcoesValidas.length < 2) {
+        return {
+          success: false,
+          error: `A pauta "${p.titulo.trim()}" precisa de pelo menos 2 opções.`,
+        }
+      }
+    }
+  }
 
   try {
     const assembleia = await createAssembleia({
@@ -37,6 +57,12 @@ export async function createAssembleiaAction(input: {
         ordem: i + 1,
         titulo: p.titulo.trim(),
         descricao: p.descricao.trim() || null,
+        tipo: p.tipo ?? "sim_nao",
+        permite_abstencao: p.permite_abstencao ?? true,
+        opcoes:
+          p.tipo === "multipla_escolha"
+            ? (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+            : undefined,
       }))
     )
 

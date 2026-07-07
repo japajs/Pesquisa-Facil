@@ -35,6 +35,22 @@ function Stat({ label, value, highlight }: { label: string; value: string | numb
   )
 }
 
+type VotoBarColor = "emerald" | "rose" | "amber" | "indigo" | "sky" | "fuchsia" | "orange" | "teal"
+
+const VOTO_BAR_CLASSES: Record<VotoBarColor, { text: string; bar: string }> = {
+  emerald: { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" },
+  rose: { text: "text-rose-600 dark:text-rose-400", bar: "bg-rose-500" },
+  amber: { text: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500" },
+  indigo: { text: "text-indigo-600 dark:text-indigo-400", bar: "bg-indigo-500" },
+  sky: { text: "text-sky-600 dark:text-sky-400", bar: "bg-sky-500" },
+  fuchsia: { text: "text-fuchsia-600 dark:text-fuchsia-400", bar: "bg-fuchsia-500" },
+  orange: { text: "text-orange-600 dark:text-orange-400", bar: "bg-orange-500" },
+  teal: { text: "text-teal-600 dark:text-teal-400", bar: "bg-teal-500" },
+}
+
+// Paleta cíclica para as opções de uma pauta de múltipla escolha.
+const CORES_OPCOES: VotoBarColor[] = ["indigo", "sky", "emerald", "fuchsia", "orange", "teal"]
+
 function VotoBar({
   label,
   participantes,
@@ -46,16 +62,9 @@ function VotoBar({
   participantes: number
   ponderado: number
   pct: number
-  color: "emerald" | "rose" | "amber"
+  color: VotoBarColor
 }) {
-  const textClass =
-    color === "emerald"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : color === "rose"
-        ? "text-rose-600 dark:text-rose-400"
-        : "text-amber-600 dark:text-amber-400"
-  const barClass =
-    color === "emerald" ? "bg-emerald-500" : color === "rose" ? "bg-rose-500" : "bg-amber-500"
+  const { text: textClass, bar: barClass } = VOTO_BAR_CLASSES[color]
 
   return (
     <div className="space-y-1.5">
@@ -141,10 +150,24 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
           <p className="text-sm text-muted-foreground">Nenhuma pauta registrada.</p>
         </div>
       ) : (
-        pautas.map(({ pauta, por_participantes, ponderado, total_apartamentos_representados }, i) => {
-          const totalPonderado = ponderado.sim + ponderado.nao + ponderado.abstencao
-          const aprovada = ponderado.sim > ponderado.nao
-          const totalParticipantes = por_participantes.sim + por_participantes.nao + por_participantes.abstencao
+        pautas.map((item, i) => {
+          const { pauta, por_participantes, ponderado, total_apartamentos_representados } = item
+          const multiplaEscolha = pauta.tipo === "multipla_escolha"
+          const opcoesOrdenadas = [...(item.opcoes_resultado ?? [])].sort(
+            (a, b) => b.ponderado - a.ponderado
+          )
+
+          const totalPonderado = multiplaEscolha
+            ? opcoesOrdenadas.reduce((sum, o) => sum + o.ponderado, 0) + ponderado.abstencao
+            : ponderado.sim + ponderado.nao + ponderado.abstencao
+          const totalParticipantes = multiplaEscolha
+            ? opcoesOrdenadas.reduce((sum, o) => sum + o.participantes, 0) + por_participantes.abstencao
+            : por_participantes.sim + por_participantes.nao + por_participantes.abstencao
+
+          const aprovada = !multiplaEscolha && ponderado.sim > ponderado.nao
+          const vencedora = multiplaEscolha && opcoesOrdenadas.length > 0 && opcoesOrdenadas[0]!.ponderado > 0
+            ? opcoesOrdenadas[0]
+            : null
 
           return (
             <div key={pauta.id} className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
@@ -158,45 +181,80 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{pauta.descricao}</p>
                   )}
                 </div>
-                <div
-                  className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                    aprovada
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                      : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                  }`}
-                >
-                  {aprovada ? (
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5" />
-                  )}
-                  {aprovada ? "Aprovada" : "Rejeitada"}
-                </div>
+                {multiplaEscolha ? (
+                  vencedora && (
+                    <div className="flex shrink-0 items-center gap-1 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {vencedora.label}
+                    </div>
+                  )
+                ) : (
+                  <div
+                    className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                      aprovada
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                    }`}
+                  >
+                    {aprovada ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5" />
+                    )}
+                    {aprovada ? "Aprovada" : "Rejeitada"}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3 border-t border-border/40 pt-3">
-                <VotoBar
-                  label="SIM"
-                  participantes={por_participantes.sim}
-                  ponderado={ponderado.sim}
-                  pct={pct(ponderado.sim, totalPonderado)}
-                  color="emerald"
-                />
-                <VotoBar
-                  label="NÃO"
-                  participantes={por_participantes.nao}
-                  ponderado={ponderado.nao}
-                  pct={pct(ponderado.nao, totalPonderado)}
-                  color="rose"
-                />
-                {ponderado.abstencao > 0 && (
-                  <VotoBar
-                    label="ABSTENÇÃO"
-                    participantes={por_participantes.abstencao}
-                    ponderado={ponderado.abstencao}
-                    pct={pct(ponderado.abstencao, totalPonderado)}
-                    color="amber"
-                  />
+                {multiplaEscolha ? (
+                  <>
+                    {opcoesOrdenadas.map((opcao, oi) => (
+                      <VotoBar
+                        key={opcao.opcao_id}
+                        label={opcao.label}
+                        participantes={opcao.participantes}
+                        ponderado={opcao.ponderado}
+                        pct={pct(opcao.ponderado, totalPonderado)}
+                        color={CORES_OPCOES[oi % CORES_OPCOES.length]!}
+                      />
+                    ))}
+                    {ponderado.abstencao > 0 && (
+                      <VotoBar
+                        label="ABSTENÇÃO"
+                        participantes={por_participantes.abstencao}
+                        ponderado={ponderado.abstencao}
+                        pct={pct(ponderado.abstencao, totalPonderado)}
+                        color="amber"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <VotoBar
+                      label="SIM"
+                      participantes={por_participantes.sim}
+                      ponderado={ponderado.sim}
+                      pct={pct(ponderado.sim, totalPonderado)}
+                      color="emerald"
+                    />
+                    <VotoBar
+                      label="NÃO"
+                      participantes={por_participantes.nao}
+                      ponderado={ponderado.nao}
+                      pct={pct(ponderado.nao, totalPonderado)}
+                      color="rose"
+                    />
+                    {ponderado.abstencao > 0 && (
+                      <VotoBar
+                        label="ABSTENÇÃO"
+                        participantes={por_participantes.abstencao}
+                        ponderado={ponderado.abstencao}
+                        pct={pct(ponderado.abstencao, totalPonderado)}
+                        color="amber"
+                      />
+                    )}
+                  </>
                 )}
                 <p className="pt-1 text-xs text-muted-foreground">
                   {totalParticipantes} {totalParticipantes === 1 ? "participante" : "participantes"} ·{" "}
