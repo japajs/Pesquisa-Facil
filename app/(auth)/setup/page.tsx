@@ -6,6 +6,11 @@ import { SetupForm } from "./setup-form"
 
 export const metadata: Metadata = { title: "Primeiro acesso" }
 
+// Esta página consulta o banco (hasAnyUsuario) no corpo do Server Component
+// — precisa rodar por requisição, nunca ser pré-renderizada em build time
+// (quando as variáveis de ambiente do Supabase podem não estar disponíveis).
+export const dynamic = "force-dynamic"
+
 export default async function SetupPage() {
   const hasUsers = await hasAnyUsuario()
   if (hasUsers) redirect("/login")
