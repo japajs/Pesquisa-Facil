@@ -220,6 +220,7 @@ export interface RespostaInput {
 }
 
 type SendComProprietarioCompleto = {
+  assembleia_id: string
   proprietarios: {
     nome: string
     cpf: string | null
@@ -227,11 +228,40 @@ type SendComProprietarioCompleto = {
     telefone: string | null
     unidades: { numero: string; bloco: string | null }[] | null
   } | null
+  assembleias: { status: AssembleiaStatus } | null
 }
 
 export interface ContextoVoto {
   ip?: string | null
   userAgent?: string | null
+}
+
+// Auditoria de segurança: garante que o voto só é aceito enquanto a
+// assembleia está "aberta" e que toda pauta respondida pertence a ESSA
+// assembleia (nunca a uma outra, mesmo que o chamador tente enviar um
+// pauta_id de outro lugar). Sem isso, alguém com um token válido poderia
+// votar depois do encerramento ou injetar respostas em pautas alheias.
+async function validarVotoOuFalhar(
+  db: ReturnType<typeof createServerClient>,
+  assembleiaId: string,
+  status: AssembleiaStatus,
+  pautaIds: string[]
+): Promise<void> {
+  if (status !== "aberta") {
+    throw new Error("Esta assembleia não está aberta para votação.")
+  }
+
+  const idsUnicos = [...new Set(pautaIds)]
+  const { data: pautasValidas, error } = await db
+    .from("pautas")
+    .select("id")
+    .eq("assembleia_id", assembleiaId)
+    .in("id", idsUnicos)
+
+  if (error) throw new Error(error.message)
+  if ((pautasValidas ?? []).length !== idsUnicos.length) {
+    throw new Error("Pauta inválida para esta assembleia.")
+  }
 }
 
 // O peso — e, desde a Etapa 3, a identidade completa do proprietário e suas
@@ -249,12 +279,21 @@ export async function createAssembleiaRespostas(
 
   const { data: sendRow, error: sendError } = await db
     .from("assembleia_sends")
-    .select("proprietarios(nome, cpf, email, telefone, unidades(numero, bloco))")
+    .select("assembleia_id, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco)), assembleias(status)")
     .eq("id", sendId)
     .single()
 
   if (sendError) throw new Error(sendError.message)
-  const proprietario = (sendRow as unknown as SendComProprietarioCompleto).proprietarios
+  const send = sendRow as unknown as SendComProprietarioCompleto
+  const proprietario = send.proprietarios
+
+  await validarVotoOuFalhar(
+    db,
+    send.assembleia_id,
+    send.assembleias?.status ?? "encerrada",
+    respostas.map((r) => r.pauta_id)
+  )
+
   const unidades = proprietario?.unidades ?? []
   const peso = getPesoParticipante({ unidades })
 

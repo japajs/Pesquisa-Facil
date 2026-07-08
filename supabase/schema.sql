@@ -419,3 +419,20 @@ alter table proprietarios add column if not exists historico_alteracoes jsonb no
 
 -- Validado em produção em 2026-07-08 (ver relatório da Etapa 4). Irreversível.
 drop table if exists audit_logs;
+
+-- ============================================================
+-- Migração: Auditoria de Segurança — rate limiting persistente
+-- Execute este bloco no Supabase SQL Editor.
+--
+-- O limitador de tentativas de login usava um Map em memória, que não
+-- sobrevive entre instâncias serverless na Vercel (cada cold start reseta a
+-- contagem). Passa a usar esta tabela, com uma janela deslizante simples.
+-- ============================================================
+
+create table if not exists rate_limits (
+  chave         text        primary key,
+  contagem      integer     not null default 1,
+  inicio_janela timestamptz not null default now()
+);
+
+alter table rate_limits enable row level security;

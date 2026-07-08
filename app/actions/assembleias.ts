@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createAssembleia, deleteAssembleia, updateAssembleiaStatus } from "@/services/assembleias"
 import { createPautasBatch } from "@/services/pautas"
+import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 import type { AssembleiaStatus, PautaTipo } from "@/types"
 
@@ -22,6 +23,8 @@ export async function createAssembleiaAction(input: {
   data_encerramento: string | null
   pautas: PautaInput[]
 }): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
   if (input.pautas.length === 0) return { success: false, error: "Adicione pelo menos uma pauta." }
   if (input.pautas.length > 9) return { success: false, error: "Máximo de 9 pautas por assembleia." }
@@ -78,6 +81,8 @@ export async function deleteAssembleiaAction(
   id: string,
   condominioId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   try {
     await deleteAssembleia(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
@@ -95,6 +100,8 @@ export async function updateAssembleiaStatusAction(
   condominioId: string,
   status: AssembleiaStatus
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   try {
     await updateAssembleiaStatus(id, status)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)

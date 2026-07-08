@@ -137,6 +137,21 @@ export async function updateAssembleiaStatus(
   status: AssembleiaStatus
 ): Promise<void> {
   const db = createServerClient()
+
+  // Auditoria de segurança: uma assembleia encerrada é definitiva — nunca
+  // pode voltar para rascunho/aberta, não importa quem chame esta função.
+  // Sem essa trava, reabrir permitiria novos votos numa assembleia cujo
+  // resultado já foi apurado/divulgado.
+  const { data: atual, error: fetchError } = await db
+    .from("assembleias")
+    .select("status")
+    .eq("id", id)
+    .single()
+  if (fetchError) throw new Error(fetchError.message)
+  if ((atual as { status: AssembleiaStatus }).status === "encerrada") {
+    throw new Error("Assembleia encerrada não pode ser reaberta.")
+  }
+
   const now = new Date().toISOString()
   const updates: {
     status: AssembleiaStatus

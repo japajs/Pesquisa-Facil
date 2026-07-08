@@ -16,9 +16,17 @@ const loginSchema = z.object({
 
 export type LoginState = { error?: string } | null
 
+// Auditoria de segurança: "from" vem direto da URL (?from=...), então não
+// basta checar startsWith("/") — "//evil.com" e "/\evil.com" também começam
+// com "/" mas o navegador os trata como redirecionamento para outro domínio
+// (Open Redirect). Só aceita um caminho relativo de verdade.
+function isSafeRedirectPath(path: string): boolean {
+  return /^\/(?!\/|\\)/.test(path)
+}
+
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
-  if (!checkRateLimit(`login:${ip}`)) {
+  if (!(await checkRateLimit(`login:${ip}`))) {
     return { error: "Muitas tentativas. Aguarde um momento e tente novamente." }
   }
 
@@ -54,5 +62,5 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   await createSession(sessionUser)
 
-  redirect(from && from.startsWith("/") ? from : "/dashboard")
+  redirect(from && isSafeRedirectPath(from) ? from : "/dashboard")
 }

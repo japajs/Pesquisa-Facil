@@ -15,7 +15,7 @@ import {
   updateUnidade,
 } from "@/services/unidades"
 import { getProprietariosQueJaVotaram } from "@/services/assembleia-votos"
-import { getSession } from "@/lib/auth"
+import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 export async function createProprietarioAction(input: {
@@ -25,6 +25,8 @@ export async function createProprietarioAction(input: {
   telefone?: string
   unidades: string[] // numeros de apartamento
 }): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
   if (!input.email.trim()) return { success: false, error: "E-mail obrigatório." }
 
@@ -61,6 +63,8 @@ export async function deleteProprietarioAction(
   id: string,
   condominioId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   try {
     await deleteProprietario(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
@@ -75,6 +79,8 @@ export async function addUnidadeAction(
   condominioId: string,
   numero: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!numero.trim()) return { success: false, error: "Número da unidade obrigatório." }
   try {
     await createUnidade({ proprietario_id: proprietarioId, numero: numero.trim(), bloco: null })
@@ -89,6 +95,8 @@ export async function removeUnidadeAction(
   unidadeId: string,
   condominioId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   try {
     await deleteUnidade(unidadeId)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
@@ -110,6 +118,8 @@ export async function updateProprietarioAction(input: {
   observacoes: string
   confirmarCpfAposVoto?: boolean
 }): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
 
   try {
@@ -126,8 +136,7 @@ export async function updateProprietarioAction(input: {
     if (cpfMudou) {
       const jaVotaram = await getProprietariosQueJaVotaram(input.condominioId)
       if (jaVotaram.has(input.id)) {
-        const session = await getSession()
-        if (!input.confirmarCpfAposVoto || session?.perfil !== "administrador") {
+        if (!input.confirmarCpfAposVoto || auth.session.perfil !== "administrador") {
           return {
             success: false,
             error:
@@ -195,6 +204,8 @@ export async function transferUnidadeAction(input: {
   novoProprietarioId?: string
   novoProprietario?: { nome: string; email: string; telefone?: string }
 }): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!input.novoProprietarioId && !input.novoProprietario) {
     return { success: false, error: "Selecione o proprietário de destino ou crie um novo." }
   }

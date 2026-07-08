@@ -7,11 +7,14 @@ import {
   updateCondominio,
   updateCondominioInfo,
 } from "@/services/condominios"
+import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 export async function createCondominioAction(
   nome: string
 ): Promise<{ success: boolean; id?: string; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     const condo = await createCondominio({ nome: nome.trim() })
@@ -26,6 +29,8 @@ export async function updateCondominioAction(
   id: string,
   nome: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     await updateCondominio(id, { nome: nome.trim() })
@@ -39,6 +44,8 @@ export async function updateCondominioAction(
 export async function deleteCondominioAction(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   try {
     await deleteCondominio(id)
     revalidatePath(ROUTES.condominios)
@@ -54,6 +61,8 @@ export async function updateCondominioInfoAction(
   nome: string,
   info: { endereco: string; sindico_nome: string; sindico_contato: string }
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     await updateCondominio(id, { nome: nome.trim() })

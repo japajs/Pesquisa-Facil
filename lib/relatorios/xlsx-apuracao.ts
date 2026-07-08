@@ -19,6 +19,23 @@ export interface XlsxApuracaoData {
   emitidoEm: string
 }
 
+// Auditoria de segurança: previne Formula/CSV Injection — um texto vindo do
+// cadastro (nome, e-mail, observações etc.) que comece com =, +, - ou @
+// seria interpretado como fórmula ao abrir a planilha no Excel. Prefixa com
+// apóstrofo para forçar leitura como texto literal, sem mudar o valor visto.
+const PREFIXOS_FORMULA = new Set(["=", "+", "-", "@"])
+
+function sanitizarCelula<T extends string | number>(valor: T): T {
+  if (typeof valor === "string" && valor.length > 0 && PREFIXOS_FORMULA.has(valor[0]!)) {
+    return (`'${valor}` as unknown) as T
+  }
+  return valor
+}
+
+function sanitizarLinhas<T extends (string | number)[]>(linhas: T[]): T[] {
+  return linhas.map((linha) => linha.map((c) => sanitizarCelula(c)) as T)
+}
+
 function boldRow(ws: XLSX.WorkSheet, rowIdx: number, colCount: number) {
   for (let c = 0; c < colCount; c++) {
     const addr = XLSX.utils.encode_cell({ r: rowIdx, c })
@@ -63,7 +80,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     ["Emitido por", emitidoPor],
   ]
 
-  const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows)
+  const wsResumo = XLSX.utils.aoa_to_sheet(sanitizarLinhas(resumoRows))
   wsResumo["!cols"] = [{ wch: 26 }, { wch: 52 }]
   boldRow(wsResumo, 0, 2)
   boldRow(wsResumo, 2, 1)
@@ -139,7 +156,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     ]
   })
 
-  const wsRes = XLSX.utils.aoa_to_sheet([resHeader, ...resRows])
+  const wsRes = XLSX.utils.aoa_to_sheet(sanitizarLinhas([resHeader, ...resRows]))
   wsRes["!cols"] = [
     { wch: 4 }, { wch: 40 },
     { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
@@ -188,7 +205,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
       meRows.push([])
     })
 
-    const wsMe = XLSX.utils.aoa_to_sheet([meHeader, ...meRows])
+    const wsMe = XLSX.utils.aoa_to_sheet(sanitizarLinhas([meHeader, ...meRows]))
     wsMe["!cols"] = [{ wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 20 }, { wch: 12 }]
     boldRow(wsMe, 0, meHeader.length)
     XLSX.utils.book_append_sheet(wb, wsMe, "Múltipla Escolha")
@@ -205,7 +222,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     formatDateTimeBR(p.sent_at),
   ])
 
-  const wsPart = XLSX.utils.aoa_to_sheet([partHeader, ...partRows])
+  const wsPart = XLSX.utils.aoa_to_sheet(sanitizarLinhas([partHeader, ...partRows]))
   wsPart["!cols"] = [
     { wch: 36 }, { wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 20 },
   ]
@@ -216,7 +233,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
   const unidHeader = ["Nº Unidade", "Bloco", "Proprietário", "E-mail"]
   const unidRows = unidades.map((u) => [u.numero, u.bloco ?? "", u.proprietario, u.email ?? ""])
 
-  const wsUnid = XLSX.utils.aoa_to_sheet([unidHeader, ...unidRows])
+  const wsUnid = XLSX.utils.aoa_to_sheet(sanitizarLinhas([unidHeader, ...unidRows]))
   wsUnid["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 36 }, { wch: 30 }]
   boldRow(wsUnid, 0, unidHeader.length)
   XLSX.utils.book_append_sheet(wb, wsUnid, "Unidades")

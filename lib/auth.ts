@@ -64,3 +64,19 @@ export async function getSession(): Promise<SessionUser | null> {
 export async function isAuthenticated(): Promise<boolean> {
   return (await getSession()) !== null
 }
+
+// Auditoria de segurança: os 3 perfis (administrador/operador/visualizador)
+// só eram checados na interface e em 3 rotas de exportação — nenhuma server
+// action validava perfil, então um "visualizador" conseguia excluir/editar
+// qualquer coisa chamando a action diretamente. Toda action que muda dados
+// deve chamar isto antes de executar.
+export async function requirePerfil(
+  allowed: UserPerfil[]
+): Promise<{ ok: true; session: SessionUser } | { ok: false; error: string }> {
+  const session = await getSession()
+  if (!session) return { ok: false, error: "Não autenticado." }
+  if (!allowed.includes(session.perfil)) {
+    return { ok: false, error: "Você não tem permissão para realizar esta ação." }
+  }
+  return { ok: true, session }
+}

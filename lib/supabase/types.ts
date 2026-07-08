@@ -48,6 +48,23 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          chave: string
+          contagem: number
+          inicio_janela: string
+        }
+        Insert: {
+          chave: string
+          contagem?: number
+          inicio_janela?: string
+        }
+        Update: {
+          contagem?: number
+          inicio_janela?: string
+        }
+        Relationships: []
+      }
       condominios: {
         Row: {
           id: string

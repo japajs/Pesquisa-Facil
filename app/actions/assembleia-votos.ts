@@ -12,6 +12,7 @@ import {
 } from "@/services/assembleia-votos"
 import { sendAssembleiaEmailBatch } from "@/services/email"
 import { generateSurveyToken } from "@/lib/tokens"
+import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 export interface EnviarAssembleiaResult {
@@ -24,6 +25,8 @@ export async function enviarAssembleiaAction(
   assembleiaId: string,
   proprietarioIds: string[]
 ): Promise<EnviarAssembleiaResult> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { sent: 0, failed: 0, error: auth.error }
   if (!assembleiaId || proprietarioIds.length === 0) {
     return { sent: 0, failed: 0, error: "Selecione pelo menos um proprietário." }
   }

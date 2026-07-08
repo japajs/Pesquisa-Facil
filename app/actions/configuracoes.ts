@@ -5,7 +5,7 @@ import { Resend } from "resend"
 import { compare, hash } from "bcryptjs"
 import { APP_NAME, ROUTES } from "@/lib/constants"
 import { getConfiguracao, setConfiguracao } from "@/services/configuracoes"
-import { getSession } from "@/lib/auth"
+import { getSession, requirePerfil } from "@/lib/auth"
 import { findUsuarioByEmail } from "@/services/usuarios"
 import { updateUsuarioSenha } from "@/services/usuarios"
 
@@ -14,6 +14,8 @@ import { updateUsuarioSenha } from "@/services/usuarios"
 export async function updateAdminNomeAction(
   nome: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     await setConfiguracao("admin_nome", nome.trim())
@@ -27,6 +29,8 @@ export async function updateAdminNomeAction(
 export async function updateAdminEmailAction(
   email: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!email.trim() || !email.includes("@"))
     return { success: false, error: "E-mail inválido." }
   try {
@@ -68,6 +72,8 @@ export async function updateSenhaAction(
 export async function updateEmailNomeRemetenteAction(
   nome: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     await setConfiguracao("email_nome_remetente", nome.trim())
@@ -81,6 +87,8 @@ export async function updateEmailNomeRemetenteAction(
 export async function enviarEmailTesteAction(
   destinatario?: string
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   const apiKey = process.env.RESEND_API_KEY
   const fromEnv = process.env.RESEND_FROM_EMAIL
   if (!apiKey) return { success: false, error: "RESEND_API_KEY não configurado." }
@@ -114,6 +122,8 @@ export async function updateVotacaoDefaultsAction(defaults: {
   votacao_permite_abstencao: boolean
   votacao_encerramento_automatico: boolean
 }): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
   try {
     await Promise.all([
       setConfiguracao("votacao_resposta_unica", String(defaults.votacao_resposta_unica)),
