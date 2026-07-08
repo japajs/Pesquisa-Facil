@@ -4,6 +4,11 @@ import { ImportacaoWizard } from "@/components/importacao/importacao-wizard"
 
 export const metadata: Metadata = { title: "Importação" }
 
+// Auditoria de desempenho: mesmo com o processamento em lotes paralelos da
+// action de importação, uma planilha grande pode levar mais que o padrão da
+// Vercel para uma Server Action. 60s é o teto aceito até no plano Hobby.
+export const maxDuration = 60
+
 export default async function ImportacaoPage() {
   const condominios = await getAllCondominios().catch(() => [])
 
