@@ -94,8 +94,11 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
           {/* Filtros */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Condomínio</label>
+              <label htmlFor="relatorio-condominio-apuracao" className="text-xs font-medium text-muted-foreground">
+                Condomínio
+              </label>
               <select
+                id="relatorio-condominio-apuracao"
                 value={condApurId}
                 onChange={(e) => setCondApurId(e.target.value)}
                 className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
@@ -110,8 +113,11 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Assembleia</label>
+              <label htmlFor="relatorio-assembleia-apuracao" className="text-xs font-medium text-muted-foreground">
+                Assembleia
+              </label>
               <select
+                id="relatorio-assembleia-apuracao"
                 value={assembleiaId}
                 onChange={(e) => setAssembleiaId(e.target.value)}
                 disabled={!condApurId || loadingAss}
@@ -230,8 +236,11 @@ export function RelatoriosClient({ condominios, perfil }: Props) {
 
           <div className="p-6 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Condomínio</label>
+              <label htmlFor="relatorio-condominio-proprietarios" className="text-xs font-medium text-muted-foreground">
+                Condomínio
+              </label>
               <select
+                id="relatorio-condominio-proprietarios"
                 value={condPropId}
                 onChange={(e) => setCondPropId(e.target.value)}
                 className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"

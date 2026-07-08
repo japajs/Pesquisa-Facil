@@ -22,6 +22,18 @@ export function DashboardShell({ user, children }: Props) {
     setOpen(false)
   }, [pathname])
 
+  // Auditoria de responsividade: o menu mobile é um overlay (drawer) — sem
+  // isso, um usuário de teclado não tinha como fechá-lo além de encontrar o
+  // botão "Fechar", sem o atalho Esc já esperado nesse padrão.
+  useEffect(() => {
+    if (!open) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [open])
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile backdrop */}
@@ -35,13 +47,16 @@ export function DashboardShell({ user, children }: Props) {
 
       {/* Sidebar wrapper — fixed overlay on mobile, static on desktop */}
       <div
+        role="dialog"
+        aria-modal={open ? true : undefined}
+        aria-label="Menu de navegação"
         className={cn(
           "fixed inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out",
           "lg:static lg:inset-auto lg:z-auto lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <Sidebar user={user} onClose={() => setOpen(false)} />
+        <Sidebar user={user} open={open} onClose={() => setOpen(false)} />
       </div>
 
       {/* Content area */}

@@ -342,9 +342,11 @@ function Bar({
 }) {
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span className={`font-medium ${colorText}`}>{label}</span>
-        <span className="tabular-nums text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className={`min-w-0 truncate font-medium ${colorText}`} title={label}>
+          {label}
+        </span>
+        <span className="shrink-0 tabular-nums text-muted-foreground">
           {count} {count === 1 ? unit : unitPlural}
           <span className="ml-1 text-xs">({pct}%)</span>
         </span>

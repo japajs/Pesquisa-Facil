@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -40,11 +41,20 @@ const PERFIL_COLORS: Record<UserPerfil, string> = {
 
 interface Props {
   user: SessionUser
+  open?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ user, onClose }: Props) {
+export function Sidebar({ user, open, onClose }: Props) {
   const pathname = usePathname()
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Auditoria de responsividade: ao abrir o menu mobile, move o foco pro
+  // botão de fechar — sem isso, o foco do teclado ficava para trás, na
+  // página (agora coberta pelo overlay), em vez de entrar no menu aberto.
+  useEffect(() => {
+    if (open) closeButtonRef.current?.focus()
+  }, [open])
 
   return (
     <aside className="flex h-screen w-56 shrink-0 flex-col border-r border-border bg-sidebar">
@@ -56,8 +66,9 @@ export function Sidebar({ user, onClose }: Props) {
         <span className="text-sm font-semibold tracking-tight text-foreground">{APP_NAME}</span>
         {onClose && (
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
+            className="ml-auto flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
             aria-label="Fechar menu"
           >
             <X className="h-4 w-4" />
