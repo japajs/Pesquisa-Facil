@@ -7,7 +7,6 @@ import { getSession } from "@/lib/auth"
 import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
-import { logAudit } from "@/services/auditoria"
 import { ApuracaoPDF } from "@/lib/relatorios/pdf-apuracao"
 import { safeFilename, formatDateTimeBR } from "@/lib/relatorios/utils"
 
@@ -43,17 +42,6 @@ export async function GET(
   }) as ReactElement<DocumentProps>
 
   const pdfBuffer = await renderToBuffer(element)
-
-  void logAudit({
-    session,
-    acao: "exportar",
-    modulo: "assembleias",
-    descricao: `PDF de apuração gerado: ${assembleia.titulo}`,
-    entidade: "assembleia",
-    entidadeId: assembleiaId,
-    condominioId: assembleia.condominio_id,
-    condominioNome: condominio.nome,
-  })
 
   const condo = safeFilename(condominio.nome)
   const titulo = safeFilename(assembleia.titulo)

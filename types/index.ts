@@ -18,51 +18,6 @@ export interface Usuario {
   created_at: string
 }
 
-// ─── Auditoria ────────────────────────────────────────────────────────────────
-
-export type AcaoAuditoria =
-  | "login"
-  | "logout"
-  | "criar"
-  | "editar"
-  | "excluir"
-  | "importar"
-  | "exportar"
-  | "enviar_email"
-  | "encerrar"
-  | "reabrir"
-  | "visualizar_resultado"
-
-export type ModuloAuditoria =
-  | "auth"
-  | "condominios"
-  | "proprietarios"
-  | "unidades"
-  | "assembleias"
-  | "pautas"
-  | "importacao"
-  | "configuracoes"
-
-export interface AuditLog {
-  id: string
-  usuario_id: string | null
-  usuario_nome: string
-  usuario_email: string
-  acao: AcaoAuditoria
-  modulo: ModuloAuditoria
-  descricao: string
-  entidade: string | null
-  entidade_id: string | null
-  condominio_id: string | null
-  condominio_nome: string | null
-  // histórico estruturado (Etapa 2) — nem toda ação preenche estes campos
-  campo: string | null
-  valor_anterior: string | null
-  valor_novo: string | null
-  motivo: string | null
-  created_at: string
-}
-
 // ─── Send status (compartilhado entre envios) ────────────────────────────────
 
 export type SendStatus = "sent" | "failed" | "pending"
@@ -119,6 +74,16 @@ export interface Unidade {
   created_at: string
 }
 
+// Uma entrada do histórico simples de alterações de cadastro (Etapa 4) —
+// sem motivo, IP, usuário ou sessão, propositalmente. Guardado direto no
+// proprietário, sem tabela/módulo de auditoria separado.
+export interface HistoricoAlteracao {
+  data: string
+  campo: string
+  valor_anterior: string | null
+  valor_novo: string | null
+}
+
 export interface Proprietario {
   id: string
   condominio_id: string
@@ -127,6 +92,7 @@ export interface Proprietario {
   cpf: string | null
   telefone: string | null
   observacoes: string | null
+  historico_alteracoes: HistoricoAlteracao[]
   created_at: string
   // joined
   unidades?: Unidade[]

@@ -6,7 +6,6 @@ import { compare, hash } from "bcryptjs"
 import { APP_NAME, ROUTES } from "@/lib/constants"
 import { getConfiguracao, setConfiguracao } from "@/services/configuracoes"
 import { getSession } from "@/lib/auth"
-import { logAudit } from "@/services/auditoria"
 import { findUsuarioByEmail } from "@/services/usuarios"
 import { updateUsuarioSenha } from "@/services/usuarios"
 
@@ -19,13 +18,6 @@ export async function updateAdminNomeAction(
   try {
     await setConfiguracao("admin_nome", nome.trim())
     revalidatePath(ROUTES.configuracoes)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "editar",
-      modulo: "configuracoes",
-      descricao: "Nome do administrador atualizado",
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -40,13 +32,6 @@ export async function updateAdminEmailAction(
   try {
     await setConfiguracao("admin_email", email.trim())
     revalidatePath(ROUTES.configuracoes)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "editar",
-      modulo: "configuracoes",
-      descricao: "E-mail do administrador atualizado",
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -72,7 +57,6 @@ export async function updateSenhaAction(
   try {
     const novaSenhaHash = await hash(novaSenha, 12)
     await updateUsuarioSenha(user.id, novaSenhaHash)
-    await logAudit({ session, acao: "editar", modulo: "auth", descricao: "Senha alterada" })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -88,13 +72,6 @@ export async function updateEmailNomeRemetenteAction(
   try {
     await setConfiguracao("email_nome_remetente", nome.trim())
     revalidatePath(ROUTES.configuracoes)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "editar",
-      modulo: "configuracoes",
-      descricao: "Nome do remetente de e-mail atualizado",
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }
@@ -148,13 +125,6 @@ export async function updateVotacaoDefaultsAction(defaults: {
       ),
     ])
     revalidatePath(ROUTES.configuracoes)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "editar",
-      modulo: "configuracoes",
-      descricao: "Configurações de votação atualizadas",
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar." }

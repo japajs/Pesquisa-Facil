@@ -4,8 +4,6 @@ import { revalidatePath } from "next/cache"
 import { createServerClient } from "@/lib/supabase/server"
 import { createProprietario } from "@/services/proprietarios"
 import { createUnidade } from "@/services/unidades"
-import { getSession } from "@/lib/auth"
-import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
 import type { ProprietarioImport } from "@/types"
 
@@ -149,15 +147,6 @@ export async function executarImportacaoAction(
   revalidatePath(`${ROUTES.condominios}/${condominioId}`)
   revalidatePath(ROUTES.condominios)
   revalidatePath(ROUTES.dashboard)
-
-  const session = await getSession()
-  await logAudit({
-    session,
-    acao: "importar",
-    modulo: "importacao",
-    descricao: `Importação concluída: ${proprietariosCriados} criado${proprietariosCriados !== 1 ? "s" : ""}, ${proprietariosAtualizados} atualizado${proprietariosAtualizados !== 1 ? "s" : ""}, ${unidadesCriadas} unidade${unidadesCriadas !== 1 ? "s" : ""} criada${unidadesCriadas !== 1 ? "s" : ""}`,
-    condominioId,
-  })
 
   return {
     success: true,

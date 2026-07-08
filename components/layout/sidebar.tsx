@@ -10,7 +10,6 @@ import {
   Gavel,
   LogOut,
   Settings,
-  Shield,
   UserCircle,
   X,
 } from "lucide-react"
@@ -24,7 +23,6 @@ const NAV_ITEMS = [
   { href: "/condominios",   label: "Condomínios",  icon: Building2        },
   { href: "/importacao",    label: "Importação",   icon: FileSpreadsheet  },
   { href: "/relatorios",    label: "Relatórios",   icon: FileText         },
-  { href: "/auditoria",     label: "Auditoria",    icon: Shield           },
   { href: "/configuracoes", label: "Configurações", icon: Settings        },
 ] as const
 

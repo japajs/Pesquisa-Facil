@@ -7,7 +7,7 @@ import { AUTH_COOKIE_NAME } from "@/lib/constants"
 const PUBLIC_PREFIXES = ["/login", "/setup", "/v/"]
 
 // Rotas que exigem autenticação
-const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes", "/importacao", "/auditoria", "/relatorios"]
+const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes", "/importacao", "/relatorios"]
 
 function getSecret(): Uint8Array | null {
   const password = process.env.AUTH_PASSWORD

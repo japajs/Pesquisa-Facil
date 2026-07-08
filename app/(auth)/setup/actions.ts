@@ -5,7 +5,6 @@ import { redirect } from "next/navigation"
 import { hash } from "bcryptjs"
 import { createSession } from "@/lib/auth"
 import { createUsuario, hasAnyUsuario } from "@/services/usuarios"
-import { logAudit } from "@/services/auditoria"
 
 const setupSchema = z
   .object({
@@ -45,12 +44,6 @@ export async function setupAction(_prev: SetupState, formData: FormData): Promis
     const user = await createUsuario({ nome, email, senha_hash, perfil: "administrador" })
     const sessionUser = { userId: user.id, email: user.email, nome: user.nome, perfil: user.perfil }
     await createSession(sessionUser)
-    await logAudit({
-      session: sessionUser,
-      acao: "criar",
-      modulo: "auth",
-      descricao: "Configuração inicial: primeiro administrador criado",
-    })
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Erro ao criar usuário." }
   }

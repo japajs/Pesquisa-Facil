@@ -5,6 +5,7 @@ import {
   createProprietario,
   deleteProprietario,
   getProprietarioById,
+  registrarHistoricoAlteracao,
   updateProprietario,
 } from "@/services/proprietarios"
 import {
@@ -15,23 +16,7 @@ import {
 } from "@/services/unidades"
 import { getProprietariosQueJaVotaram } from "@/services/assembleia-votos"
 import { getSession } from "@/lib/auth"
-import { logAudit, getHistoricoEntidade } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
-import type { AuditLog } from "@/types"
-
-// Etapa 3 — deixa explícito, no próprio rastro de auditoria, que a correção
-// de cadastro nunca reabre ou reescreve o snapshot de uma votação já
-// registrada (ver services/assembleia-votos.ts::createAssembleiaRespostas).
-const NOTA_INTEGRIDADE_HISTORICA =
-  "Assembleias anteriores permaneceram inalteradas por regra de integridade histórica."
-
-export async function getHistoricoProprietarioAction(proprietarioId: string): Promise<AuditLog[]> {
-  try {
-    return await getHistoricoEntidade(proprietarioId, 5)
-  } catch {
-    return []
-  }
-}
 
 export async function createProprietarioAction(input: {
   condominio_id: string
@@ -62,16 +47,6 @@ export async function createProprietarioAction(input: {
     )
 
     revalidatePath(`${ROUTES.condominios}/${input.condominio_id}`)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "criar",
-      modulo: "proprietarios",
-      descricao: `Proprietário criado: ${input.nome.trim()} (${input.unidades.length} unidade${input.unidades.length !== 1 ? "s" : ""})`,
-      entidade: "proprietario",
-      entidadeId: proprietario.id,
-      condominioId: input.condominio_id,
-    })
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao criar proprietário."
@@ -89,16 +64,6 @@ export async function deleteProprietarioAction(
   try {
     await deleteProprietario(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "excluir",
-      modulo: "proprietarios",
-      descricao: "Proprietário excluído",
-      entidade: "proprietario",
-      entidadeId: id,
-      condominioId,
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao excluir proprietário." }
@@ -112,18 +77,8 @@ export async function addUnidadeAction(
 ): Promise<{ success: boolean; error?: string }> {
   if (!numero.trim()) return { success: false, error: "Número da unidade obrigatório." }
   try {
-    const unidade = await createUnidade({ proprietario_id: proprietarioId, numero: numero.trim(), bloco: null })
+    await createUnidade({ proprietario_id: proprietarioId, numero: numero.trim(), bloco: null })
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "criar",
-      modulo: "unidades",
-      descricao: `Unidade adicionada: ${numero.trim()}`,
-      entidade: "unidade",
-      entidadeId: unidade.id,
-      condominioId,
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao adicionar unidade." }
@@ -137,16 +92,6 @@ export async function removeUnidadeAction(
   try {
     await deleteUnidade(unidadeId)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "excluir",
-      modulo: "unidades",
-      descricao: "Unidade removida",
-      entidade: "unidade",
-      entidadeId: unidadeId,
-      condominioId,
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao remover unidade." }
@@ -163,10 +108,8 @@ export async function updateProprietarioAction(input: {
   telefone: string
   cpf: string
   observacoes: string
-  motivo: string
   confirmarCpfAposVoto?: boolean
 }): Promise<{ success: boolean; error?: string }> {
-  if (!input.motivo.trim()) return { success: false, error: "Informe o motivo da alteração." }
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
 
   try {
@@ -196,27 +139,20 @@ export async function updateProprietarioAction(input: {
 
     const mudancas: {
       campo: string
-      label: string
       valorAnterior: string | null
       valorNovo: string | null
     }[] = []
     if (novoNome !== atual.nome)
-      mudancas.push({ campo: "nome", label: "Nome", valorAnterior: atual.nome, valorNovo: novoNome })
+      mudancas.push({ campo: "nome", valorAnterior: atual.nome, valorNovo: novoNome })
     if (novoEmail !== (atual.email ?? null))
-      mudancas.push({ campo: "email", label: "E-mail", valorAnterior: atual.email, valorNovo: novoEmail })
+      mudancas.push({ campo: "email", valorAnterior: atual.email, valorNovo: novoEmail })
     if (novoTelefone !== (atual.telefone ?? null))
-      mudancas.push({
-        campo: "telefone",
-        label: "WhatsApp/Telefone",
-        valorAnterior: atual.telefone,
-        valorNovo: novoTelefone,
-      })
+      mudancas.push({ campo: "telefone", valorAnterior: atual.telefone, valorNovo: novoTelefone })
     if (cpfMudou)
-      mudancas.push({ campo: "cpf", label: "CPF", valorAnterior: atual.cpf, valorNovo: novoCpf })
+      mudancas.push({ campo: "cpf", valorAnterior: atual.cpf, valorNovo: novoCpf })
     if (novasObservacoes !== (atual.observacoes ?? null))
       mudancas.push({
         campo: "observacoes",
-        label: "Observações",
         valorAnterior: atual.observacoes,
         valorNovo: novasObservacoes,
       })
@@ -233,27 +169,16 @@ export async function updateProprietarioAction(input: {
       observacoes: novasObservacoes,
     })
 
-    revalidatePath(`${ROUTES.condominios}/${input.condominioId}`)
-
-    const session = await getSession()
-    await Promise.all(
-      mudancas.map((m) =>
-        logAudit({
-          session,
-          acao: "editar",
-          modulo: "proprietarios",
-          descricao: `${m.label} alterado(a): "${m.valorAnterior ?? "—"}" → "${m.valorNovo ?? "—"}". ${NOTA_INTEGRIDADE_HISTORICA}`,
-          entidade: "proprietario",
-          entidadeId: input.id,
-          condominioId: input.condominioId,
-          campo: m.campo,
-          valorAnterior: m.valorAnterior,
-          valorNovo: m.valorNovo,
-          motivo: input.motivo.trim(),
-        })
-      )
+    await registrarHistoricoAlteracao(
+      input.id,
+      mudancas.map((m) => ({
+        campo: m.campo,
+        valor_anterior: m.valorAnterior,
+        valor_novo: m.valorNovo,
+      }))
     )
 
+    revalidatePath(`${ROUTES.condominios}/${input.condominioId}`)
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao atualizar proprietário."
@@ -267,11 +192,9 @@ export async function updateProprietarioAction(input: {
 export async function transferUnidadeAction(input: {
   unidadeId: string
   condominioId: string
-  motivo: string
   novoProprietarioId?: string
   novoProprietario?: { nome: string; email: string; telefone?: string }
 }): Promise<{ success: boolean; error?: string }> {
-  if (!input.motivo.trim()) return { success: false, error: "Informe o motivo da transferência." }
   if (!input.novoProprietarioId && !input.novoProprietario) {
     return { success: false, error: "Selecione o proprietário de destino ou crie um novo." }
   }
@@ -281,8 +204,6 @@ export async function transferUnidadeAction(input: {
     if (!unidade) return { success: false, error: "Unidade não encontrada." }
 
     const proprietarioAntigo = await getProprietarioById(unidade.proprietario_id)
-    const motivo = input.motivo.trim()
-    const session = await getSession()
 
     let novoProprietarioId = input.novoProprietarioId
     let novoProprietarioNome: string
@@ -300,17 +221,6 @@ export async function transferUnidadeAction(input: {
       })
       novoProprietarioId = criado.id
       novoProprietarioNome = criado.nome
-
-      await logAudit({
-        session,
-        acao: "criar",
-        modulo: "proprietarios",
-        descricao: `Proprietário criado durante transferência de unidade: ${criado.nome}`,
-        entidade: "proprietario",
-        entidadeId: criado.id,
-        condominioId: input.condominioId,
-        motivo,
-      })
     } else {
       const existente = await getProprietarioById(novoProprietarioId)
       if (!existente) return { success: false, error: "Proprietário de destino não encontrado." }
@@ -327,32 +237,20 @@ export async function transferUnidadeAction(input: {
     const nomeAntigo = proprietarioAntigo?.nome ?? "proprietário anterior"
 
     await Promise.all([
-      logAudit({
-        session,
-        acao: "editar",
-        modulo: "unidades",
-        descricao: `Unidade ${unidade.numero} transferida para ${novoProprietarioNome}. ${NOTA_INTEGRIDADE_HISTORICA}`,
-        entidade: "proprietario",
-        entidadeId: unidade.proprietario_id,
-        condominioId: input.condominioId,
-        campo: "titularidade_unidade",
-        valorAnterior: unidade.numero,
-        valorNovo: `Transferida para ${novoProprietarioNome}`,
-        motivo,
-      }),
-      logAudit({
-        session,
-        acao: "editar",
-        modulo: "unidades",
-        descricao: `Unidade ${unidade.numero} recebida de ${nomeAntigo}. ${NOTA_INTEGRIDADE_HISTORICA}`,
-        entidade: "proprietario",
-        entidadeId: novoProprietarioId,
-        condominioId: input.condominioId,
-        campo: "titularidade_unidade",
-        valorAnterior: null,
-        valorNovo: `${unidade.numero} (de ${nomeAntigo})`,
-        motivo,
-      }),
+      registrarHistoricoAlteracao(unidade.proprietario_id, [
+        {
+          campo: "unidades",
+          valor_anterior: unidade.numero,
+          valor_novo: `Transferida para ${novoProprietarioNome}`,
+        },
+      ]),
+      registrarHistoricoAlteracao(novoProprietarioId, [
+        {
+          campo: "unidades",
+          valor_anterior: null,
+          valor_novo: `${unidade.numero} (de ${nomeAntigo})`,
+        },
+      ]),
     ])
 
     return { success: true }

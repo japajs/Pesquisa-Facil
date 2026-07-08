@@ -6,7 +6,6 @@ import { compare } from "bcryptjs"
 import { headers } from "next/headers"
 import { createSession } from "@/lib/auth"
 import { findUsuarioByEmail, hasAnyUsuario } from "@/services/usuarios"
-import { logAudit } from "@/services/auditoria"
 import { checkRateLimit } from "@/lib/rate-limit"
 
 const loginSchema = z.object({
@@ -54,13 +53,6 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   const sessionUser = { userId: user.id, email: user.email, nome: user.nome, perfil: user.perfil }
 
   await createSession(sessionUser)
-
-  await logAudit({
-    session: sessionUser,
-    acao: "login",
-    modulo: "auth",
-    descricao: "Login realizado",
-  })
 
   redirect(from && from.startsWith("/") ? from : "/dashboard")
 }

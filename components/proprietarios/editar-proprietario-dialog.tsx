@@ -15,12 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  updateProprietarioAction,
-  transferUnidadeAction,
-  getHistoricoProprietarioAction,
-} from "@/app/actions/proprietarios"
-import type { AuditLog, Proprietario } from "@/types"
+import { updateProprietarioAction, transferUnidadeAction } from "@/app/actions/proprietarios"
+import type { Proprietario } from "@/types"
 
 interface Props {
   proprietario: Proprietario
@@ -56,10 +52,6 @@ export function EditarProprietarioDialog({
   const [cpf, setCpf] = useState(proprietario.cpf ?? "")
   const [observacoes, setObservacoes] = useState(proprietario.observacoes ?? "")
   const [confirmarCpf, setConfirmarCpf] = useState(false)
-  const [motivo, setMotivo] = useState("")
-
-  const [historico, setHistorico] = useState<AuditLog[] | null>(null)
-  const [carregandoHistorico, setCarregandoHistorico] = useState(false)
 
   const [transferindoUnidadeId, setTransferindoUnidadeId] = useState<string | null>(null)
   const [destinoTipo, setDestinoTipo] = useState<"existente" | "novo">("existente")
@@ -89,20 +81,10 @@ export function EditarProprietarioDialog({
     setObservacoes(proprietario.observacoes ?? "")
   }
 
-  function carregarHistorico() {
-    setCarregandoHistorico(true)
-    getHistoricoProprietarioAction(proprietario.id)
-      .then(setHistorico)
-      .finally(() => setCarregandoHistorico(false))
-  }
-
   function handleOpenChange(next: boolean) {
     setOpen(next)
-    if (next) {
-      carregarHistorico()
-    } else {
+    if (!next) {
       setConfirmarCpf(false)
-      setMotivo("")
       setTransferindoUnidadeId(null)
       setVincularUnidadeId("")
     }
@@ -115,7 +97,7 @@ export function EditarProprietarioDialog({
     (telefone.trim() || null) !== (proprietario.telefone ?? null) ||
     (cpf.trim() || null) !== (proprietario.cpf ?? null) ||
     (observacoes.trim() || null) !== (proprietario.observacoes ?? null)
-  const canSalvar = motivo.trim().length > 0 && algumCampoMudou && nome.trim().length > 0
+  const canSalvar = algumCampoMudou && nome.trim().length > 0
 
   function handleSalvarDados() {
     startSalvarTransition(async () => {
@@ -127,12 +109,10 @@ export function EditarProprietarioDialog({
         telefone,
         cpf,
         observacoes,
-        motivo,
         confirmarCpfAposVoto: confirmarCpf,
       })
       if (result.success) {
         toast.success("Cadastro atualizado.")
-        carregarHistorico()
       } else {
         toast.error(result.error)
       }
@@ -150,7 +130,6 @@ export function EditarProprietarioDialog({
       const result = await transferUnidadeAction({
         unidadeId: transferindoUnidadeId,
         condominioId,
-        motivo,
         novoProprietarioId: destinoTipo === "existente" ? destinoProprietarioId : undefined,
         novoProprietario:
           destinoTipo === "novo"
@@ -164,7 +143,6 @@ export function EditarProprietarioDialog({
         setNovoNome("")
         setNovoEmail("")
         setNovoTelefone("")
-        carregarHistorico()
       } else {
         toast.error(result.error)
       }
@@ -177,13 +155,11 @@ export function EditarProprietarioDialog({
       const result = await transferUnidadeAction({
         unidadeId: vincularUnidadeId,
         condominioId,
-        motivo,
         novoProprietarioId: proprietario.id,
       })
       if (result.success) {
         toast.success("Unidade vinculada.")
         setVincularUnidadeId("")
-        carregarHistorico()
       } else {
         toast.error(result.error)
       }
@@ -192,6 +168,8 @@ export function EditarProprietarioDialog({
 
   const transferDestinoValido =
     destinoTipo === "existente" ? !!destinoProprietarioId : novoNome.trim() && novoEmail.trim()
+
+  const historico = [...proprietario.historico_alteracoes].reverse()
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -277,24 +255,6 @@ export function EditarProprietarioDialog({
                 onChange={(e) => setObservacoes(e.target.value)}
               />
             </div>
-          </div>
-
-          {/* Motivo (compartilhado por todas as ações deste modal) */}
-          <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-3">
-            <Label htmlFor="edit-motivo">
-              Motivo da alteração <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="edit-motivo"
-              rows={2}
-              className="resize-none"
-              placeholder="Ex.: correção informada durante a assembleia de hoje"
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Obrigatório para salvar dados cadastrais ou transferir/vincular unidades.
-            </p>
           </div>
 
           <Button
@@ -385,7 +345,7 @@ export function EditarProprietarioDialog({
                       <Button
                         size="sm"
                         className="w-full"
-                        disabled={isPendingTransferir || !motivo.trim() || !transferDestinoValido}
+                        disabled={isPendingTransferir || !transferDestinoValido}
                         onClick={handleTransferir}
                       >
                         {isPendingTransferir ? "Transferindo…" : "Confirmar transferência"}
@@ -415,7 +375,7 @@ export function EditarProprietarioDialog({
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  disabled={isPendingVincular || !vincularUnidadeId || !motivo.trim()}
+                  disabled={isPendingVincular || !vincularUnidadeId}
                   onClick={handleVincular}
                 >
                   {isPendingVincular ? "Vinculando…" : "Vincular"}
@@ -428,34 +388,21 @@ export function EditarProprietarioDialog({
           <div className="space-y-2 border-t border-border/40 pt-4">
             <div className="flex items-center gap-1.5">
               <History className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs">Histórico recente</Label>
+              <Label className="text-xs">Histórico de alterações</Label>
             </div>
-            {carregandoHistorico ? (
-              <p className="text-xs text-muted-foreground">Carregando…</p>
-            ) : !historico || historico.length === 0 ? (
+            {historico.length === 0 ? (
               <p className="text-xs text-muted-foreground">Nenhuma alteração registrada ainda.</p>
             ) : (
               <ul className="space-y-1.5">
-                {historico.map((log) => (
-                  <li key={log.id} className="text-xs text-muted-foreground">
-                    <span className="font-mono">{formatDate(log.created_at)}</span> ·{" "}
-                    <span className="text-foreground">{log.usuario_nome}</span> —{" "}
-                    {log.descricao}
-                    {log.motivo && (
-                      <span className="italic"> (motivo: {log.motivo})</span>
-                    )}
+                {historico.map((h, i) => (
+                  <li key={i} className="text-xs text-muted-foreground">
+                    <span className="font-mono">{formatDate(h.data)}</span> ·{" "}
+                    <span className="text-foreground">{h.campo}</span>: &quot;
+                    {h.valor_anterior ?? "—"}&quot; → &quot;{h.valor_novo ?? "—"}&quot;
                   </li>
                 ))}
               </ul>
             )}
-            <a
-              href={`/auditoria?entidade_id=${proprietario.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-primary hover:underline"
-            >
-              Ver histórico completo →
-            </a>
           </div>
         </div>
 

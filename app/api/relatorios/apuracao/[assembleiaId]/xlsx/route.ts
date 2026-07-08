@@ -4,7 +4,6 @@ import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
 import { getParticipantesByAssembleia, getUnidadesRelatorio } from "@/services/relatorios"
-import { logAudit } from "@/services/auditoria"
 import { gerarXlsxApuracao } from "@/lib/relatorios/xlsx-apuracao"
 import { safeFilename, formatDateTimeBR } from "@/lib/relatorios/utils"
 
@@ -41,17 +40,6 @@ export async function GET(
     unidades,
     emitidoPor: session.nome,
     emitidoEm,
-  })
-
-  void logAudit({
-    session,
-    acao: "exportar",
-    modulo: "assembleias",
-    descricao: `Excel de apuração gerado: ${assembleia.titulo}`,
-    entidade: "assembleia",
-    entidadeId: assembleiaId,
-    condominioId: assembleia.condominio_id,
-    condominioNome: condominio.nome,
   })
 
   const condo = safeFilename(condominio.nome)

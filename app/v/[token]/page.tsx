@@ -8,7 +8,6 @@ import {
 } from "@/services/assembleia-votos"
 import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
-import { logAudit } from "@/services/auditoria"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
 import { APP_NAME } from "@/lib/constants"
@@ -130,16 +129,6 @@ export default async function PublicVotoPage({ params }: Props) {
   // ── Situação 4: Encerrada — exibir resultados ──────────────────────────────
   if (status === "encerrada") {
     const apuracao = await getApuracaoAssembleia(assembleia.id, pautas).catch(() => null)
-
-    void logAudit({
-      session: null,
-      acao: "visualizar_resultado",
-      modulo: "assembleias",
-      descricao: `${send.proprietario?.nome ?? "Proprietário"} consultou os resultados da assembleia "${assembleia.titulo}"`,
-      entidade: "assembleia",
-      entidadeId: assembleia.id,
-      condominioNome: assembleia.condominio_nome ?? null,
-    })
 
     return (
       <div className="min-h-screen bg-background">

@@ -7,8 +7,6 @@ import {
   updateCondominio,
   updateCondominioInfo,
 } from "@/services/condominios"
-import { getSession } from "@/lib/auth"
-import { logAudit } from "@/services/auditoria"
 import { ROUTES } from "@/lib/constants"
 
 export async function createCondominioAction(
@@ -18,17 +16,6 @@ export async function createCondominioAction(
   try {
     const condo = await createCondominio({ nome: nome.trim() })
     revalidatePath(ROUTES.condominios)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "criar",
-      modulo: "condominios",
-      descricao: `Condomínio criado: ${nome.trim()}`,
-      entidade: "condominio",
-      entidadeId: condo.id,
-      condominioId: condo.id,
-      condominioNome: nome.trim(),
-    })
     return { success: true, id: condo.id }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao criar condomínio." }
@@ -43,17 +30,6 @@ export async function updateCondominioAction(
   try {
     await updateCondominio(id, { nome: nome.trim() })
     revalidatePath(ROUTES.condominios)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "editar",
-      modulo: "condominios",
-      descricao: `Condomínio renomeado para: ${nome.trim()}`,
-      entidade: "condominio",
-      entidadeId: id,
-      condominioId: id,
-      condominioNome: nome.trim(),
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao atualizar condomínio." }
@@ -67,16 +43,6 @@ export async function deleteCondominioAction(
     await deleteCondominio(id)
     revalidatePath(ROUTES.condominios)
     revalidatePath(`${ROUTES.condominios}/${id}`)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "excluir",
-      modulo: "condominios",
-      descricao: "Condomínio excluído",
-      entidade: "condominio",
-      entidadeId: id,
-      condominioId: id,
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao excluir condomínio." }
@@ -98,17 +64,6 @@ export async function updateCondominioInfoAction(
     })
     revalidatePath(ROUTES.condominios)
     revalidatePath(`${ROUTES.condominios}/${id}`)
-    const session = await getSession()
-    await logAudit({
-      session,
-      acao: "editar",
-      modulo: "condominios",
-      descricao: `Informações do condomínio atualizadas: ${nome.trim()}`,
-      entidade: "condominio",
-      entidadeId: id,
-      condominioId: id,
-      condominioNome: nome.trim(),
-    })
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao atualizar." }

@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
-import type { Proprietario, Unidade } from "@/types"
+import type { Json } from "@/lib/supabase/types"
+import type { HistoricoAlteracao, Proprietario, Unidade } from "@/types"
 
 type JoinedProprietario = {
   id: string
@@ -9,6 +10,7 @@ type JoinedProprietario = {
   cpf: string | null
   telefone: string | null
   observacoes: string | null
+  historico_alteracoes: HistoricoAlteracao[] | null
   created_at: string
   unidades: Unidade[] | null
 }
@@ -22,6 +24,7 @@ function rowToProprietario(row: JoinedProprietario): Proprietario {
     cpf: row.cpf,
     telefone: row.telefone,
     observacoes: row.observacoes,
+    historico_alteracoes: row.historico_alteracoes ?? [],
     created_at: row.created_at,
     unidades: row.unidades ?? [],
   }
@@ -107,5 +110,36 @@ export async function updateProprietario(
 export async function deleteProprietario(id: string): Promise<void> {
   const db = createServerClient()
   const { error } = await db.from("proprietarios").delete().eq("id", id)
+  if (error) throw new Error(error.message)
+}
+
+// Histórico simples de alterações de cadastro (Etapa 4) — guardado direto no
+// proprietário, sem tabela/módulo de auditoria separado. Leitura-e-gravação
+// simples (sem função de banco dedicada): aceitável para o volume de uso de
+// duas pessoas administrando o sistema.
+export async function registrarHistoricoAlteracao(
+  proprietarioId: string,
+  entradas: Omit<HistoricoAlteracao, "data">[]
+): Promise<void> {
+  if (entradas.length === 0) return
+
+  const db = createServerClient()
+  const { data, error: fetchError } = await db
+    .from("proprietarios")
+    .select("historico_alteracoes")
+    .eq("id", proprietarioId)
+    .single()
+
+  if (fetchError) throw new Error(fetchError.message)
+
+  const atual = ((data?.historico_alteracoes as HistoricoAlteracao[] | null) ?? [])
+  const agora = new Date().toISOString()
+  const novo = [...atual, ...entradas.map((e) => ({ ...e, data: agora }))]
+
+  const { error } = await db
+    .from("proprietarios")
+    .update({ historico_alteracoes: novo as unknown as Json })
+    .eq("id", proprietarioId)
+
   if (error) throw new Error(error.message)
 }

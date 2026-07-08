@@ -405,3 +405,17 @@ from (
 ) combined
 where s.id = combined.send_id
   and s.peso_snapshot is null;
+
+-- ============================================================
+-- Migração: Etapa 4 — Simplificação: remove módulo de auditoria
+-- Execute este bloco no Supabase SQL Editor.
+--
+-- Histórico simples de alterações de cadastro, guardado no próprio
+-- proprietário (sem motivo, IP, usuário ou sessão) — substitui os registros
+-- que antes iam para audit_logs.
+-- ============================================================
+
+alter table proprietarios add column if not exists historico_alteracoes jsonb not null default '[]'::jsonb;
+
+-- Validado em produção em 2026-07-08 (ver relatório da Etapa 4). Irreversível.
+drop table if exists audit_logs;

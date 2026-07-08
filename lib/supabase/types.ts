@@ -3,46 +3,6 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      audit_logs: {
-        Row: {
-          id: string
-          usuario_id: string | null
-          usuario_nome: string
-          usuario_email: string
-          acao: string
-          modulo: string
-          descricao: string
-          entidade: string | null
-          entidade_id: string | null
-          condominio_id: string | null
-          condominio_nome: string | null
-          campo: string | null
-          valor_anterior: string | null
-          valor_novo: string | null
-          motivo: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          usuario_id?: string | null
-          usuario_nome?: string
-          usuario_email?: string
-          acao: string
-          modulo: string
-          descricao: string
-          entidade?: string | null
-          entidade_id?: string | null
-          condominio_id?: string | null
-          condominio_nome?: string | null
-          campo?: string | null
-          valor_anterior?: string | null
-          valor_novo?: string | null
-          motivo?: string | null
-          created_at?: string
-        }
-        Update: Record<string, never>
-        Relationships: []
-      }
       usuarios: {
         Row: {
           id: string
@@ -122,6 +82,7 @@ export type Database = {
           cpf: string | null
           telefone: string | null
           observacoes: string | null
+          historico_alteracoes: Json
           created_at: string
         }
         Insert: {
@@ -132,6 +93,7 @@ export type Database = {
           cpf?: string | null
           telefone?: string | null
           observacoes?: string | null
+          historico_alteracoes?: Json
           created_at?: string
         }
         Update: {
@@ -140,6 +102,7 @@ export type Database = {
           cpf?: string | null
           telefone?: string | null
           observacoes?: string | null
+          historico_alteracoes?: Json
         }
         Relationships: []
       }
