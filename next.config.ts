@@ -3,15 +3,22 @@ import type { NextConfig } from "next"
 // Auditoria de segurança: não há cliente Supabase no navegador (todo acesso a
 // dados passa por Server Actions/Server Components) e as fontes (next/font)
 // são auto-hospedadas — então não é preciso liberar domínios externos para
-// script/connect/font. 'unsafe-inline' em style-src é necessário porque
-// React/Tailwind e alguns componentes de UI aplicam estilo inline.
+// script/connect/font além da própria Vercel. 'unsafe-inline' é necessário em
+// script-src e style-src porque o Next.js injeta scripts inline de
+// hydration/RSC em toda página renderizada — bloquear isso quebra a própria
+// aplicação (só há como evitar com CSP baseada em nonce via proxy.ts, que
+// exige forçar renderização dinâmica em todas as páginas, fora de escopo
+// aqui). Ainda assim, a CSP impede scripts <script src="..."> de domínios
+// não listados, que é o vetor mais comum de XSS armazenado/refletido.
+// vercel.live é a infraestrutura do toolbar de feedback da própria Vercel.
 const csp = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://vercel.live",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  "connect-src 'self' https://vercel.live wss://vercel.live",
+  "frame-src https://vercel.live",
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
