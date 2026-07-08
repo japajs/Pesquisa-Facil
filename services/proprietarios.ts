@@ -107,8 +107,28 @@ export async function updateProprietario(
   return rowToProprietario(data as unknown as JoinedProprietario)
 }
 
+// Auditoria funcional: exclusão de proprietário apaga em cascata (FK do banco)
+// os registros de assembleia_sends/assembleia_respostas ligados a ele — o que
+// destruiria o histórico de voto (Etapa 3) mesmo de assembleias já encerradas.
+// Por isso, um proprietário que já votou em qualquer assembleia não pode ser
+// excluído; o admin precisa manter o cadastro (pode remover as unidades dele).
 export async function deleteProprietario(id: string): Promise<void> {
   const db = createServerClient()
+
+  const { data: sendsVotados, error: votosError } = await db
+    .from("assembleia_sends")
+    .select("id")
+    .eq("proprietario_id", id)
+    .not("votado_em", "is", null)
+    .limit(1)
+
+  if (votosError) throw new Error(votosError.message)
+  if ((sendsVotados ?? []).length > 0) {
+    throw new Error(
+      "Este proprietário já votou em alguma assembleia e não pode ser excluído, para preservar o histórico de votação."
+    )
+  }
+
   const { error } = await db.from("proprietarios").delete().eq("id", id)
   if (error) throw new Error(error.message)
 }

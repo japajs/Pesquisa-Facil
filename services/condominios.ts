@@ -91,8 +91,37 @@ export async function updateCondominioInfo(
   return rowToCondominio(data as DbRow)
 }
 
+// Auditoria funcional: exclusão de condomínio apaga em cascata (FK do banco)
+// todas as assembleias, pautas e votos daquele condomínio — inclusive de
+// assembleias já encerradas. Por isso, um condomínio com qualquer voto
+// registrado não pode ser excluído, para preservar o histórico de votação.
 export async function deleteCondominio(id: string): Promise<void> {
   const db = createServerClient()
+
+  const { data: assembleiasDoCondominio, error: assembleiasError } = await db
+    .from("assembleias")
+    .select("id")
+    .eq("condominio_id", id)
+
+  if (assembleiasError) throw new Error(assembleiasError.message)
+  const assembleiaIds = (assembleiasDoCondominio ?? []).map((a) => a.id)
+
+  if (assembleiaIds.length > 0) {
+    const { data: sendsVotados, error: votosError } = await db
+      .from("assembleia_sends")
+      .select("id")
+      .in("assembleia_id", assembleiaIds)
+      .not("votado_em", "is", null)
+      .limit(1)
+
+    if (votosError) throw new Error(votosError.message)
+    if ((sendsVotados ?? []).length > 0) {
+      throw new Error(
+        "Este condomínio possui assembleias com votos registrados e não pode ser excluído, para preservar o histórico de votação."
+      )
+    }
+  }
+
   const { error } = await db.from("condominios").delete().eq("id", id)
   if (error) throw new Error(error.message)
 }

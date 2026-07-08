@@ -43,6 +43,7 @@ export async function createAssembleiaAction(input: {
     }
   }
 
+  let assembleiaId: string | null = null
   try {
     const assembleia = await createAssembleia({
       condominio_id: input.condominio_id,
@@ -51,6 +52,7 @@ export async function createAssembleiaAction(input: {
       data_abertura: input.data_abertura || null,
       data_encerramento: input.data_encerramento || null,
     })
+    assembleiaId = assembleia.id
 
     await createPautasBatch(
       input.pautas.map((p, i) => ({
@@ -70,6 +72,12 @@ export async function createAssembleiaAction(input: {
     revalidatePath(`${ROUTES.condominios}/${input.condominio_id}`)
     return { success: true }
   } catch (err) {
+    // Auditoria funcional: criar a assembleia e depois criar as pautas são
+    // duas escritas separadas (sem transação). Se a segunda falhar, desfaz a
+    // primeira para não deixar uma assembleia "órfã" sem nenhuma pauta.
+    if (assembleiaId) {
+      await deleteAssembleia(assembleiaId).catch(() => {})
+    }
     return {
       success: false,
       error: err instanceof Error ? err.message : "Erro ao criar assembleia.",

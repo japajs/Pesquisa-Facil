@@ -152,6 +152,17 @@ const s = StyleSheet.create({
   verdictSub: { fontSize: 7, color: C.white, marginTop: 1, opacity: 0.85 },
   /* ── divider ──────────────────────────── */
   divider: { borderBottomWidth: 1, borderBottomColor: C.border, marginVertical: 12 },
+  /* ── aviso de resultado parcial ───────── */
+  avisoParcial: {
+    backgroundColor: C.abstBg,
+    borderWidth: 1,
+    borderColor: C.abstencao,
+    borderRadius: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+  },
+  avisoParcialText: { fontSize: 8, fontFamily: "Helvetica-Bold", color: C.abstencao },
 })
 
 function verdictColor(v: string): string {
@@ -271,6 +282,18 @@ export function ApuracaoPDF({
         {/* ── Report title ──────────────────── */}
         <Text style={s.reportTitle}>{assembleia.titulo}</Text>
         <Text style={s.reportCondo}>{condominio.nome}</Text>
+
+        {/* Auditoria funcional: sem isso, um PDF gerado antes do
+            encerramento parecia um resultado final — o status só aparecia
+            discreto entre outros campos, fácil de passar despercebido num
+            documento que pode circular como se fosse definitivo. */}
+        {assembleia.status !== "encerrada" ? (
+          <View style={s.avisoParcial}>
+            <Text style={s.avisoParcialText}>
+              ⚠ RESULTADO PARCIAL — VOTAÇÃO {assembleia.status === "aberta" ? "EM ANDAMENTO" : "AINDA NÃO INICIADA"}, SUJEITO A ALTERAÇÃO
+            </Text>
+          </View>
+        ) : null}
 
         {/* ── Assembly info ─────────────────── */}
         <Text style={s.sectionLabel}>INFORMAÇÕES DA ASSEMBLEIA</Text>

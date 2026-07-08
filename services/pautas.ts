@@ -86,12 +86,15 @@ export async function createPautasBatch(
   if (error) throw new Error(error.message)
   const criadas = (data ?? []) as unknown as PautaRow[]
 
-  // Insere as opções das pautas de múltipla escolha, casando pelo número
-  // de `ordem` (único por assembleia) em vez da posição no array — mais
-  // seguro do que assumir que o banco preserva a ordem do insert em lote.
-  const inputPorOrdem = new Map(pautas.map((p) => [p.ordem, p]))
-  const opcoesParaInserir = criadas.flatMap((pauta) => {
-    const labels = inputPorOrdem.get(pauta.ordem)?.opcoes ?? []
+  // Auditoria funcional: antes casava pela coluna `ordem`, mas `ordem` só é
+  // garantidamente única DENTRO desta mesma chamada — se no futuro pautas
+  // forem adicionadas uma a uma a uma assembleia já existente (via
+  // getNextOrdem), duas chamadas concorrentes poderiam gerar o mesmo
+  // `ordem` e trocar as opções entre pautas. Uma única instrução INSERT com
+  // múltiplas linhas preserva a ordem de entrada no retorno — mais seguro
+  // casar pela posição no array do que por um valor que pode colidir.
+  const opcoesParaInserir = criadas.flatMap((pauta, idx) => {
+    const labels = pautas[idx]?.opcoes ?? []
     return labels.map((label, i) => ({ pauta_id: pauta.id, ordem: i + 1, label }))
   })
 

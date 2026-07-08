@@ -241,6 +241,14 @@ export interface ContextoVoto {
 // assembleia (nunca a uma outra, mesmo que o chamador tente enviar um
 // pauta_id de outro lugar). Sem isso, alguém com um token válido poderia
 // votar depois do encerramento ou injetar respostas em pautas alheias.
+//
+// Auditoria funcional: também garante que TODAS as pautas da assembleia
+// estão sendo respondidas de uma vez. O formulário público já só libera o
+// botão de enviar quando todas as pautas têm resposta, mas essa action é
+// pública (sem sessão) — sem essa checagem aqui, um envio parcial (rede
+// caindo no meio, ou uma chamada direta fora do formulário) trava esse
+// participante permanentemente: a página passa a tratá-lo como "já votou" e
+// ele nunca mais consegue responder a(s) pauta(s) que faltou.
 async function validarVotoOuFalhar(
   db: ReturnType<typeof createServerClient>,
   assembleiaId: string,
@@ -252,15 +260,19 @@ async function validarVotoOuFalhar(
   }
 
   const idsUnicos = [...new Set(pautaIds)]
-  const { data: pautasValidas, error } = await db
+  const { data: todasPautas, error } = await db
     .from("pautas")
     .select("id")
     .eq("assembleia_id", assembleiaId)
-    .in("id", idsUnicos)
 
   if (error) throw new Error(error.message)
-  if ((pautasValidas ?? []).length !== idsUnicos.length) {
+  const idsValidos = new Set((todasPautas ?? []).map((p) => p.id as string))
+
+  if (idsUnicos.some((id) => !idsValidos.has(id))) {
     throw new Error("Pauta inválida para esta assembleia.")
+  }
+  if (idsUnicos.length !== idsValidos.size) {
+    throw new Error("É necessário responder a todas as pautas da assembleia.")
   }
 }
 

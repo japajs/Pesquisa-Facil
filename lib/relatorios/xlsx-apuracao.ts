@@ -64,7 +64,15 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     ["DADOS DA ASSEMBLEIA"],
     ["Título", assembleia.titulo],
     ["Descrição", assembleia.descricao ?? ""],
-    ["Status", statusLabelPT(assembleia.status)],
+    // Auditoria funcional: sem o aviso embutido, um arquivo gerado antes do
+    // encerramento (rascunho/aberta) mostra números que parecem definitivos
+    // — o status sozinho na célula ao lado é fácil de não notar.
+    [
+      "Status",
+      assembleia.status !== "encerrada"
+        ? `${statusLabelPT(assembleia.status)} — ⚠ RESULTADO PARCIAL, SUJEITO A ALTERAÇÃO`
+        : statusLabelPT(assembleia.status),
+    ],
     ["Abertura", formatDateTimeBR(assembleia.data_abertura)],
     ["Encerramento", formatDateTimeBR(assembleia.data_encerramento)],
     [],

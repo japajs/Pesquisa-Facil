@@ -123,6 +123,20 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
         continue
       }
 
+      // Auditoria funcional: sem CPF, o agrupamento cai para o e-mail — comum
+      // quando um mesmo administrador/contador é o contato de vários donos
+      // diferentes. Nesse caso o nome da linha nova diverge do proprietário
+      // já criado no grupo; avisa em vez de fundir silenciosamente, para o
+      // admin decidir (corrigir CPF/e-mail antes de importar, ou aceitar).
+      if (!cpf && email && prop.nome.trim().toLowerCase() !== nome.trim().toLowerCase()) {
+        erros.push({
+          linha: linha._linhaOriginal,
+          campo: "Proprietário",
+          mensagem: `E-mail "${email}" já usado por "${prop.nome}" — "${nome}" será tratado como o mesmo proprietário (sem CPF para diferenciar)`,
+          dados: imovel,
+        })
+      }
+
       prop.unidades.push(imovel)
       prop.linhasOrigem.push(linha._linhaOriginal)
       duplicidades++

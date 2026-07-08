@@ -40,10 +40,44 @@ export async function getUnidadesByProprietarioId(proprietarioId: string): Promi
   return (data ?? []).map(rowToUnidade)
 }
 
+// Auditoria funcional: sem essa checagem, dois proprietários diferentes
+// podiam cadastrar a mesma unidade (mesmo número/bloco) no mesmo condomínio
+// — inflando artificialmente o peso total de votação do condomínio.
+async function unidadeJaExisteNoCondominio(
+  db: ReturnType<typeof createServerClient>,
+  proprietarioId: string,
+  numero: string,
+  bloco: string | null
+): Promise<boolean> {
+  const { data: proprietario, error: propError } = await db
+    .from("proprietarios")
+    .select("condominio_id")
+    .eq("id", proprietarioId)
+    .single()
+  if (propError) throw new Error(propError.message)
+
+  let query = db
+    .from("unidades")
+    .select("id, proprietarios!inner(condominio_id)")
+    .eq("proprietarios.condominio_id", (proprietario as { condominio_id: string }).condominio_id)
+    .eq("numero", numero)
+
+  query = bloco === null ? query.is("bloco", null) : query.eq("bloco", bloco)
+
+  const { data, error } = await query.limit(1)
+  if (error) throw new Error(error.message)
+  return (data ?? []).length > 0
+}
+
 export async function createUnidade(
   input: Pick<Unidade, "proprietario_id" | "numero" | "bloco">
 ): Promise<Unidade> {
   const db = createServerClient()
+
+  if (await unidadeJaExisteNoCondominio(db, input.proprietario_id, input.numero, input.bloco)) {
+    throw new Error("Esta unidade já está cadastrada para outro proprietário neste condomínio.")
+  }
+
   const { data, error } = await db
     .from("unidades")
     .insert({

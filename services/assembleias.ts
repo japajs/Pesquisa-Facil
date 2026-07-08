@@ -126,10 +126,45 @@ export async function createAssembleia(
   return rowToAssembleia(data as unknown as JoinedAssembleia)
 }
 
+// Auditoria funcional: mesma proteção de deleteCondominio, aqui na exclusão
+// direta de uma assembleia — sem isso, dava pra contornar aquela trava
+// excluindo a assembleia em vez do condomínio inteiro.
 export async function deleteAssembleia(id: string): Promise<void> {
   const db = createServerClient()
+
+  const { data: sendsVotados, error: votosError } = await db
+    .from("assembleia_sends")
+    .select("id")
+    .eq("assembleia_id", id)
+    .not("votado_em", "is", null)
+    .limit(1)
+
+  if (votosError) throw new Error(votosError.message)
+  if ((sendsVotados ?? []).length > 0) {
+    throw new Error(
+      "Esta assembleia possui votos registrados e não pode ser excluída, para preservar o histórico de votação."
+    )
+  }
+
   const { error } = await db.from("assembleias").delete().eq("id", id)
   if (error) throw new Error(error.message)
+}
+
+// Auditoria funcional: transferir uma unidade enquanto há assembleia aberta
+// no condomínio pode fazer o peso da unidade ser contado duas vezes (uma no
+// voto do dono antigo, outra no voto do novo dono) na mesma apuração — ambos
+// calculam o peso "ao vivo" a partir das unidades atuais no momento do voto.
+export async function hasAssembleiaAberta(condominioId: string): Promise<boolean> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("assembleias")
+    .select("id")
+    .eq("condominio_id", condominioId)
+    .eq("status", "aberta")
+    .limit(1)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).length > 0
 }
 
 export async function updateAssembleiaStatus(

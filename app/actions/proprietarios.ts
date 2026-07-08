@@ -15,8 +15,24 @@ import {
   updateUnidade,
 } from "@/services/unidades"
 import { getProprietariosQueJaVotaram } from "@/services/assembleia-votos"
+import { hasAssembleiaAberta } from "@/services/assembleias"
 import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
+
+// Auditoria funcional: antes, qualquer erro de constraint única virava
+// sempre "já existe... com esse e-mail", mesmo quando o CPF é que estava
+// duplicado — o usuário perdia tempo tentando corrigir o campo errado.
+function mensagemErroDuplicidade(msg: string): string | null {
+  const lower = msg.toLowerCase()
+  if (!lower.includes("unique") && !lower.includes("duplicate")) return null
+  if (lower.includes("cpf")) {
+    return "Já existe um proprietário com esse CPF neste condomínio."
+  }
+  if (lower.includes("email")) {
+    return "Já existe um proprietário com esse e-mail neste condomínio."
+  }
+  return "Já existe um proprietário com esses dados neste condomínio."
+}
 
 export async function createProprietarioAction(input: {
   condominio_id: string
@@ -52,9 +68,8 @@ export async function createProprietarioAction(input: {
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao criar proprietário."
-    if (msg.toLowerCase().includes("unique") || msg.toLowerCase().includes("duplicate")) {
-      return { success: false, error: "Já existe um proprietário com esse e-mail neste condomínio." }
-    }
+    const duplicidade = mensagemErroDuplicidade(msg)
+    if (duplicidade) return { success: false, error: duplicidade }
     return { success: false, error: msg }
   }
 }
@@ -191,9 +206,8 @@ export async function updateProprietarioAction(input: {
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao atualizar proprietário."
-    if (msg.toLowerCase().includes("unique") || msg.toLowerCase().includes("duplicate")) {
-      return { success: false, error: "Já existe um proprietário com esse e-mail neste condomínio." }
-    }
+    const duplicidade = mensagemErroDuplicidade(msg)
+    if (duplicidade) return { success: false, error: duplicidade }
     return { success: false, error: msg }
   }
 }
@@ -211,6 +225,18 @@ export async function transferUnidadeAction(input: {
   }
 
   try {
+    // Auditoria funcional: transferir unidade com assembleia aberta pode
+    // fazer o peso dela ser contado duas vezes (no voto do dono antigo e no
+    // do novo dono, na mesma apuração). Só permite a correção fora de uma
+    // votação em andamento neste condomínio.
+    if (await hasAssembleiaAberta(input.condominioId)) {
+      return {
+        success: false,
+        error:
+          "Não é possível transferir unidades enquanto houver uma assembleia aberta neste condomínio. Aguarde o encerramento da votação.",
+      }
+    }
+
     const unidade = await getUnidadeById(input.unidadeId)
     if (!unidade) return { success: false, error: "Unidade não encontrada." }
 
@@ -267,9 +293,8 @@ export async function transferUnidadeAction(input: {
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao transferir unidade."
-    if (msg.toLowerCase().includes("unique") || msg.toLowerCase().includes("duplicate")) {
-      return { success: false, error: "Já existe um proprietário com esse e-mail neste condomínio." }
-    }
+    const duplicidade = mensagemErroDuplicidade(msg)
+    if (duplicidade) return { success: false, error: duplicidade }
     return { success: false, error: msg }
   }
 }
