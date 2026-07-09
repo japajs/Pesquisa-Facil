@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { Users, Trash2, Plus, X } from "lucide-react"
+import { useMemo, useState, useTransition } from "react"
+import { Users, Trash2, Plus, X, Search } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,12 +21,32 @@ interface ProprietariosListProps {
   isAdmin?: boolean
 }
 
+// Remove acentos e caixa para a busca não exigir digitação exata
+// (ex.: "joao" encontra "João").
+function normalizarBusca(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+}
+
 export function ProprietariosList({
   proprietarios,
   condominioId,
   proprietariosQueJaVotaram,
   isAdmin = false,
 }: ProprietariosListProps) {
+  const [busca, setBusca] = useState("")
+
+  const proprietariosFiltrados = useMemo(() => {
+    const termo = normalizarBusca(busca.trim())
+    if (!termo) return proprietarios
+    return proprietarios.filter((p) => {
+      const alvo = [p.nome, p.email ?? "", ...(p.unidades ?? []).map((u) => u.numero)].join(" ")
+      return normalizarBusca(alvo).includes(termo)
+    })
+  }, [proprietarios, busca])
+
   if (proprietarios.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-10 text-center">
@@ -37,17 +57,39 @@ export function ProprietariosList({
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card divide-y divide-border/40">
-      {proprietarios.map((p) => (
-        <ProprietarioRow
-          key={p.id}
-          proprietario={p}
-          condominioId={condominioId}
-          todosProprietarios={proprietarios}
-          jaVotou={proprietariosQueJaVotaram?.has(p.id) ?? false}
-          isAdmin={isAdmin}
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, e-mail ou unidade…"
+          className="pl-10"
+          aria-label="Buscar proprietário"
         />
-      ))}
+      </div>
+
+      {proprietariosFiltrados.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-10 text-center">
+          <Search className="h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">
+            Nenhum proprietário encontrado para &quot;{busca}&quot;.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/60 bg-card divide-y divide-border/40">
+          {proprietariosFiltrados.map((p) => (
+            <ProprietarioRow
+              key={p.id}
+              proprietario={p}
+              condominioId={condominioId}
+              todosProprietarios={proprietarios}
+              jaVotou={proprietariosQueJaVotaram?.has(p.id) ?? false}
+              isAdmin={isAdmin}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
