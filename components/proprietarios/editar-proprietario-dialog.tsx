@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { updateProprietarioAction, transferUnidadeAction } from "@/app/actions/proprietarios"
+import { formatUnidade } from "@/lib/unidade-format"
 import type { Proprietario } from "@/types"
 
 interface Props {
@@ -275,7 +276,7 @@ export function EditarProprietarioDialog({
               {(proprietario.unidades ?? []).map((u) => (
                 <div key={u.id} className="rounded-lg border border-border/60 p-2.5 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{u.numero}</span>
+                    <span className="text-sm font-medium">{formatUnidade(u)}</span>
                     <button
                       type="button"
                       onClick={() =>
@@ -367,7 +368,7 @@ export function EditarProprietarioDialog({
                   <option value="">Selecione uma unidade…</option>
                   {unidadesDeOutros.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.numero} — atualmente com {u.proprietarioNome}
+                      {formatUnidade(u)} — atualmente com {u.proprietarioNome}
                     </option>
                   ))}
                 </select>
