@@ -154,7 +154,8 @@ export function CriarProprietarioDialog({ condominioId }: CriarProprietarioDialo
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              O peso do voto será calculado automaticamente pelo número de unidades.
+              Quantidade de votos deste proprietário, calculada automaticamente pelo número de
+              unidades vinculadas.
             </p>
           </div>
         </div>

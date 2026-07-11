@@ -128,7 +128,7 @@ export function ProprietariosList({
             <span>Nome</span>
             <span>E-mail</span>
             <span>Celular</span>
-            <span>Peso</span>
+            <span>Votos</span>
             <span className="text-right">Ações</span>
           </div>
           <div className="divide-y divide-border/40">
@@ -237,8 +237,11 @@ const ProprietarioRow = memo(function ProprietarioRow({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground lg:contents">
           <span className="min-w-0 truncate lg:text-sm">{proprietario.email || "—"}</span>
           <span className="min-w-0 shrink-0 truncate lg:text-sm">{celular ?? "—"}</span>
-          <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary lg:ml-0 lg:w-fit">
-            Peso {peso}
+          <span
+            className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary lg:ml-0 lg:w-fit"
+            title="Quantidade de votos deste proprietário, calculada automaticamente pelo número de unidades vinculadas."
+          >
+            {peso} {peso === 1 ? "voto" : "votos"}
           </span>
         </div>
 

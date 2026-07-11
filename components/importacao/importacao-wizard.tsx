@@ -354,7 +354,7 @@ function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
                 Unidades
               </th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-                Peso
+                Votos
               </th>
             </tr>
           </thead>
