@@ -3,24 +3,42 @@
 import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
+import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assembleia-dialog"
 import type { Assembleia, AssembleiaApuracao, PautaApuracao } from "@/types"
 
 interface Props {
   assembleia: Assembleia
+  condominioId: string
   apuracao: AssembleiaApuracao
   canExport?: boolean
 }
 
-const STATUS_LABEL: Record<string, string> = {
+// "Em votação" não é um status novo no banco — é só "aberta" + já tem pelo
+// menos um voto, derivado aqui na exibição (item 6: evitar coluna nova).
+type StatusExibido = Assembleia["status"] | "em_votacao"
+
+const STATUS_LABEL: Record<StatusExibido, string> = {
   rascunho: "Rascunho",
   aberta: "Aberta",
+  em_votacao: "Em votação",
   encerrada: "Encerrada",
 }
 
-const STATUS_CLASS: Record<string, string> = {
+const STATUS_CLASS: Record<StatusExibido, string> = {
   rascunho: "bg-muted text-muted-foreground",
   aberta: "bg-emerald-500/15 text-emerald-500",
+  em_votacao: "bg-indigo-500/15 text-indigo-500",
   encerrada: "bg-rose-500/15 text-rose-500",
+}
+
+function formatDateHora(dateString: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(dateString))
 }
 
 function formatDate(dateString: string | null) {
@@ -34,7 +52,7 @@ function formatDate(dateString: string | null) {
   }).format(new Date(dateString))
 }
 
-export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: Props) {
+export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExport = false }: Props) {
   const { total_enviados, total_respondidos } = apuracao
   const participacao =
     total_enviados > 0 ? Math.round((total_respondidos / total_enviados) * 100) : 0
@@ -44,6 +62,9 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
       p.por_participantes.sim + p.por_participantes.nao + p.por_participantes.abstencao > 0 ||
       (p.opcoes_resultado?.some((o) => o.participantes > 0) ?? false)
   )
+
+  const statusExibido: StatusExibido =
+    assembleia.status === "aberta" && temVotos ? "em_votacao" : assembleia.status
 
   return (
     <div className="space-y-6">
@@ -67,11 +88,18 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[assembleia.status] ?? STATUS_CLASS.rascunho}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[statusExibido]}`}
             >
-              {STATUS_LABEL[assembleia.status] ?? assembleia.status}
+              {STATUS_LABEL[statusExibido]}
             </span>
             <div className="flex flex-wrap items-center gap-2 print:hidden">
+              {canExport && (
+                <EditarAssembleiaDialog
+                  assembleia={assembleia}
+                  condominioId={condominioId}
+                  temVotos={temVotos}
+                />
+              )}
               {canExport && (
                 <>
                   <Button
@@ -123,6 +151,10 @@ export function ApuracaoAssembleia({ assembleia, apuracao, canExport = false }: 
           <div>
             <span className="font-medium">Encerramento:</span>{" "}
             {formatDate(assembleia.data_encerramento)}
+          </div>
+          <div>
+            <span className="font-medium">Última alteração:</span>{" "}
+            {formatDateHora(assembleia.updated_at)}
           </div>
         </div>
       </div>

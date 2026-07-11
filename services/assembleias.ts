@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { createPautasBatch } from "@/services/pautas"
 import type { Assembleia, AssembleiaStatus, Pauta, PautaOpcao } from "@/types"
 
 type JoinedPautaOpcao = {
@@ -148,6 +149,103 @@ export async function deleteAssembleia(id: string): Promise<void> {
 
   const { error } = await db.from("assembleias").delete().eq("id", id)
   if (error) throw new Error(error.message)
+}
+
+// Edição de assembleia: mesmo sinal de "tem voto" já usado por
+// deleteAssembleia (assembleia_sends.votado_em preenchido) — reaproveitado
+// aqui para decidir se as pautas ainda podem ser alteradas.
+export async function hasVotosRegistrados(assembleiaId: string): Promise<boolean> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("assembleia_sends")
+    .select("id")
+    .eq("assembleia_id", assembleiaId)
+    .not("votado_em", "is", null)
+    .limit(1)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).length > 0
+}
+
+export interface PautaEdicaoInput {
+  titulo: string
+  descricao: string | null
+  tipo: Pauta["tipo"]
+  permite_abstencao: boolean
+  opcoes?: string[]
+}
+
+// Edita título/descrição/datas (sempre, enquanto não encerrada) e,
+// opcionalmente, substitui as pautas por completo (delete + recria, que é
+// seguro porque só é permitido chamar com `pautas` não-nulo quando ainda não
+// existe nenhum voto — sem isso, apagar uma pauta que já tem resposta
+// gravada quebraria a integridade do histórico de votação).
+//
+// Reforça a mesma regra que a tela já aplica (perfil, pautas bloqueadas com
+// voto, assembleia encerrada) aqui no service — nunca confia só no que o
+// client mandou.
+export async function updateAssembleiaCompleta(
+  id: string,
+  dadosBasicos: {
+    titulo: string
+    descricao: string | null
+    data_abertura: string | null
+    data_encerramento: string | null
+  },
+  pautas: PautaEdicaoInput[] | null
+): Promise<void> {
+  const db = createServerClient()
+
+  const { data: atual, error: fetchError } = await db
+    .from("assembleias")
+    .select("status")
+    .eq("id", id)
+    .single()
+  if (fetchError) throw new Error(fetchError.message)
+
+  if ((atual as { status: AssembleiaStatus }).status === "encerrada") {
+    throw new Error("Esta assembleia está encerrada e não pode mais ser alterada.")
+  }
+
+  if (pautas !== null) {
+    const temVotos = await hasVotosRegistrados(id)
+    if (temVotos) {
+      throw new Error(
+        "Esta assembleia já possui votos registrados. Para preservar a integridade da votação, as pautas não podem mais ser alteradas."
+      )
+    }
+  }
+
+  const { error: updateError } = await db
+    .from("assembleias")
+    .update({
+      titulo: dadosBasicos.titulo,
+      descricao: dadosBasicos.descricao,
+      data_abertura: dadosBasicos.data_abertura,
+      data_encerramento: dadosBasicos.data_encerramento,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+  if (updateError) throw new Error(updateError.message)
+
+  if (pautas !== null) {
+    const { error: deleteError } = await db.from("pautas").delete().eq("assembleia_id", id)
+    if (deleteError) throw new Error(deleteError.message)
+
+    if (pautas.length > 0) {
+      await createPautasBatch(
+        pautas.map((p, i) => ({
+          assembleia_id: id,
+          ordem: i + 1,
+          titulo: p.titulo,
+          descricao: p.descricao,
+          tipo: p.tipo,
+          permite_abstencao: p.permite_abstencao,
+          opcoes: p.tipo === "multipla_escolha" ? p.opcoes : undefined,
+        }))
+      )
+    }
+  }
 }
 
 // Auditoria funcional: transferir uma unidade enquanto há assembleia aberta

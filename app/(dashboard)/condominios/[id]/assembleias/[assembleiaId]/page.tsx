@@ -66,6 +66,7 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
 
       <ApuracaoAssembleia
         assembleia={assembleia}
+        condominioId={condominioId}
         apuracao={apuracao}
         canExport={session?.perfil !== "visualizador"}
       />

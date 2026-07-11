@@ -1,7 +1,12 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createAssembleia, deleteAssembleia, updateAssembleiaStatus } from "@/services/assembleias"
+import {
+  createAssembleia,
+  deleteAssembleia,
+  updateAssembleiaStatus,
+  updateAssembleiaCompleta,
+} from "@/services/assembleias"
 import { createPautasBatch } from "@/services/pautas"
 import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
@@ -81,6 +86,76 @@ export async function createAssembleiaAction(input: {
     return {
       success: false,
       error: err instanceof Error ? err.message : "Erro ao criar assembleia.",
+    }
+  }
+}
+
+// Edição de assembleia (Etapa: correção de título/descrição/datas/pautas
+// antes da votação comprometer o que já foi respondido). `pautas: null`
+// significa "não mexer nas pautas" — usado quando a tela já sabe (pelo
+// mesmo sinal que o service reconfirma) que elas estão bloqueadas.
+export async function updateAssembleiaAction(input: {
+  id: string
+  condominio_id: string
+  titulo: string
+  descricao: string
+  data_abertura: string | null
+  data_encerramento: string | null
+  pautas: PautaInput[] | null
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
+
+  if (input.pautas !== null) {
+    if (input.pautas.length === 0) return { success: false, error: "Adicione pelo menos uma pauta." }
+    if (input.pautas.length > 9) return { success: false, error: "Máximo de 9 pautas por assembleia." }
+    if (input.pautas.some((p) => !p.titulo.trim()))
+      return { success: false, error: "Todas as pautas precisam ter título." }
+
+    for (const p of input.pautas) {
+      if (p.tipo === "multipla_escolha") {
+        const opcoesValidas = (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+        if (opcoesValidas.length < 2) {
+          return {
+            success: false,
+            error: `A pauta "${p.titulo.trim()}" precisa de pelo menos 2 opções.`,
+          }
+        }
+      }
+    }
+  }
+
+  try {
+    await updateAssembleiaCompleta(
+      input.id,
+      {
+        titulo: input.titulo.trim(),
+        descricao: input.descricao.trim() || null,
+        data_abertura: input.data_abertura || null,
+        data_encerramento: input.data_encerramento || null,
+      },
+      input.pautas === null
+        ? null
+        : input.pautas.map((p) => ({
+            titulo: p.titulo.trim(),
+            descricao: p.descricao.trim() || null,
+            tipo: p.tipo ?? "sim_nao",
+            permite_abstencao: p.permite_abstencao ?? true,
+            opcoes:
+              p.tipo === "multipla_escolha"
+                ? (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+                : undefined,
+          }))
+    )
+
+    revalidatePath(`${ROUTES.condominios}/${input.condominio_id}`)
+    revalidatePath(ROUTES.condominioAssembleia(input.condominio_id, input.id))
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar assembleia.",
     }
   }
 }
