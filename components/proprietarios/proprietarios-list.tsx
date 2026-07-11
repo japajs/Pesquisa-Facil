@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/proprietarios"
 import { getPesoParticipante } from "@/lib/peso"
 import { formatUnidade, menorNumeroUnidade } from "@/lib/unidade-format"
+import { formatCelular } from "@/lib/format"
 import { EditarProprietarioDialog } from "@/components/proprietarios/editar-proprietario-dialog"
 import type { Proprietario } from "@/types"
 
@@ -23,6 +24,11 @@ interface ProprietariosListProps {
 }
 
 type Ordenacao = "nome" | "unidade"
+
+// Mesma grade de colunas usada no cabeçalho e em cada linha, em telas
+// grandes (lg+) — é o que garante nome/e-mail/celular/peso/ações alinhados
+// verticalmente mesmo com textos de tamanhos bem diferentes entre linhas.
+const GRID_COLUNAS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_140px_64px_72px]"
 
 // Remove acentos e caixa para a busca não exigir digitação exata
 // (ex.: "joao" encontra "João").
@@ -113,17 +119,30 @@ export function ProprietariosList({
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card divide-y divide-border/40">
-          {proprietariosExibidos.map((p) => (
-            <ProprietarioRow
-              key={p.id}
-              proprietario={p}
-              condominioId={condominioId}
-              todosProprietarios={proprietarios}
-              jaVotou={proprietariosQueJaVotaram?.has(p.id) ?? false}
-              isAdmin={isAdmin}
-            />
-          ))}
+        <div className="rounded-xl border border-border/60 bg-card">
+          {/* Cabeçalho de colunas — só faz sentido a partir de lg, onde a
+              grade de colunas entra em vigor. */}
+          <div
+            className={`hidden border-b border-border/60 bg-muted/30 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70 lg:grid lg:gap-3 ${GRID_COLUNAS}`}
+          >
+            <span>Nome</span>
+            <span>E-mail</span>
+            <span>Celular</span>
+            <span>Peso</span>
+            <span className="text-right">Ações</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {proprietariosExibidos.map((p) => (
+              <ProprietarioRow
+                key={p.id}
+                proprietario={p}
+                condominioId={condominioId}
+                todosProprietarios={proprietarios}
+                jaVotou={proprietariosQueJaVotaram?.has(p.id) ?? false}
+                isAdmin={isAdmin}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -151,6 +170,7 @@ const ProprietarioRow = memo(function ProprietarioRow({
 
   const peso = getPesoParticipante(proprietario)
   const unidades = proprietario.unidades ?? []
+  const celular = proprietario.telefone ? formatCelular(proprietario.telefone) : null
 
   function handleDeleteProprietario() {
     if (!confirm(`Excluir "${proprietario.nome}"? As unidades vinculadas também serão removidas.`)) return
@@ -180,43 +200,54 @@ const ProprietarioRow = memo(function ProprietarioRow({
     })
   }
 
+  const acoes = (
+    <>
+      <EditarProprietarioDialog
+        proprietario={proprietario}
+        condominioId={condominioId}
+        todosProprietarios={todosProprietarios}
+        jaVotou={jaVotou}
+        isAdmin={isAdmin}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleDeleteProprietario}
+        disabled={isPendingDelete}
+        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        <span className="sr-only">Excluir proprietário</span>
+      </Button>
+    </>
+  )
+
   return (
-    <div className="px-3 py-2 space-y-1">
-      {/* Linha 1: nome + ações */}
-      <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate text-sm font-semibold">{proprietario.nome}</p>
-        <div className="flex shrink-0 items-center gap-1">
-          <EditarProprietarioDialog
-            proprietario={proprietario}
-            condominioId={condominioId}
-            todosProprietarios={todosProprietarios}
-            jaVotou={jaVotou}
-            isAdmin={isAdmin}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDeleteProprietario}
-            disabled={isPendingDelete}
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span className="sr-only">Excluir proprietário</span>
-          </Button>
+    <div className="px-3 py-1.5">
+      {/* Linha 1 — abaixo de lg: empilhado em duas sub-linhas (nome+ações,
+          depois e-mail/celular/peso). A partir de lg: uma única linha em
+          grade de colunas alinhadas com o cabeçalho. */}
+      <div className={`grid grid-cols-1 gap-1 lg:items-center lg:gap-3 ${GRID_COLUNAS}`}>
+        <p className="min-w-0 truncate text-sm font-semibold lg:font-medium">{proprietario.nome}</p>
+
+        {/* Sempre 3 filhos diretos (mesmo quando falta e-mail/celular) — com
+            `lg:contents` eles viram itens da grade do pai, um por coluna;
+            se um filho sumisse condicionalmente, os seguintes deslizariam
+            para a coluna errada. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground lg:contents">
+          <span className="min-w-0 truncate lg:text-sm">{proprietario.email || "—"}</span>
+          <span className="min-w-0 shrink-0 truncate lg:text-sm">{celular ?? "—"}</span>
+          <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary lg:ml-0 lg:w-fit">
+            Peso {peso}
+          </span>
         </div>
+
+        <div className="flex shrink-0 items-center gap-1 lg:justify-end">{acoes}</div>
       </div>
 
-      {/* Linha 2: e-mail · celular · peso — só o celular, nunca telefone fixo */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-        {proprietario.email && <span className="truncate">{proprietario.email}</span>}
-        {proprietario.telefone && <span className="truncate">{proprietario.telefone}</span>}
-        <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-          Peso {peso}
-        </span>
-      </div>
-
-      {/* Linha 3: unidades — sempre em linha própria, nunca disputando espaço */}
-      <div className="flex flex-wrap items-center gap-1 pl-0.5">
+      {/* Linha 2: unidades — sempre em linha própria, nunca disputando
+          espaço com nome, e-mail, celular ou peso. */}
+      <div className="mt-1 flex flex-wrap items-center gap-1 pl-0.5">
         <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">
           Apto
         </span>
