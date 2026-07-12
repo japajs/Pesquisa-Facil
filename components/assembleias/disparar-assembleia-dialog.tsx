@@ -131,7 +131,7 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
         </DialogHeader>
 
         {(step === "compose" || step === "sending") && (
-          <div className="space-y-3">
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto px-1">
             <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
               <label className="flex cursor-pointer items-center gap-2.5 border-b border-border/40 bg-muted/30 px-3 py-2 hover:bg-accent/30">
                 <input
