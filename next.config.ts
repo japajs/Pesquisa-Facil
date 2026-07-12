@@ -43,6 +43,16 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@react-pdf/renderer"],
+  experimental: {
+    // Aumentado do padrão de 1MB para caber o PDF opcional (edital,
+    // orçamento etc.) anexado ao disparo de e-mails da assembleia — o
+    // arquivo viaja em Base64 dentro do corpo da Server Action, então o
+    // limite precisa sobrar espaço além do tamanho real do PDF (~4MB, já
+    // validado no servidor em app/actions/assembleia-votos.ts).
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
   async headers() {
     return [
       {

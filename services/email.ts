@@ -36,10 +36,14 @@ function buildAssembleiaEmailHtml({
   assembleiaDescricao,
   pautas,
   votoUrl,
-}: AssembleiaTemplateInput): string {
+  temAnexo,
+}: AssembleiaTemplateInput & { temAnexo: boolean }): string {
   const accent = "#6366f1"
   const description = assembleiaDescricao
     ? `<p style="font-size:15px;color:#6b7280;margin:0 0 20px;line-height:1.6;">${assembleiaDescricao}</p>`
+    : ""
+  const anexoAviso = temAnexo
+    ? `<p style="font-size:13px;color:#6b7280;margin:16px 0 0;line-height:1.5;">📎 Este e-mail inclui um documento em anexo.</p>`
     : ""
   const pautasList = pautas
     .map(
@@ -94,6 +98,7 @@ function buildAssembleiaEmailHtml({
                         letter-spacing:-0.01em;">
                 Votar agora →
               </a>
+              ${anexoAviso}
             </td>
           </tr>
 
@@ -134,9 +139,18 @@ export interface AssembleiaEmailInput {
   votoUrl: string
 }
 
+// Item 5: PDF opcional (edital, orçamento, memorial descritivo, convocação)
+// anexado ao disparo — o mesmo arquivo é enviado para todos os destinatários
+// do lote, junto com o link de votação de cada um.
+export interface AssembleiaEmailAnexo {
+  filename: string
+  content: Buffer
+}
+
 // Sends emails in batches of 100 (Resend's batch limit).
 export async function sendAssembleiaEmailBatch(
-  emails: AssembleiaEmailInput[]
+  emails: AssembleiaEmailInput[],
+  anexo?: AssembleiaEmailAnexo
 ): Promise<EmailBatchResult> {
   const resend = getResend()
   const from = getFromEmail()
@@ -158,7 +172,11 @@ export async function sendAssembleiaEmailBatch(
           assembleiaDescricao: e.assembleiaDescricao,
           pautas: e.pautas,
           votoUrl: e.votoUrl,
+          temAnexo: !!anexo,
         }),
+        ...(anexo
+          ? { attachments: [{ filename: anexo.filename, content: anexo.content }] }
+          : {}),
       }))
 
       await resend.batch.send(batch)

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Pencil, History, AlertTriangle } from "lucide-react"
+import { Pencil, History, AlertTriangle, Lock, ArrowRightLeft, Link2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -15,7 +15,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { updateProprietarioAction, transferUnidadeAction } from "@/app/actions/proprietarios"
+import {
+  updateProprietarioAction,
+  updateCpfProprietarioAction,
+  transferUnidadeAction,
+} from "@/app/actions/proprietarios"
 import { formatUnidade } from "@/lib/unidade-format"
 import type { Proprietario } from "@/types"
 
@@ -38,6 +42,31 @@ function formatDate(iso: string): string {
   })
 }
 
+// Painel com título + ícone, usado para separar visualmente "Editar
+// cadastro", "Transferência de unidade" e "Vincular unidade" — três ações
+// com objetivos diferentes que antes ficavam só divididas por uma linha.
+function Secao({
+  icon: Icon,
+  titulo,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  titulo: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3.5">
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {titulo}
+        </Label>
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export function EditarProprietarioDialog({
   proprietario,
   condominioId,
@@ -50,9 +79,14 @@ export function EditarProprietarioDialog({
   const [nome, setNome] = useState(proprietario.nome)
   const [email, setEmail] = useState(proprietario.email ?? "")
   const [telefone, setTelefone] = useState(proprietario.telefone ?? "")
-  const [cpf, setCpf] = useState(proprietario.cpf ?? "")
   const [observacoes, setObservacoes] = useState(proprietario.observacoes ?? "")
-  const [confirmarCpf, setConfirmarCpf] = useState(false)
+
+  // Campo-chave (item 6): CPF/CNPJ não é editado junto com o resto do
+  // cadastro — fica bloqueado por padrão, com uma ação administrativa
+  // separada e explícita para alterá-lo.
+  const [mostrarAlterarCpf, setMostrarAlterarCpf] = useState(false)
+  const [novoCpfAdmin, setNovoCpfAdmin] = useState(proprietario.cpf ?? "")
+  const [confirmarAlterarCpf, setConfirmarAlterarCpf] = useState(false)
 
   const [transferindoUnidadeId, setTransferindoUnidadeId] = useState<string | null>(null)
   const [destinoTipo, setDestinoTipo] = useState<"existente" | "novo">("existente")
@@ -64,6 +98,7 @@ export function EditarProprietarioDialog({
   const [vincularUnidadeId, setVincularUnidadeId] = useState("")
 
   const [isPendingSalvar, startSalvarTransition] = useTransition()
+  const [isPendingCpf, startCpfTransition] = useTransition()
   const [isPendingTransferir, startTransferirTransition] = useTransition()
   const [isPendingVincular, startVincularTransition] = useTransition()
 
@@ -78,25 +113,24 @@ export function EditarProprietarioDialog({
     setNome(proprietario.nome)
     setEmail(proprietario.email ?? "")
     setTelefone(proprietario.telefone ?? "")
-    setCpf(proprietario.cpf ?? "")
     setObservacoes(proprietario.observacoes ?? "")
+    setNovoCpfAdmin(proprietario.cpf ?? "")
   }
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
     if (!next) {
-      setConfirmarCpf(false)
+      setMostrarAlterarCpf(false)
+      setConfirmarAlterarCpf(false)
       setTransferindoUnidadeId(null)
       setVincularUnidadeId("")
     }
   }
 
-  const cpfBloqueado = jaVotou && !(isAdmin && confirmarCpf)
   const algumCampoMudou =
     nome.trim() !== proprietario.nome ||
     (email.trim() || null) !== (proprietario.email ?? null) ||
     (telefone.trim() || null) !== (proprietario.telefone ?? null) ||
-    (cpf.trim() || null) !== (proprietario.cpf ?? null) ||
     (observacoes.trim() || null) !== (proprietario.observacoes ?? null)
   const canSalvar = algumCampoMudou && nome.trim().length > 0
 
@@ -108,12 +142,31 @@ export function EditarProprietarioDialog({
         nome,
         email,
         telefone,
-        cpf,
         observacoes,
-        confirmarCpfAposVoto: confirmarCpf,
       })
       if (result.success) {
         toast.success("Cadastro atualizado.")
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  const cpfMudou = (novoCpfAdmin.trim() || "") !== (proprietario.cpf ?? "")
+  const canSalvarCpf = confirmarAlterarCpf && cpfMudou
+
+  function handleSalvarCpf() {
+    startCpfTransition(async () => {
+      const result = await updateCpfProprietarioAction({
+        id: proprietario.id,
+        condominioId,
+        novoCpf: novoCpfAdmin,
+        confirmar: confirmarAlterarCpf,
+      })
+      if (result.success) {
+        toast.success("CPF/CNPJ atualizado.")
+        setMostrarAlterarCpf(false)
+        setConfirmarAlterarCpf(false)
       } else {
         toast.error(result.error)
       }
@@ -192,89 +245,128 @@ export function EditarProprietarioDialog({
           <DialogTitle>Editar Cadastro</DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[68vh] overflow-y-auto space-y-5 px-1">
-          {/* Dados cadastrais */}
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-nome">Nome</Label>
-              <Input id="edit-nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-email">E-mail</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-telefone">WhatsApp</Label>
-              <Input
-                id="edit-telefone"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-cpf">CPF</Label>
-              <Input
-                id="edit-cpf"
-                value={cpf}
-                disabled={cpfBloqueado}
-                onChange={(e) => setCpf(e.target.value)}
-              />
-              {jaVotou && (
-                <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  {isAdmin ? (
-                    <label className="flex items-center gap-1.5">
+        <div className="max-h-[68vh] overflow-y-auto space-y-4 px-1">
+          {/* ── Editar cadastro ──────────────────────────────────────── */}
+          <Secao icon={Pencil} titulo="Editar cadastro">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-nome">Nome</Label>
+                <Input id="edit-nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-email">E-mail</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-telefone">Celular</Label>
+                <Input
+                  id="edit-telefone"
+                  placeholder="(64) 98146-9800"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                />
+              </div>
+
+              {/* Campo-chave: CPF/CNPJ nunca é editado aqui — só exibido,
+                  bloqueado, com uma ação administrativa separada abaixo. */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-cpf" className="flex items-center gap-1.5">
+                  CPF/CNPJ
+                  <Lock className="h-3 w-3 text-muted-foreground/70" />
+                </Label>
+                <Input
+                  id="edit-cpf"
+                  value={proprietario.cpf ?? ""}
+                  disabled
+                  placeholder="Não cadastrado"
+                  className="disabled:opacity-70"
+                />
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarAlterarCpf((v) => !v)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {mostrarAlterarCpf ? "Cancelar alteração de CPF/CNPJ" : "Alterar CPF/CNPJ…"}
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    A alteração de CPF/CNPJ requer perfil administrador.
+                  </p>
+                )}
+
+                {mostrarAlterarCpf && (
+                  <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5">
+                    <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Esta é uma ação administrativa: altera a identidade legal do
+                        proprietário{jaVotou ? " e ele já votou em alguma assembleia" : ""}. Use
+                        apenas para corrigir um cadastro incorreto.
+                      </span>
+                    </div>
+                    <Input
+                      value={novoCpfAdmin}
+                      onChange={(e) => setNovoCpfAdmin(e.target.value)}
+                      placeholder="Novo CPF/CNPJ"
+                      className="h-9 text-xs"
+                    />
+                    <label className="flex items-center gap-1.5 text-xs">
                       <input
                         type="checkbox"
-                        checked={confirmarCpf}
-                        onChange={(e) => setConfirmarCpf(e.target.checked)}
+                        checked={confirmarAlterarCpf}
+                        onChange={(e) => setConfirmarAlterarCpf(e.target.checked)}
                         className="accent-primary"
                       />
-                      Este proprietário já votou. Confirmo a alteração do CPF mesmo assim.
+                      Confirmo que desejo alterar o CPF/CNPJ deste proprietário.
                     </label>
-                  ) : (
-                    <span>
-                      Este proprietário já votou — alterar o CPF exige confirmação de um
-                      administrador.
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-obs">Observações</Label>
-              <Textarea
-                id="edit-obs"
-                rows={2}
-                className="resize-none"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-              />
-            </div>
-          </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      disabled={isPendingCpf || !canSalvarCpf}
+                      onClick={handleSalvarCpf}
+                    >
+                      {isPendingCpf ? "Salvando…" : "Confirmar alteração de CPF/CNPJ"}
+                    </Button>
+                  </div>
+                )}
+              </div>
 
-          <Button
-            onClick={handleSalvarDados}
-            disabled={isPendingSalvar || !canSalvar}
-            className="w-full"
-          >
-            {isPendingSalvar ? "Salvando…" : "Salvar dados cadastrais"}
-          </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-obs">Observações</Label>
+                <Textarea
+                  id="edit-obs"
+                  rows={2}
+                  className="resize-none bg-background"
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                />
+              </div>
 
-          {/* Unidades */}
-          <div className="space-y-3 border-t border-border/40 pt-4">
-            <Label>Unidades deste proprietário</Label>
+              <Button
+                onClick={handleSalvarDados}
+                disabled={isPendingSalvar || !canSalvar}
+                className="w-full"
+              >
+                {isPendingSalvar ? "Salvando…" : "Salvar dados cadastrais"}
+              </Button>
+            </div>
+          </Secao>
+
+          {/* ── Transferência de unidade ─────────────────────────────── */}
+          <Secao icon={ArrowRightLeft} titulo="Transferência de unidade">
             <div className="space-y-2">
               {(proprietario.unidades ?? []).length === 0 && (
                 <p className="text-xs text-muted-foreground">Nenhuma unidade vinculada.</p>
               )}
               {(proprietario.unidades ?? []).map((u) => (
-                <div key={u.id} className="rounded-lg border border-border/60 p-2.5 space-y-2">
+                <div key={u.id} className="rounded-lg border border-border/60 bg-background p-2.5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{formatUnidade(u)}</span>
                     <button
@@ -335,7 +427,7 @@ export function EditarProprietarioDialog({
                             className="h-9 text-xs"
                           />
                           <Input
-                            placeholder="WhatsApp (opcional)"
+                            placeholder="Celular (opcional)"
                             value={novoTelefone}
                             onChange={(e) => setNovoTelefone(e.target.value)}
                             className="h-9 text-xs"
@@ -356,10 +448,15 @@ export function EditarProprietarioDialog({
                 </div>
               ))}
             </div>
+          </Secao>
 
-            {unidadesDeOutros.length > 0 && (
-              <div className="space-y-1.5 rounded-lg border border-dashed border-border/60 p-2.5">
-                <Label className="text-xs">Vincular unidade existente a este proprietário</Label>
+          {/* ── Vincular unidade ──────────────────────────────────────── */}
+          {unidadesDeOutros.length > 0 && (
+            <Secao icon={Link2} titulo="Vincular unidade">
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">
+                  Vincula uma unidade que hoje pertence a outro proprietário a este cadastro.
+                </p>
                 <select
                   value={vincularUnidadeId}
                   onChange={(e) => setVincularUnidadeId(e.target.value)}
@@ -382,10 +479,10 @@ export function EditarProprietarioDialog({
                   {isPendingVincular ? "Vinculando…" : "Vincular"}
                 </Button>
               </div>
-            )}
-          </div>
+            </Secao>
+          )}
 
-          {/* Histórico recente */}
+          {/* ── Histórico recente ─────────────────────────────────────── */}
           <div className="space-y-2 border-t border-border/40 pt-4">
             <div className="flex items-center gap-1.5">
               <History className="h-3.5 w-3.5 text-muted-foreground" />

@@ -109,12 +109,12 @@ export function CriarProprietarioDialog({ condominioId }: CriarProprietarioDialo
 
           <div className="space-y-1.5">
             <Label htmlFor="telefone-prop">
-              Telefone <span className="text-muted-foreground font-normal">(opcional)</span>
+              Celular <span className="text-muted-foreground font-normal">(opcional)</span>
             </Label>
             <Input
               id="telefone-prop"
               type="tel"
-              placeholder="(11) 99999-9999"
+              placeholder="(64) 98146-9800"
               value={telefone}
               onChange={(e) => setTelefone(e.target.value)}
             />

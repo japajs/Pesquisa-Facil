@@ -14,10 +14,10 @@ import {
   getUnidadeById,
   updateUnidade,
 } from "@/services/unidades"
-import { getProprietariosQueJaVotaram } from "@/services/assembleia-votos"
 import { hasAssembleiaAberta } from "@/services/assembleias"
 import { requirePerfil } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
+import { normalizarCelular, validarEmailFormato } from "@/lib/format"
 
 // Auditoria funcional: antes, qualquer erro de constraint única virava
 // sempre "já existe... com esse e-mail", mesmo quando o CPF é que estava
@@ -45,13 +45,24 @@ export async function createProprietarioAction(input: {
   if (!auth.ok) return { success: false, error: auth.error }
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
   if (!input.email.trim()) return { success: false, error: "E-mail obrigatório." }
+  if (!validarEmailFormato(input.email)) {
+    return { success: false, error: "E-mail em formato inválido." }
+  }
+
+  let telefoneNormalizado: string | null = null
+  if (input.telefone?.trim()) {
+    telefoneNormalizado = normalizarCelular(input.telefone)
+    if (!telefoneNormalizado) {
+      return { success: false, error: "Celular em formato inválido. Use apenas um número de celular." }
+    }
+  }
 
   try {
     const proprietario = await createProprietario({
       condominio_id: input.condominio_id,
       nome: input.nome.trim(),
       email: input.email.trim() || null,
-      telefone: input.telefone?.trim() || null,
+      telefone: telefoneNormalizado,
     })
 
     // Cria as unidades em paralelo
@@ -123,15 +134,16 @@ export async function removeUnidadeAction(
 
 // ─── Etapa 2: correção de cadastro sem interromper a assembleia ──────────────
 
+// Campo-chave (item 6): CPF/CNPJ não é mais alterável por aqui — só nome,
+// e-mail, celular e observações. Ver updateCpfProprietarioAction abaixo para
+// a ação administrativa específica de alteração de CPF/CNPJ.
 export async function updateProprietarioAction(input: {
   id: string
   condominioId: string
   nome: string
   email: string
   telefone: string
-  cpf: string
   observacoes: string
-  confirmarCpfAposVoto?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
@@ -143,21 +155,29 @@ export async function updateProprietarioAction(input: {
 
     const novoNome = input.nome.trim()
     const novoEmail = input.email.trim() || null
-    const novoTelefone = input.telefone.trim() || null
-    const novoCpf = input.cpf.trim() || null
     const novasObservacoes = input.observacoes.trim() || null
 
-    const cpfMudou = novoCpf !== (atual.cpf ?? null)
-    if (cpfMudou) {
-      const jaVotaram = await getProprietariosQueJaVotaram(input.condominioId)
-      if (jaVotaram.has(input.id)) {
-        if (!input.confirmarCpfAposVoto || auth.session.perfil !== "administrador") {
+    // Só valida formato quando o valor de fato muda — um cadastro antigo com
+    // e-mail/celular fora do formato atual continua editável nos outros
+    // campos sem ser barrado por um dado legado que não foi tocado agora.
+    if (novoEmail !== (atual.email ?? null) && novoEmail && !validarEmailFormato(novoEmail)) {
+      return { success: false, error: "E-mail em formato inválido." }
+    }
+
+    let novoTelefone = atual.telefone ?? null
+    const telefoneBruto = input.telefone.trim()
+    if (telefoneBruto !== (atual.telefone ?? "")) {
+      if (!telefoneBruto) {
+        novoTelefone = null
+      } else {
+        const normalizado = normalizarCelular(telefoneBruto)
+        if (!normalizado) {
           return {
             success: false,
-            error:
-              "Este proprietário já votou em alguma assembleia. Alterar o CPF exige confirmação de um administrador.",
+            error: "Celular em formato inválido. Use apenas um número de celular.",
           }
         }
+        novoTelefone = normalizado
       }
     }
 
@@ -172,8 +192,6 @@ export async function updateProprietarioAction(input: {
       mudancas.push({ campo: "email", valorAnterior: atual.email, valorNovo: novoEmail })
     if (novoTelefone !== (atual.telefone ?? null))
       mudancas.push({ campo: "telefone", valorAnterior: atual.telefone, valorNovo: novoTelefone })
-    if (cpfMudou)
-      mudancas.push({ campo: "cpf", valorAnterior: atual.cpf, valorNovo: novoCpf })
     if (novasObservacoes !== (atual.observacoes ?? null))
       mudancas.push({
         campo: "observacoes",
@@ -189,7 +207,6 @@ export async function updateProprietarioAction(input: {
       nome: novoNome,
       email: novoEmail,
       telefone: novoTelefone,
-      cpf: novoCpf,
       observacoes: novasObservacoes,
     })
 
@@ -206,6 +223,47 @@ export async function updateProprietarioAction(input: {
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao atualizar proprietário."
+    const duplicidade = mensagemErroDuplicidade(msg)
+    if (duplicidade) return { success: false, error: duplicidade }
+    return { success: false, error: msg }
+  }
+}
+
+// Ação administrativa específica (item 6): alterar CPF/CNPJ é sensível o
+// bastante (pode mudar a identidade legal do proprietário) para exigir
+// perfil administrador e confirmação explícita sempre — não só quando o
+// proprietário já votou. Separada de updateProprietarioAction de propósito,
+// para não ficar escondida dentro de uma edição "de rotina".
+export async function updateCpfProprietarioAction(input: {
+  id: string
+  condominioId: string
+  novoCpf: string
+  confirmar: boolean
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  if (!input.confirmar) {
+    return { success: false, error: "Confirme explicitamente a alteração do CPF/CNPJ." }
+  }
+
+  try {
+    const atual = await getProprietarioById(input.id)
+    if (!atual) return { success: false, error: "Proprietário não encontrado." }
+
+    const novoCpf = input.novoCpf.trim() || null
+    if (novoCpf === (atual.cpf ?? null)) {
+      return { success: false, error: "Nenhuma alteração para salvar." }
+    }
+
+    await updateProprietario(input.id, { cpf: novoCpf })
+    await registrarHistoricoAlteracao(input.id, [
+      { campo: "cpf", valor_anterior: atual.cpf, valor_novo: novoCpf },
+    ])
+
+    revalidatePath(`${ROUTES.condominios}/${input.condominioId}`)
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao atualizar CPF/CNPJ."
     const duplicidade = mensagemErroDuplicidade(msg)
     if (duplicidade) return { success: false, error: duplicidade }
     return { success: false, error: msg }
@@ -249,12 +307,26 @@ export async function transferUnidadeAction(input: {
       const dados = input.novoProprietario!
       if (!dados.nome.trim()) return { success: false, error: "Nome do novo proprietário obrigatório." }
       if (!dados.email.trim()) return { success: false, error: "E-mail do novo proprietário obrigatório." }
+      if (!validarEmailFormato(dados.email)) {
+        return { success: false, error: "E-mail do novo proprietário em formato inválido." }
+      }
+
+      let telefoneNormalizado: string | null = null
+      if (dados.telefone?.trim()) {
+        telefoneNormalizado = normalizarCelular(dados.telefone)
+        if (!telefoneNormalizado) {
+          return {
+            success: false,
+            error: "Celular do novo proprietário em formato inválido. Use apenas um número de celular.",
+          }
+        }
+      }
 
       const criado = await createProprietario({
         condominio_id: input.condominioId,
         nome: dados.nome.trim(),
         email: dados.email.trim(),
-        telefone: dados.telefone?.trim() || null,
+        telefone: telefoneNormalizado,
       })
       novoProprietarioId = criado.id
       novoProprietarioNome = criado.nome

@@ -21,14 +21,60 @@ export interface EnviarAssembleiaResult {
   error?: string
 }
 
+// Item 5: PDF opcional anexado ao disparo (edital/orçamento/memorial
+// descritivo/convocação). Vai em Base64 porque Server Actions só aceitam
+// argumentos serializáveis — o corpo decodificado é validado abaixo antes de
+// seguir para o envio de e-mail.
+export interface AnexoDisparo {
+  filename: string
+  contentBase64: string
+}
+
+const ANEXO_TAMANHO_MAXIMO = 8 * 1024 * 1024 // 8MB
+
+function validarAnexoPdf(anexo: AnexoDisparo): { buffer: Buffer; filename: string } | { error: string } {
+  if (!anexo.filename.toLowerCase().endsWith(".pdf")) {
+    return { error: "O anexo precisa ser um arquivo PDF." }
+  }
+
+  let buffer: Buffer
+  try {
+    buffer = Buffer.from(anexo.contentBase64, "base64")
+  } catch {
+    return { error: "Não foi possível ler o arquivo anexado." }
+  }
+
+  if (buffer.length === 0) {
+    return { error: "O arquivo anexado está vazio." }
+  }
+  if (buffer.length > ANEXO_TAMANHO_MAXIMO) {
+    return { error: "O PDF anexado excede o limite de 8MB." }
+  }
+  // Confere a assinatura do PDF ("%PDF-") independente da extensão do
+  // arquivo — defesa extra caso um arquivo renomeado chegue até aqui.
+  if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    return { error: "O arquivo anexado não é um PDF válido." }
+  }
+
+  return { buffer, filename: anexo.filename }
+}
+
 export async function enviarAssembleiaAction(
   assembleiaId: string,
-  proprietarioIds: string[]
+  proprietarioIds: string[],
+  anexo?: AnexoDisparo
 ): Promise<EnviarAssembleiaResult> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { sent: 0, failed: 0, error: auth.error }
   if (!assembleiaId || proprietarioIds.length === 0) {
     return { sent: 0, failed: 0, error: "Selecione pelo menos um proprietário." }
+  }
+
+  let anexoValidado: { buffer: Buffer; filename: string } | undefined
+  if (anexo) {
+    const resultado = validarAnexoPdf(anexo)
+    if ("error" in resultado) return { sent: 0, failed: 0, error: resultado.error }
+    anexoValidado = resultado
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
@@ -87,7 +133,10 @@ export async function enviarAssembleiaAction(
   }
 
   const now = new Date().toISOString()
-  const { sent: sentIds, failed: failedEmailIds } = await sendAssembleiaEmailBatch(emailInputs)
+  const { sent: sentIds, failed: failedEmailIds } = await sendAssembleiaEmailBatch(
+    emailInputs,
+    anexoValidado ? { filename: anexoValidado.filename, content: anexoValidado.buffer } : undefined
+  )
 
   await Promise.all([
     ...sentIds.map((id) => updateAssembleiaSendStatus(id, "sent", now)),

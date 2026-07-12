@@ -4,6 +4,7 @@ import type {
   ImportacaoPreview,
   ProprietarioImport,
 } from "@/types"
+import { dividirCandidatosContato, normalizarCelular, validarEmailFormato } from "@/lib/format"
 
 // ─── CPF ──────────────────────────────────────────────────────────────────────
 
@@ -29,10 +30,39 @@ function validarCPF(cpf: string): boolean {
   return resto === parseInt(d[10])
 }
 
-// ─── E-mail ───────────────────────────────────────────────────────────────────
+// ─── E-mail / Celular ─────────────────────────────────────────────────────────
+// Validação de formato compartilhada com o cadastro manual/edição — ver
+// lib/format.ts. Aqui também é preciso lidar com célula-com-mais-de-um-valor
+// (alguém colou dois contatos separados por vírgula/barra/"e" na mesma
+// célula da planilha): detecta os candidatos e deixa o valor padrão como o
+// primeiro válido, sinalizando a ambiguidade para o usuário resolver na
+// revisão em vez de silenciosamente descartar ou concatenar os dois.
 
-function validarEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
+interface ResultadoCampoContato {
+  valor: string | null
+  candidatos?: string[]
+}
+
+function resolverEmail(valorBruto: string | null): ResultadoCampoContato {
+  if (!valorBruto) return { valor: null }
+
+  const candidatosUnicos = [...new Set(dividirCandidatosContato(valorBruto).map((v) => v.toLowerCase()))]
+  const validos = candidatosUnicos.filter(validarEmailFormato)
+
+  if (validos.length === 0) return { valor: null }
+  if (validos.length === 1) return { valor: validos[0] }
+  return { valor: validos[0], candidatos: validos }
+}
+
+function resolverTelefone(valorBruto: string | null): ResultadoCampoContato {
+  if (!valorBruto) return { valor: null }
+
+  const candidatos = dividirCandidatosContato(valorBruto)
+  const normalizados = [...new Set(candidatos.map(normalizarCelular).filter((v): v is string => v !== null))]
+
+  if (normalizados.length === 0) return { valor: null }
+  if (normalizados.length === 1) return { valor: normalizados[0] }
+  return { valor: normalizados[0], candidatos: normalizados }
 }
 
 // ─── Chave de agrupamento ─────────────────────────────────────────────────────
@@ -90,20 +120,40 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
       }
     }
 
-    // Valida e-mail
-    let email: string | null = null
-    if (linha.email) {
-      const emailLimpo = linha.email.trim().toLowerCase()
-      if (validarEmail(emailLimpo)) {
-        email = emailLimpo
-      } else {
-        erros.push({
-          linha: linha._linhaOriginal,
-          campo: "E-mail",
-          mensagem: "E-mail inválido — será ignorado",
-          dados: linha.email,
-        })
-      }
+    // Valida e-mail — e detecta célula com mais de um e-mail
+    const { valor: email, candidatos: emailCandidatos } = resolverEmail(linha.email)
+    if (linha.email && !email) {
+      erros.push({
+        linha: linha._linhaOriginal,
+        campo: "E-mail",
+        mensagem: "E-mail inválido — será ignorado",
+        dados: linha.email,
+      })
+    } else if (emailCandidatos) {
+      erros.push({
+        linha: linha._linhaOriginal,
+        campo: "E-mail",
+        mensagem: `Mais de um e-mail encontrado nesta célula — "${emailCandidatos[0]}" será usado, selecione o correto na revisão`,
+        dados: emailCandidatos.join(", "),
+      })
+    }
+
+    // Valida celular — e detecta célula com mais de um celular
+    const { valor: telefone, candidatos: telefoneCandidatos } = resolverTelefone(linha.whatsapp)
+    if (linha.whatsapp && !telefone) {
+      erros.push({
+        linha: linha._linhaOriginal,
+        campo: "Celular",
+        mensagem: "Celular inválido — será ignorado",
+        dados: linha.whatsapp,
+      })
+    } else if (telefoneCandidatos) {
+      erros.push({
+        linha: linha._linhaOriginal,
+        campo: "Celular",
+        mensagem: "Mais de um celular encontrado nesta célula — o primeiro será usado, selecione o correto na revisão",
+        dados: telefoneCandidatos.join(", "),
+      })
     }
 
     const chave = chaveProprietario(cpf, email, nome)
@@ -145,9 +195,11 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
         nome,
         email,
         cpf,
-        telefone: linha.whatsapp?.trim() || null,
+        telefone,
         unidades: [imovel],
         linhasOrigem: [linha._linhaOriginal],
+        ...(emailCandidatos ? { emailCandidatos } : {}),
+        ...(telefoneCandidatos ? { telefoneCandidatos } : {}),
       })
     }
   }

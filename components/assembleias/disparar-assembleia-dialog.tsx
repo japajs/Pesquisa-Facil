@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { Send, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { useRef, useState, useTransition } from "react"
+import { Send, Loader2, CheckCircle2, AlertCircle, Paperclip, X, FileText } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -24,12 +24,25 @@ interface DispararAssembleiaDialogProps {
   proprietarios: Proprietario[]
 }
 
+const ANEXO_TAMANHO_MAXIMO_MB = 8
+
+function fileParaBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "")
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
 export function DispararAssembleiaDialog({ assembleia, proprietarios }: DispararAssembleiaDialogProps) {
   const [open, setOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [step, setStep] = useState<Step>("compose")
   const [result, setResult] = useState<EnviarAssembleiaResult | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [anexo, setAnexo] = useState<File | null>(null)
+  const anexoInputRef = useRef<HTMLInputElement>(null)
 
   const allSelected = proprietarios.length > 0 && proprietarios.every((p) => selectedIds.has(p.id))
   const pautaCount = assembleia.pautas?.length ?? 0
@@ -50,11 +63,28 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
     setStep("compose")
     setSelectedIds(new Set())
     setResult(null)
+    setAnexo(null)
   }
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
     if (!next) setTimeout(reset, 300)
+  }
+
+  function handleAnexoChange(file: File | null) {
+    if (!file) {
+      setAnexo(null)
+      return
+    }
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Anexe apenas arquivos PDF.")
+      return
+    }
+    if (file.size > ANEXO_TAMANHO_MAXIMO_MB * 1024 * 1024) {
+      toast.error(`O PDF anexado excede o limite de ${ANEXO_TAMANHO_MAXIMO_MB}MB.`)
+      return
+    }
+    setAnexo(file)
   }
 
   function handleSend() {
@@ -64,7 +94,10 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
     }
     setStep("sending")
     startTransition(async () => {
-      const res = await enviarAssembleiaAction(assembleia.id, [...selectedIds])
+      const anexoInput = anexo
+        ? { filename: anexo.name, contentBase64: await fileParaBase64(anexo) }
+        : undefined
+      const res = await enviarAssembleiaAction(assembleia.id, [...selectedIds], anexoInput)
       setResult(res)
       setStep("done")
       if (res.error) toast.error(res.error)
@@ -151,6 +184,46 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
                 {totalApartamentos} apartamento{totalApartamentos !== 1 ? "s" : ""} representados
               </p>
             )}
+
+            {/* Item 5: anexo opcional (edital, orçamento, memorial
+                descritivo, convocação) — vai junto com o link de votação
+                para cada destinatário selecionado acima. */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Anexar PDF (opcional)</p>
+              <input
+                ref={anexoInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  handleAnexoChange(e.target.files?.[0] ?? null)
+                  e.target.value = ""
+                }}
+              />
+              {anexo ? (
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate text-xs">{anexo.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAnexoChange(null)}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    <span className="sr-only">Remover anexo</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => anexoInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Edital, orçamento, memorial descritivo ou convocação (.pdf)
+                </button>
+              )}
+            </div>
           </div>
         )}
 

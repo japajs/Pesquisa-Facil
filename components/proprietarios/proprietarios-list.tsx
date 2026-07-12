@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useMemo, useState, useTransition } from "react"
-import { Users, Trash2, Plus, X, Search } from "lucide-react"
+import { Users, Trash2, Plus, X, Search, SlidersHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,14 +89,21 @@ export function ProprietariosList({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row">
+      {/* Painel de ferramentas — fundo e borda diferentes da listagem abaixo,
+          para deixar claro à primeira vista que esta área serve para
+          localizar/organizar registros, não faz parte da tabela em si. */}
+      <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground/80 sm:pr-1">
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Buscar e ordenar
+        </div>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por nome, e-mail, celular, unidade ou bloco…"
-            className="pl-10"
+            className="border-border/60 bg-background pl-10"
             aria-label="Buscar proprietário"
           />
         </div>
@@ -104,7 +111,7 @@ export function ProprietariosList({
           value={ordenacao}
           onChange={(e) => setOrdenacao(e.target.value as Ordenacao)}
           aria-label="Ordenar por"
-          className="h-12 shrink-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground sm:w-44"
+          className="h-12 shrink-0 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground sm:w-44"
         >
           <option value="nome">Ordenar por Nome</option>
           <option value="unidade">Ordenar por Unidade</option>

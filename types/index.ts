@@ -257,6 +257,12 @@ export interface ProprietarioImport {
   telefone: string | null
   unidades: string[]
   linhasOrigem: number[]
+  // Preenchidos só quando a célula de e-mail/celular da planilha trazia mais
+  // de um valor (ex.: "a@x.com; b@x.com") — `email`/`telefone` já vêm com o
+  // primeiro candidato como padrão; a tela de revisão usa essas listas para
+  // deixar o usuário escolher qual dos valores realmente importar.
+  emailCandidatos?: string[]
+  telefoneCandidatos?: string[]
 }
 
 export interface ImportacaoPreview {

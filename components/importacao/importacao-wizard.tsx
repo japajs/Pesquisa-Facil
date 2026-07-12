@@ -3,6 +3,7 @@
 import { Fragment, useRef, useState, useTransition } from "react"
 import {
   AlertCircle,
+  AlertTriangle,
   Building2,
   CheckCircle2,
   Clock,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { formatCelular } from "@/lib/format"
 import { parseFileRaw } from "@/lib/importacao/parser"
 import { detectarColunas, aplicarMapeamento } from "@/lib/importacao/mapper"
 import { processarLinhas } from "@/lib/importacao/processor"
@@ -334,7 +336,46 @@ function SummaryCards({ preview }: { preview: ImportacaoPreview }) {
 
 // ─── Tabela de proprietários ──────────────────────────────────────────────────
 
-function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
+// Quando a célula da planilha trazia mais de um e-mail/celular, `p.email`/
+// `p.telefone` já vêm com o primeiro candidato como padrão — este seletor
+// aparece só nessas linhas, para o usuário escolher qual valor manter antes
+// de confirmar a importação.
+function SeletorCandidato({
+  candidatos,
+  valorAtual,
+  onEscolher,
+  formatar,
+}: {
+  candidatos: string[]
+  valorAtual: string | null
+  onEscolher: (valor: string) => void
+  formatar?: (v: string) => string
+}) {
+  return (
+    <div className="mt-1 flex items-center gap-1 text-amber-600 dark:text-amber-400">
+      <AlertTriangle className="h-3 w-3 shrink-0" />
+      <select
+        value={valorAtual ?? ""}
+        onChange={(e) => onEscolher(e.target.value)}
+        className="h-6 max-w-[160px] rounded border border-amber-400/60 bg-amber-50 px-1 text-[11px] text-amber-900 dark:bg-amber-900/20 dark:text-amber-100"
+      >
+        {candidatos.map((c) => (
+          <option key={c} value={c}>
+            {formatar ? formatar(c) : c}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function ProprietariosTable({
+  preview,
+  onEscolherCandidato,
+}: {
+  preview: ImportacaoPreview
+  onEscolherCandidato: (idx: number, campo: "email" | "telefone", valor: string) => void
+}) {
   return (
     <div className="overflow-x-auto rounded-xl border border-border/60">
       <div className="max-h-[36vh] overflow-y-auto">
@@ -349,6 +390,9 @@ function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
               </th>
               <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
                 E-mail
+              </th>
+              <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
+                Celular
               </th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Unidades
@@ -365,8 +409,26 @@ function ProprietariosTable({ preview }: { preview: ImportacaoPreview }) {
                 <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground sm:table-cell">
                   {p.cpf ? formatCPF(p.cpf) : "—"}
                 </td>
-                <td className="hidden max-w-[180px] truncate px-4 py-2.5 text-muted-foreground md:table-cell">
-                  {p.email ?? "—"}
+                <td className="hidden max-w-[200px] px-4 py-2.5 text-muted-foreground md:table-cell">
+                  <div className="truncate">{p.email ?? "—"}</div>
+                  {p.emailCandidatos && (
+                    <SeletorCandidato
+                      candidatos={p.emailCandidatos}
+                      valorAtual={p.email}
+                      onEscolher={(v) => onEscolherCandidato(i, "email", v)}
+                    />
+                  )}
+                </td>
+                <td className="hidden px-4 py-2.5 text-muted-foreground lg:table-cell">
+                  <div>{p.telefone ? formatCelular(p.telefone) : "—"}</div>
+                  {p.telefoneCandidatos && (
+                    <SeletorCandidato
+                      candidatos={p.telefoneCandidatos}
+                      valorAtual={p.telefone}
+                      onEscolher={(v) => onEscolherCandidato(i, "telefone", v)}
+                      formatar={formatCelular}
+                    />
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-muted-foreground">
                   {p.unidades.join(", ")}
@@ -558,6 +620,18 @@ export function ImportacaoWizard({ condominios }: Props) {
     const result = processarLinhas(linhas)
     setPreview(result)
     setStep("preview")
+  }
+
+  // Resolve ambiguidade de e-mail/celular na revisão (item 4): troca o
+  // candidato escolhido sem precisar reprocessar a planilha inteira.
+  function handleEscolherCandidato(idx: number, campo: "email" | "telefone", valor: string) {
+    setPreview((prev) => {
+      if (!prev) return prev
+      const proprietarios = prev.proprietarios.map((p, i) =>
+        i === idx ? { ...p, [campo]: valor } : p
+      )
+      return { ...prev, proprietarios }
+    })
   }
 
   // Atualiza mapeamento garantindo que cada campo seja usado uma única vez
@@ -799,7 +873,7 @@ export function ImportacaoWizard({ condominios }: Props) {
             </div>
 
             <SummaryCards preview={preview} />
-            <ProprietariosTable preview={preview} />
+            <ProprietariosTable preview={preview} onEscolherCandidato={handleEscolherCandidato} />
             <AvisosList erros={preview.erros} />
 
             <StepFooter
