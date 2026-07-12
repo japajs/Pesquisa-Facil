@@ -66,6 +66,66 @@ export async function getParticipantesByAssembleia(
   })
 }
 
+export interface VotoDetalhado {
+  pauta_id: string
+  unidades: string
+  nome: string
+  email: string | null
+  resposta: string
+}
+
+// Detalhamento de voto por pauta (Unidade/Nome/E-mail/Resposta) para os
+// relatórios — usa os campos *_snapshot de Etapa 3 (nome/e-mail/unidades no
+// momento do voto), nunca o cadastro atual, pelo mesmo motivo de
+// getParticipantesByAssembleia: preservar a integridade histórica mesmo que
+// o proprietário seja editado depois. IP, user-agent e data/hora do voto
+// (ip_snapshot, user_agent_snapshot, votado_em) continuam gravados no banco
+// só para auditoria técnica — nunca lidos aqui, nunca aparecem no relatório.
+export async function getVotosDetalhados(assembleiaId: string): Promise<VotoDetalhado[]> {
+  const db = createServerClient()
+
+  type RawUnidadeSnapshot = { numero: string; bloco: string | null }
+
+  type RespostaRow = {
+    pauta_id: string
+    resposta: "Sim" | "Não" | "Abstenção" | null
+    opcao_id: string | null
+    assembleia_sends: {
+      nome_snapshot: string | null
+      email_snapshot: string | null
+      unidades_snapshot: RawUnidadeSnapshot[] | null
+    } | null
+    pauta_opcoes: { label: string } | null
+  }
+
+  const { data, error } = await db
+    .from("assembleia_respostas")
+    .select(
+      "pauta_id, resposta, opcao_id, assembleia_sends!inner(assembleia_id, nome_snapshot, email_snapshot, unidades_snapshot), pauta_opcoes(label)"
+    )
+    .eq("assembleia_sends.assembleia_id", assembleiaId)
+
+  if (error) throw new Error(error.message)
+
+  const votos = ((data ?? []) as unknown as RespostaRow[]).map((r) => {
+    const unidadesSnapshot = r.assembleia_sends?.unidades_snapshot ?? []
+    const unidades = [...unidadesSnapshot]
+      .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }))
+      .map((u) => u.numero)
+      .join(", ")
+
+    return {
+      pauta_id: r.pauta_id,
+      unidades: unidades || "—",
+      nome: r.assembleia_sends?.nome_snapshot ?? "—",
+      email: r.assembleia_sends?.email_snapshot ?? null,
+      resposta: r.opcao_id ? (r.pauta_opcoes?.label ?? "—") : (r.resposta ?? "—"),
+    }
+  })
+
+  return votos.sort((a, b) => a.unidades.localeCompare(b.unidades, undefined, { numeric: true }))
+}
+
 export async function getUnidadesRelatorio(condominioId: string): Promise<UnidadeRelatorio[]> {
   const proprietarios = await getAllProprietarios(condominioId)
   const unidades: UnidadeRelatorio[] = []

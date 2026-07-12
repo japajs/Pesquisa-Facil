@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth"
 import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
+import { getVotosDetalhados } from "@/services/relatorios"
 import { ApuracaoPDF } from "@/lib/relatorios/pdf-apuracao"
 import { safeFilename, formatDateTimeBR } from "@/lib/relatorios/utils"
 
@@ -24,9 +25,10 @@ export async function GET(
   const assembleia = await getAssembleiaById(assembleiaId)
   if (!assembleia) return new NextResponse("Not Found", { status: 404 })
 
-  const [condominio, apuracao] = await Promise.all([
+  const [condominio, apuracao, votosDetalhados] = await Promise.all([
     getCondominioById(assembleia.condominio_id),
     getApuracaoAssembleia(assembleiaId, assembleia.pautas ?? []),
+    getVotosDetalhados(assembleiaId),
   ])
 
   if (!condominio) return new NextResponse("Condomínio não encontrado", { status: 404 })
@@ -37,6 +39,7 @@ export async function GET(
     assembleia,
     condominio,
     apuracao,
+    votosDetalhados,
     emitidoPor: session.nome,
     emitidoEm,
   }) as ReactElement<DocumentProps>

@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx"
 import { APP_NAME, APP_VERSION } from "@/lib/constants"
 import type { Assembleia, AssembleiaApuracao, Condominio } from "@/types"
-import type { ParticipanteRelatorio, UnidadeRelatorio } from "@/services/relatorios"
+import type { ParticipanteRelatorio, UnidadeRelatorio, VotoDetalhado } from "@/services/relatorios"
 import {
   formatDateTimeBR,
   pctStr,
@@ -15,6 +15,7 @@ export interface XlsxApuracaoData {
   apuracao: AssembleiaApuracao
   participantes: ParticipanteRelatorio[]
   unidades: UnidadeRelatorio[]
+  votosDetalhados: VotoDetalhado[]
   emitidoPor: string
   emitidoEm: string
 }
@@ -45,8 +46,16 @@ function boldRow(ws: XLSX.WorkSheet, rowIdx: number, colCount: number) {
 }
 
 export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
-  const { assembleia, condominio, apuracao, participantes, unidades, emitidoPor, emitidoEm } =
-    data
+  const {
+    assembleia,
+    condominio,
+    apuracao,
+    participantes,
+    unidades,
+    votosDetalhados,
+    emitidoPor,
+    emitidoEm,
+  } = data
   const wb = XLSX.utils.book_new()
 
   /* ── Tab 1: Resumo Geral ─────────────────────────────────────────────── */
@@ -245,6 +254,24 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
   wsUnid["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 36 }, { wch: 30 }]
   boldRow(wsUnid, 0, unidHeader.length)
   XLSX.utils.book_append_sheet(wb, wsUnid, "Unidades")
+
+  /* ── Tab 5: Detalhamento de Votos (Unidade/Nome/E-mail/Resposta) ──────
+     Substitui o que seria uma coluna de Endereço IP — o IP continua só no
+     banco, para auditoria técnica, nunca em relatório. */
+  const tituloPorPauta = new Map(apuracao.pautas.map((p) => [p.pauta.id, p.pauta.titulo]))
+  const detHeader = ["Pauta", "Unidade(s)", "Nome", "E-mail", "Resposta"]
+  const detRows = votosDetalhados.map((v) => [
+    tituloPorPauta.get(v.pauta_id) ?? "—",
+    v.unidades,
+    v.nome,
+    v.email ?? "",
+    v.resposta,
+  ])
+
+  const wsDet = XLSX.utils.aoa_to_sheet(sanitizarLinhas([detHeader, ...detRows]))
+  wsDet["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 32 }, { wch: 30 }, { wch: 20 }]
+  boldRow(wsDet, 0, detHeader.length)
+  XLSX.utils.book_append_sheet(wb, wsDet, "Detalhamento de Votos")
 
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer
 }

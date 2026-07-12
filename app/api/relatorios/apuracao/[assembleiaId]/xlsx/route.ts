@@ -3,7 +3,11 @@ import { getSession } from "@/lib/auth"
 import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
-import { getParticipantesByAssembleia, getUnidadesRelatorio } from "@/services/relatorios"
+import {
+  getParticipantesByAssembleia,
+  getUnidadesRelatorio,
+  getVotosDetalhados,
+} from "@/services/relatorios"
 import { gerarXlsxApuracao } from "@/lib/relatorios/xlsx-apuracao"
 import { safeFilename, formatDateTimeBR } from "@/lib/relatorios/utils"
 
@@ -21,11 +25,12 @@ export async function GET(
   const assembleia = await getAssembleiaById(assembleiaId)
   if (!assembleia) return new NextResponse("Not Found", { status: 404 })
 
-  const [condominio, apuracao, participantes, unidades] = await Promise.all([
+  const [condominio, apuracao, participantes, unidades, votosDetalhados] = await Promise.all([
     getCondominioById(assembleia.condominio_id),
     getApuracaoAssembleia(assembleiaId, assembleia.pautas ?? []),
     getParticipantesByAssembleia(assembleiaId),
     getUnidadesRelatorio(assembleia.condominio_id),
+    getVotosDetalhados(assembleiaId),
   ])
 
   if (!condominio) return new NextResponse("Condomínio não encontrado", { status: 404 })
@@ -38,6 +43,7 @@ export async function GET(
     apuracao,
     participantes,
     unidades,
+    votosDetalhados,
     emitidoPor: session.nome,
     emitidoEm,
   })
