@@ -6,7 +6,7 @@ import { getCondominioById } from "@/services/condominios"
 import { getAllProprietarios } from "@/services/proprietarios"
 import { getAllAssembleias } from "@/services/assembleias"
 import { getProprietariosQueJaVotaram } from "@/services/assembleia-votos"
-import { getSession } from "@/lib/auth"
+import { getSession, requireAcessoCondominio } from "@/lib/auth"
 import { CriarProprietarioDialog } from "@/components/proprietarios/criar-proprietario-dialog"
 import { ProprietariosList } from "@/components/proprietarios/proprietarios-list"
 import { CriarAssembleiaDialog } from "@/components/assembleias/criar-assembleia-dialog"
@@ -34,6 +34,12 @@ export default async function CondominioDetailPage({ params }: Props) {
 
   const condominio = await getCondominioById(id).catch(() => null)
   if (!condominio) notFound()
+
+  // Escopo por condomínio (MASTER/PESSOAL): a listagem de condomínios já só
+  // mostra o que o usuário tem acesso, mas isso sozinho não impede acesso
+  // direto por URL — a checagem real precisa estar aqui também.
+  const acesso = await requireAcessoCondominio(id)
+  if (!acesso.ok) notFound()
 
   const [proprietarios, assembleias, proprietariosQueJaVotaram, session] = await Promise.all([
     getAllProprietarios(id).catch(() => []),

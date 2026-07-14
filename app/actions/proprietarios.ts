@@ -15,7 +15,7 @@ import {
   updateUnidade,
 } from "@/services/unidades"
 import { hasAssembleiaAberta } from "@/services/assembleias"
-import { requirePerfil } from "@/lib/auth"
+import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 import { normalizarCelular, validarEmailFormato } from "@/lib/format"
 
@@ -43,6 +43,8 @@ export async function createProprietarioAction(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominio_id)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
   if (!input.email.trim()) return { success: false, error: "E-mail obrigatório." }
   if (!validarEmailFormato(input.email)) {
@@ -91,6 +93,8 @@ export async function deleteProprietarioAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   try {
     await deleteProprietario(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
@@ -107,6 +111,8 @@ export async function addUnidadeAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!numero.trim()) return { success: false, error: "Número da unidade obrigatório." }
   try {
     await createUnidade({ proprietario_id: proprietarioId, numero: numero.trim(), bloco: null })
@@ -123,6 +129,8 @@ export async function removeUnidadeAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   try {
     await deleteUnidade(unidadeId)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
@@ -147,6 +155,8 @@ export async function updateProprietarioAction(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.nome.trim()) return { success: false, error: "Nome obrigatório." }
 
   try {
@@ -242,6 +252,8 @@ export async function updateCpfProprietarioAction(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.confirmar) {
     return { success: false, error: "Confirme explicitamente a alteração do CPF/CNPJ." }
   }
@@ -278,6 +290,8 @@ export async function transferUnidadeAction(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.novoProprietarioId && !input.novoProprietario) {
     return { success: false, error: "Selecione o proprietário de destino ou crie um novo." }
   }

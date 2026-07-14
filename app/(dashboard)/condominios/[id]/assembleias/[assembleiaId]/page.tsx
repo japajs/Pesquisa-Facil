@@ -8,7 +8,7 @@ import { getApuracaoAssembleia } from "@/services/assembleia-votos"
 import { getHistoricoParticipacao } from "@/services/relatorios"
 import { ApuracaoAssembleia } from "@/components/assembleias/apuracao-assembleia"
 import { HistoricoParticipacao } from "@/components/assembleias/historico-participacao"
-import { getSession } from "@/lib/auth"
+import { getSession, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 interface Props {
@@ -35,6 +35,12 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
   ])
 
   if (!condominio || !assembleia) notFound()
+
+  // Escopo por condomínio (MASTER/PESSOAL): mesma checagem da página de
+  // detalhe do condomínio — sem ela, um usuário PESSOAL conseguia ver a
+  // apuração de uma assembleia fora do seu escopo só sabendo a URL.
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) notFound()
 
   const pautas = assembleia.pautas ?? []
 

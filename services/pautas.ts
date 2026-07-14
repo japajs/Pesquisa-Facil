@@ -145,6 +145,83 @@ export async function deletePauta(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+export interface PautaEdicaoIndividualInput {
+  titulo: string
+  descricao: string | null
+  tipo: Pauta["tipo"]
+  permite_abstencao: boolean
+  opcoes?: string[] // só relevante quando tipo === "multipla_escolha"
+}
+
+// Edição de UMA pauta específica, independente do que acontece com as
+// demais pautas da mesma assembleia (item 2 do pedido de evolução: uma
+// pauta ainda em rascunho/aberta e sem voto continua editável mesmo que
+// outra pauta da mesma assembleia já esteja em votação). Reaproveita
+// hasVotoPauta — a mesma trava usada para subir o status a "em_votacao".
+export async function updatePautaIndividual(
+  pautaId: string,
+  dados: PautaEdicaoIndividualInput
+): Promise<void> {
+  const db = createServerClient()
+
+  if (await hasVotoPauta(pautaId)) {
+    throw new Error("Esta pauta já possui voto registrado e não pode mais ser alterada.")
+  }
+
+  const { error } = await db
+    .from("pautas")
+    .update({
+      titulo: dados.titulo,
+      descricao: dados.descricao,
+      tipo: dados.tipo,
+      permite_abstencao: dados.permite_abstencao,
+    })
+    .eq("id", pautaId)
+  if (error) throw new Error(error.message)
+
+  // Substitui as opções por completo — seguro porque, sem voto ainda,
+  // nenhuma assembleia_respostas.opcao_id referencia as opções antigas
+  // desta pauta.
+  const { error: delOpcoesError } = await db.from("pauta_opcoes").delete().eq("pauta_id", pautaId)
+  if (delOpcoesError) throw new Error(delOpcoesError.message)
+
+  if (dados.tipo === "multipla_escolha" && (dados.opcoes?.length ?? 0) > 0) {
+    const { error: insOpcoesError } = await db
+      .from("pauta_opcoes")
+      .insert(dados.opcoes!.map((label, i) => ({ pauta_id: pautaId, ordem: i + 1, label })))
+    if (insOpcoesError) throw new Error(insOpcoesError.message)
+  }
+}
+
+// Exclusão de UMA pauta específica sem voto — mesma trava de
+// updatePautaIndividual, mais uma checagem para nunca deixar a assembleia
+// sem nenhuma pauta (mesma exigência mínima já usada na criação).
+export async function deletePautaIndividual(pautaId: string): Promise<void> {
+  const db = createServerClient()
+
+  if (await hasVotoPauta(pautaId)) {
+    throw new Error("Esta pauta já possui voto registrado e não pode ser excluída.")
+  }
+
+  const { data: pauta, error: fetchError } = await db
+    .from("pautas")
+    .select("assembleia_id")
+    .eq("id", pautaId)
+    .single()
+  if (fetchError) throw new Error(fetchError.message)
+
+  const { count, error: countError } = await db
+    .from("pautas")
+    .select("*", { count: "exact", head: true })
+    .eq("assembleia_id", (pauta as { assembleia_id: string }).assembleia_id)
+  if (countError) throw new Error(countError.message)
+  if ((count ?? 0) <= 1) {
+    throw new Error("A assembleia precisa ter pelo menos 1 pauta — não é possível excluir a última.")
+  }
+
+  await deletePauta(pautaId)
+}
+
 export async function getNextOrdem(assembleiaId: string): Promise<number> {
   const db = createServerClient()
   const { data, error } = await db

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getSession } from "@/lib/auth"
+import { getSession, requireAcessoCondominio } from "@/lib/auth"
 import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
@@ -24,6 +24,9 @@ export async function GET(
 
   const assembleia = await getAssembleiaById(assembleiaId)
   if (!assembleia) return new NextResponse("Not Found", { status: 404 })
+
+  const acesso = await requireAcessoCondominio(assembleia.condominio_id)
+  if (!acesso.ok) return new NextResponse("Not Found", { status: 404 })
 
   const [condominio, apuracao, participantes, unidades, votosDetalhados] = await Promise.all([
     getCondominioById(assembleia.condominio_id),

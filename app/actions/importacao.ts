@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { executarLoteImportacao } from "@/services/importacao"
-import { requirePerfil } from "@/lib/auth"
+import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 import type { ProprietarioImport } from "@/types"
 
@@ -44,6 +44,20 @@ export async function executarImportacaoAction(
       unidadesIgnoradas: 0,
       erros: [],
       error: "Condomínio não selecionado.",
+    }
+  }
+
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) {
+    return {
+      success: false,
+      condominioId,
+      proprietariosCriados: 0,
+      proprietariosAtualizados: 0,
+      unidadesCriadas: 0,
+      unidadesIgnoradas: 0,
+      erros: [],
+      error: acesso.error,
     }
   }
 

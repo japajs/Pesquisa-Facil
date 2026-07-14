@@ -1,10 +1,14 @@
 "use client"
 
-import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react"
+import { useTransition } from "react"
+import { Download, FileSpreadsheet, FileText, Printer, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
 import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assembleia-dialog"
 import { AdicionarPautaDialog } from "@/components/assembleias/adicionar-pauta-dialog"
+import { EditarPautaDialog } from "@/components/assembleias/editar-pauta-dialog"
+import { excluirPautaAction } from "@/app/actions/assembleias"
 import type { Assembleia, AssembleiaApuracao, PautaApuracao, PautaStatus } from "@/types"
 
 const PAUTA_STATUS_LABEL: Record<PautaStatus, string> = {
@@ -195,7 +199,14 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
 
       {/* Uma seção por pauta */}
       {apuracao.pautas.map((pautaApuracao, i) => (
-        <PautaApuracaoSection key={pautaApuracao.pauta.id} index={i} item={pautaApuracao} />
+        <PautaApuracaoSection
+          key={pautaApuracao.pauta.id}
+          index={i}
+          item={pautaApuracao}
+          condominioId={condominioId}
+          assembleiaId={assembleia.id}
+          canEdit={canExport}
+        />
       ))}
 
       {!temVotos && (
@@ -217,8 +228,34 @@ const CORES_OPCOES = [
   { bar: "bg-teal-500", text: "text-teal-500", hex: "#14b8a6" },
 ]
 
-function PautaApuracaoSection({ index, item }: { index: number; item: PautaApuracao }) {
+function PautaApuracaoSection({
+  index,
+  item,
+  condominioId,
+  assembleiaId,
+  canEdit,
+}: {
+  index: number
+  item: PautaApuracao
+  condominioId: string
+  assembleiaId: string
+  canEdit: boolean
+}) {
   const { pauta } = item
+  const [isPendingExcluir, startExcluirTransition] = useTransition()
+
+  // Item 2 do pedido: só dá pra editar/excluir uma pauta individual
+  // enquanto ELA MESMA ainda não tem voto (rascunho/aberta) — assim que
+  // sobe para em_votacao/encerrada, o botão simplesmente some.
+  const podeEditar = canEdit && (pauta.status === "rascunho" || pauta.status === "aberta")
+
+  function handleExcluir() {
+    if (!confirm(`Excluir a pauta "${pauta.titulo}"? Esta ação não pode ser desfeita.`)) return
+    startExcluirTransition(async () => {
+      const result = await excluirPautaAction({ pautaId: pauta.id, condominioId, assembleiaId })
+      if (!result.success) toast.error(result.error)
+    })
+  }
 
   return (
     <div className="space-y-3">
@@ -233,6 +270,21 @@ function PautaApuracaoSection({ index, item }: { index: number; item: PautaApura
         >
           {PAUTA_STATUS_LABEL[pauta.status]}
         </span>
+        {podeEditar && (
+          <div className="ml-auto flex items-center gap-0.5 print:hidden">
+            <EditarPautaDialog pauta={pauta} assembleiaId={assembleiaId} condominioId={condominioId} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+              onClick={handleExcluir}
+              disabled={isPendingExcluir}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="sr-only">Excluir pauta</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {pauta.descricao && <p className="text-sm text-muted-foreground">{pauta.descricao}</p>}

@@ -7,7 +7,12 @@ import {
   updateAssembleiaStatus,
   updateAssembleiaCompleta,
 } from "@/services/assembleias"
-import { createPautasBatch, getNextOrdem } from "@/services/pautas"
+import {
+  createPautasBatch,
+  getNextOrdem,
+  updatePautaIndividual,
+  deletePautaIndividual,
+} from "@/services/pautas"
 import { getAssembleiaById, contarParticipantesJaVotaram } from "@/services/assembleias"
 import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
@@ -249,6 +254,81 @@ export async function adicionarPautaAssembleiaAction(input: {
       success: false,
       error: err instanceof Error ? err.message : "Erro ao adicionar pauta.",
     }
+  }
+}
+
+// Item 2 do pedido de evolução: edita uma pauta específica — permitido
+// enquanto ELA MESMA (não a assembleia) ainda não tem voto, independente do
+// que acontece com as demais pautas da mesma assembleia. Nunca toca em
+// updateAssembleiaCompleta (edição em bloco, pré-existente).
+export async function editarPautaAction(input: {
+  pautaId: string
+  condominioId: string
+  assembleiaId: string
+  titulo: string
+  descricao: string
+  tipo?: PautaTipo
+  permite_abstencao?: boolean
+  opcoes?: string[]
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
+  if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
+
+  const tipo = input.tipo ?? "sim_nao"
+  if (tipo === "multipla_escolha") {
+    const opcoesValidas = (input.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+    if (opcoesValidas.length < 2) {
+      return { success: false, error: "A pauta precisa de pelo menos 2 opções." }
+    }
+  }
+
+  try {
+    const assembleia = await getAssembleiaById(input.assembleiaId)
+    if (!assembleia) return { success: false, error: "Assembleia não encontrada." }
+    if (assembleia.status === "encerrada") {
+      return { success: false, error: "Esta assembleia está encerrada e não pode mais ser alterada." }
+    }
+
+    await updatePautaIndividual(input.pautaId, {
+      titulo: input.titulo.trim(),
+      descricao: input.descricao.trim() || null,
+      tipo,
+      permite_abstencao: input.permite_abstencao ?? true,
+      opcoes: tipo === "multipla_escolha" ? (input.opcoes ?? []).map((o) => o.trim()).filter(Boolean) : undefined,
+    })
+
+    revalidatePath(ROUTES.condominioAssembleia(input.condominioId, input.assembleiaId))
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Erro ao editar pauta." }
+  }
+}
+
+export async function excluirPautaAction(input: {
+  pautaId: string
+  condominioId: string
+  assembleiaId: string
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
+
+  try {
+    const assembleia = await getAssembleiaById(input.assembleiaId)
+    if (!assembleia) return { success: false, error: "Assembleia não encontrada." }
+    if (assembleia.status === "encerrada") {
+      return { success: false, error: "Esta assembleia está encerrada e não pode mais ser alterada." }
+    }
+
+    await deletePautaIndividual(input.pautaId)
+    revalidatePath(ROUTES.condominioAssembleia(input.condominioId, input.assembleiaId))
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Erro ao excluir pauta." }
   }
 }
 
