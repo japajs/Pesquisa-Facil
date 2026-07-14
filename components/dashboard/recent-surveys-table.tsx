@@ -26,21 +26,18 @@ function formatDate(dateString: string) {
   }).format(new Date(dateString))
 }
 
-function ParticipacaoBar({ respondidos, enviados }: { respondidos: number; enviados: number }) {
+function Participacao({ respondidos, enviados }: { respondidos: number; enviados: number }) {
   const pct = enviados > 0 ? Math.round((respondidos / enviados) * 100) : 0
   const color =
-    pct >= 75 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-rose-500"
+    pct >= 75 ? "text-emerald-500" : pct >= 40 ? "text-amber-500" : "text-rose-500"
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-sm font-medium tabular-nums">
+    <span className="text-sm tabular-nums">
+      <span className="font-medium text-foreground">
         {respondidos}/{enviados}
-      </span>
-      <span className="text-xs text-muted-foreground">({pct}%)</span>
-    </div>
+      </span>{" "}
+      <span className={cn("font-medium", color)}>({pct}%)</span>
+    </span>
   )
 }
 
@@ -98,7 +95,7 @@ export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
                       {a.condominio_nome}
                     </TableCell>
                     <TableCell>
-                      <ParticipacaoBar
+                      <Participacao
                         respondidos={a.total_respondidos}
                         enviados={a.total_enviados}
                       />

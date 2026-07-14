@@ -39,7 +39,6 @@ export interface CondoDashboardStats {
   total_assembleias: number
   total_votos_enviados: number
   total_votos_recebidos: number
-  participacao_geral: number // percentual
 }
 
 export interface AssembleiaRecente {

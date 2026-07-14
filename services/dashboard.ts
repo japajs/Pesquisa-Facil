@@ -25,11 +25,6 @@ export async function getCondoDashboardStats(): Promise<CondoDashboardStats> {
   )
   const total_votos_recebidos = respondidos.size
 
-  const participacao_geral =
-    total_votos_enviados > 0
-      ? Math.round((total_votos_recebidos / total_votos_enviados) * 100)
-      : 0
-
   return {
     total_condominios,
     total_proprietarios,
@@ -37,7 +32,6 @@ export async function getCondoDashboardStats(): Promise<CondoDashboardStats> {
     total_assembleias,
     total_votos_enviados,
     total_votos_recebidos,
-    participacao_geral,
   }
 }
 

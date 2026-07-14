@@ -136,12 +136,6 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
           <Stat label="Participação" value={`${participacaoPct}%`} highlight={participacaoPct >= 50} />
           <Stat label="Unidades repr." value={totalUnidades} />
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full ${participacaoPct >= 50 ? "bg-emerald-500" : "bg-amber-500"}`}
-            style={{ width: `${participacaoPct}%` }}
-          />
-        </div>
       </div>
 
       {/* Pautas */}
