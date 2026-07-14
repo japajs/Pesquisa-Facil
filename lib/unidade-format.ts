@@ -1,14 +1,17 @@
 // Chave normalizada de uma unidade — só para comparação/duplicidade,
 // NUNCA para exibição (ver formatUnidade abaixo, que continua mostrando o
-// padrão da administradora). Remove hífens, espaços e qualquer caractere
-// que não seja letra ou número, e converte para maiúsculas, para que
-// "C-0502", "C0502", "c 0502" e "c-0502" sejam sempre a mesma unidade.
+// padrão da administradora). Extrai letras (maiúsculas) e números
+// separadamente e concatena letras-então-números, para que "C-0502",
+// "C0502", "c 0502", "c-0502" e também variações com a ordem invertida
+// como "0502 C" sejam sempre a mesma unidade.
 // Espelha exatamente a coluna gerada `unidades.numero_normalizado` no banco
 // (mesma expressão, só que em JS) — usada no client antes de chamar o
 // servidor, para validação/feedback imediato.
 export function normalizarChaveUnidade(unidade: { numero: string; bloco?: string | null }): string {
   const bruto = `${unidade.bloco ?? ""}${unidade.numero}`
-  return bruto.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()
+  const letras = bruto.replace(/[^a-zA-Z]/g, "").toUpperCase()
+  const numeros = bruto.replace(/[^0-9]/g, "")
+  return `${letras}${numeros}`
 }
 
 // Padroniza a exibição de uma unidade como "BLOCO-NÚMERO" (ex.: C-0502).
