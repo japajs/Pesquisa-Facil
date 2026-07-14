@@ -151,13 +151,16 @@ export type Database = {
         Row: {
           id: string
           proprietario_id: string
+          condominio_id: string
           numero: string
           bloco: string | null
+          numero_normalizado: string
           created_at: string
         }
         Insert: {
           id?: string
           proprietario_id: string
+          condominio_id: string
           numero: string
           bloco?: string | null
           created_at?: string
@@ -166,6 +169,7 @@ export type Database = {
           numero?: string
           bloco?: string | null
           proprietario_id?: string
+          condominio_id?: string
         }
         Relationships: []
       }

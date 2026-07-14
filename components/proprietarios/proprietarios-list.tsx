@@ -32,10 +32,15 @@ const GRID_COLUNAS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_140px_64px_7
 
 // Remove acentos e caixa para a busca não exigir digitação exata
 // (ex.: "joao" encontra "João").
+// Remove acentos, hífens e espaços — assim buscar "C0502", "C-0502" ou
+// "c 0502" encontra a mesma unidade independente de como foi digitado
+// (padronização de unidades, item 7), sem restringir buscas por nome (só
+// deixa a comparação mais permissiva a espaços/hífens em qualquer campo).
 function normalizarBusca(texto: string): string {
   return texto
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
+    .replace(/[-\s]/g, "")
     .toLowerCase()
 }
 

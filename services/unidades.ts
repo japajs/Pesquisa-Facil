@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { normalizarChaveUnidade, formatUnidade } from "@/lib/unidade-format"
 import type { Unidade } from "@/types"
 
 function rowToUnidade(row: {
@@ -40,33 +41,46 @@ export async function getUnidadesByProprietarioId(proprietarioId: string): Promi
   return (data ?? []).map(rowToUnidade)
 }
 
-// Auditoria funcional: sem essa checagem, dois proprietários diferentes
-// podiam cadastrar a mesma unidade (mesmo número/bloco) no mesmo condomínio
+// Padronização de unidades: a duplicidade é decidida pela CHAVE
+// NORMALIZADA (ver lib/unidade-format.ts e a coluna gerada
+// unidades.numero_normalizado), não pelo texto exato — "C-0502", "C0502" e
+// "c 0502" são a mesma unidade para efeito de duplicidade, mesmo que
+// exibidas de formas diferentes. Sem essa checagem, dois proprietários
+// diferentes podiam cadastrar a "mesma" unidade só com formatação diferente
 // — inflando artificialmente o peso total de votação do condomínio.
-async function unidadeJaExisteNoCondominio(
+async function buscarUnidadeEquivalente(
   db: ReturnType<typeof createServerClient>,
-  proprietarioId: string,
+  condominioId: string,
   numero: string,
-  bloco: string | null
-): Promise<boolean> {
-  const { data: proprietario, error: propError } = await db
+  bloco: string | null,
+  ignorarId?: string
+): Promise<{ id: string; numero: string; bloco: string | null } | null> {
+  const chave = normalizarChaveUnidade({ numero, bloco })
+
+  let query = db
+    .from("unidades")
+    .select("id, numero, bloco")
+    .eq("condominio_id", condominioId)
+    .eq("numero_normalizado", chave)
+
+  if (ignorarId) query = query.neq("id", ignorarId)
+
+  const { data, error } = await query.limit(1).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+async function getCondominioIdDoProprietario(
+  db: ReturnType<typeof createServerClient>,
+  proprietarioId: string
+): Promise<string> {
+  const { data, error } = await db
     .from("proprietarios")
     .select("condominio_id")
     .eq("id", proprietarioId)
     .single()
-  if (propError) throw new Error(propError.message)
-
-  let query = db
-    .from("unidades")
-    .select("id, proprietarios!inner(condominio_id)")
-    .eq("proprietarios.condominio_id", (proprietario as { condominio_id: string }).condominio_id)
-    .eq("numero", numero)
-
-  query = bloco === null ? query.is("bloco", null) : query.eq("bloco", bloco)
-
-  const { data, error } = await query.limit(1)
   if (error) throw new Error(error.message)
-  return (data ?? []).length > 0
+  return (data as { condominio_id: string }).condominio_id
 }
 
 export async function createUnidade(
@@ -74,8 +88,13 @@ export async function createUnidade(
 ): Promise<Unidade> {
   const db = createServerClient()
 
-  if (await unidadeJaExisteNoCondominio(db, input.proprietario_id, input.numero, input.bloco)) {
-    throw new Error("Esta unidade já está cadastrada para outro proprietário neste condomínio.")
+  const condominioId = await getCondominioIdDoProprietario(db, input.proprietario_id)
+
+  const equivalente = await buscarUnidadeEquivalente(db, condominioId, input.numero, input.bloco)
+  if (equivalente) {
+    throw new Error(
+      `A unidade ${formatUnidade({ numero: input.numero, bloco: input.bloco })} já está cadastrada neste condomínio.`
+    )
   }
 
   const { data, error } = await db
@@ -84,6 +103,7 @@ export async function createUnidade(
       proprietario_id: input.proprietario_id,
       numero: input.numero,
       bloco: input.bloco,
+      condominio_id: condominioId,
     })
     .select()
     .single()
@@ -97,12 +117,39 @@ export async function updateUnidade(
   input: Partial<Pick<Unidade, "numero" | "bloco" | "proprietario_id">>
 ): Promise<Unidade> {
   const db = createServerClient()
+
+  // Reconfere duplicidade (item 6) sempre que numero/bloco mudam — nunca
+  // deixa uma edição "virar" outra unidade que já existe, mesmo só por
+  // diferença de formatação.
+  let condominioId: string | undefined
+  if (input.numero !== undefined || input.bloco !== undefined) {
+    const atual = await getUnidadeById(id)
+    if (!atual) throw new Error("Unidade não encontrada.")
+
+    const novoNumero = input.numero ?? atual.numero
+    const novoBloco = input.bloco !== undefined ? input.bloco : atual.bloco
+    condominioId = await getCondominioIdDoProprietario(
+      db,
+      input.proprietario_id ?? atual.proprietario_id
+    )
+
+    const equivalente = await buscarUnidadeEquivalente(db, condominioId, novoNumero, novoBloco, id)
+    if (equivalente) {
+      throw new Error(
+        `A unidade ${formatUnidade({ numero: novoNumero, bloco: novoBloco })} já está cadastrada neste condomínio.`
+      )
+    }
+  } else if (input.proprietario_id !== undefined) {
+    condominioId = await getCondominioIdDoProprietario(db, input.proprietario_id)
+  }
+
   const { data, error } = await db
     .from("unidades")
     .update({
       ...(input.numero !== undefined && { numero: input.numero }),
       ...(input.bloco !== undefined && { bloco: input.bloco }),
       ...(input.proprietario_id !== undefined && { proprietario_id: input.proprietario_id }),
+      ...(condominioId !== undefined && { condominio_id: condominioId }),
     })
     .eq("id", id)
     .select()

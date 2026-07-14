@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { createProprietario } from "@/services/proprietarios"
 import { createUnidade } from "@/services/unidades"
+import { normalizarChaveUnidade } from "@/lib/unidade-format"
 import type { ProprietarioImport } from "@/types"
 
 export interface ResultadoLoteImportacao {
@@ -83,22 +84,29 @@ async function processarProprietario(
     const db = createServerClient()
     const { data: existentes } = await db
       .from("unidades")
-      .select("numero")
+      .select("numero, bloco")
       .eq("proprietario_id", proprietarioId)
 
-    const numerosExistentes = new Set(
-      (existentes ?? []).map((u: { numero: string }) => u.numero.toUpperCase())
+    // Padronização de unidades: compara pela chave normalizada (sem
+    // hífen/espaço/caractere especial, maiúsculas) — "C0502" importado
+    // quando o proprietário já tem "C-0502" é a MESMA unidade, não uma
+    // nova. A tentativa de criar uma equivalente em outro proprietário do
+    // mesmo condomínio continua sendo pega por createUnidade (mensagem em
+    // `erros`, sem gerar duplicidade).
+    const chavesExistentes = new Set(
+      (existentes ?? []).map((u: { numero: string; bloco: string | null }) => normalizarChaveUnidade(u))
     )
 
     for (const numero of prop.unidades) {
-      if (numerosExistentes.has(numero.toUpperCase())) {
+      const chave = normalizarChaveUnidade({ numero, bloco: null })
+      if (chavesExistentes.has(chave)) {
         unidadesIgnoradas++
         continue
       }
       try {
         await createUnidade({ proprietario_id: proprietarioId, numero, bloco: null })
         unidadesCriadas++
-        numerosExistentes.add(numero.toUpperCase())
+        chavesExistentes.add(chave)
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Erro desconhecido"
         erros.push(`Unidade "${numero}" (${prop.nome}): ${msg}`)
