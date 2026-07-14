@@ -7,8 +7,9 @@ import {
   updateAssembleiaStatus,
   updateAssembleiaCompleta,
 } from "@/services/assembleias"
-import { createPautasBatch } from "@/services/pautas"
-import { requirePerfil } from "@/lib/auth"
+import { createPautasBatch, getNextOrdem } from "@/services/pautas"
+import { getAssembleiaById, contarParticipantesJaVotaram } from "@/services/assembleias"
+import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 import type { AssembleiaStatus, PautaTipo } from "@/types"
 
@@ -30,6 +31,8 @@ export async function createAssembleiaAction(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominio_id)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
   if (input.pautas.length === 0) return { success: false, error: "Adicione pelo menos uma pauta." }
   if (input.pautas.length > 9) return { success: false, error: "Máximo de 9 pautas por assembleia." }
@@ -105,6 +108,8 @@ export async function updateAssembleiaAction(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominio_id)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
 
   if (input.pautas !== null) {
@@ -166,6 +171,8 @@ export async function deleteAssembleiaAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   try {
     await deleteAssembleia(id)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
@@ -178,6 +185,73 @@ export async function deleteAssembleiaAction(
   }
 }
 
+// Item B/D do pedido: adicionar pauta com a assembleia já aberta, sem tocar
+// nas pautas existentes (nunca chama updateAssembleiaCompleta — aquele
+// caminho continua exclusivo da edição completa pré-voto). Retorna quantos
+// participantes já votaram, para a tela decidir se mostra a confirmação de
+// aviso antes de chamar notificarNovaPautaAction.
+export async function adicionarPautaAssembleiaAction(input: {
+  assembleiaId: string
+  condominioId: string
+  pauta: PautaInput
+}): Promise<{
+  success: boolean
+  pautaId?: string
+  participantesParaNotificar?: number
+  error?: string
+}> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(input.condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
+
+  if (!input.pauta.titulo.trim()) return { success: false, error: "Título obrigatório." }
+  if (input.pauta.tipo === "multipla_escolha") {
+    const opcoesValidas = (input.pauta.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+    if (opcoesValidas.length < 2) {
+      return { success: false, error: "A pauta precisa de pelo menos 2 opções." }
+    }
+  }
+
+  try {
+    const assembleia = await getAssembleiaById(input.assembleiaId)
+    if (!assembleia) return { success: false, error: "Assembleia não encontrada." }
+    if (assembleia.status !== "aberta") {
+      return {
+        success: false,
+        error: "Só é possível adicionar pautas enquanto a assembleia estiver aberta.",
+      }
+    }
+
+    const ordem = await getNextOrdem(input.assembleiaId)
+    const pautas = await createPautasBatch([
+      {
+        assembleia_id: input.assembleiaId,
+        ordem,
+        titulo: input.pauta.titulo.trim(),
+        descricao: input.pauta.descricao.trim() || null,
+        tipo: input.pauta.tipo ?? "sim_nao",
+        permite_abstencao: input.pauta.permite_abstencao ?? true,
+        opcoes:
+          input.pauta.tipo === "multipla_escolha"
+            ? (input.pauta.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
+            : undefined,
+      },
+    ])
+    const pautaCriada = pautas.find((p) => p.ordem === ordem)
+
+    const participantesParaNotificar = await contarParticipantesJaVotaram(input.assembleiaId)
+
+    revalidatePath(ROUTES.condominioAssembleia(input.condominioId, input.assembleiaId))
+    return { success: true, pautaId: pautaCriada?.id, participantesParaNotificar }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao adicionar pauta.",
+    }
+  }
+}
+
 export async function updateAssembleiaStatusAction(
   id: string,
   condominioId: string,
@@ -185,6 +259,8 @@ export async function updateAssembleiaStatusAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   try {
     await updateAssembleiaStatus(id, status)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)

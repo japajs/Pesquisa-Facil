@@ -5,6 +5,7 @@ export const ROUTES = {
   login: "/login",
   dashboard: "/dashboard",
   condominios: "/condominios",
+  usuarios: "/usuarios",
   configuracoes: "/configuracoes",
   importacao: "/importacao",
   relatorios: "/relatorios",

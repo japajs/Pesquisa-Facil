@@ -17,6 +17,62 @@ export interface UnidadeRelatorio {
   email: string | null
 }
 
+export interface HistoricoParticipante {
+  proprietarioNome: string
+  totalPautas: number
+  pautasRespondidas: number
+  ultimaResposta: string | null
+}
+
+// Item 6 do pedido de evolução do fluxo: controle interno de participação
+// por proprietário (não entra no PDF/XLSX oficiais, só na tela de detalhe
+// da assembleia) — quantas pautas cada um já respondeu e quando foi a
+// última resposta, via assembleia_respostas.created_at (já existe, não
+// precisou de coluna nova).
+export async function getHistoricoParticipacao(
+  assembleiaId: string,
+  totalPautas: number
+): Promise<HistoricoParticipante[]> {
+  const db = createServerClient()
+
+  const { data: sends, error } = await db
+    .from("assembleia_sends")
+    .select("id, nome_snapshot, proprietarios(nome)")
+    .eq("assembleia_id", assembleiaId)
+  if (error) throw new Error(error.message)
+
+  const sendIds = (sends ?? []).map((s) => s.id as string)
+  if (sendIds.length === 0) return []
+
+  const { data: respostas, error: respError } = await db
+    .from("assembleia_respostas")
+    .select("send_id, created_at")
+    .in("send_id", sendIds)
+  if (respError) throw new Error(respError.message)
+
+  const porSend = new Map<string, { count: number; ultima: string }>()
+  for (const r of (respostas ?? []) as { send_id: string; created_at: string }[]) {
+    const atual = porSend.get(r.send_id) ?? { count: 0, ultima: r.created_at }
+    atual.count++
+    if (r.created_at > atual.ultima) atual.ultima = r.created_at
+    porSend.set(r.send_id, atual)
+  }
+
+  type SendRow = { id: string; nome_snapshot: string | null; proprietarios: { nome: string } | null }
+
+  return ((sends ?? []) as unknown as SendRow[])
+    .map((s) => {
+      const info = porSend.get(s.id)
+      return {
+        proprietarioNome: s.nome_snapshot ?? s.proprietarios?.nome ?? "—",
+        totalPautas,
+        pautasRespondidas: info?.count ?? 0,
+        ultimaResposta: info?.ultima ?? null,
+      }
+    })
+    .sort((a, b) => a.proprietarioNome.localeCompare(b.proprietarioNome, "pt-BR"))
+}
+
 export async function getParticipantesByAssembleia(
   assembleiaId: string
 ): Promise<ParticipanteRelatorio[]> {

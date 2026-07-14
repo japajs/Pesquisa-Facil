@@ -8,11 +8,12 @@ import {
   upsertAssembleiaSend,
   updateAssembleiaSendStatus,
   createAssembleiaRespostas,
+  getSendsJaVotaram,
   type RespostaInput,
 } from "@/services/assembleia-votos"
-import { sendAssembleiaEmailBatch } from "@/services/email"
+import { sendAssembleiaEmailBatch, sendNovaPautaEmailBatch } from "@/services/email"
 import { generateSurveyToken } from "@/lib/tokens"
-import { requirePerfil } from "@/lib/auth"
+import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 export interface EnviarAssembleiaResult {
@@ -91,6 +92,9 @@ export async function enviarAssembleiaAction(
     }
   }
 
+  const acesso = await requireAcessoCondominio(assembleia.condominio_id)
+  if (!acesso.ok) return { sent: 0, failed: 0, error: acesso.error }
+
   const pautas = (assembleia.pautas ?? []).map((p) => ({ titulo: p.titulo }))
 
   const emailInputs: Parameters<typeof sendAssembleiaEmailBatch>[0] = []
@@ -148,6 +152,67 @@ export async function enviarAssembleiaAction(
   return {
     sent: sentIds.length,
     failed: failedEmailIds.length + failedIds.length,
+  }
+}
+
+export interface NotificarNovaPautaResult {
+  success: boolean
+  sent: number
+  failed: number
+  error?: string
+}
+
+// Item 5: avisa quem já votou (parcial ou totalmente) sobre uma pauta nova
+// adicionada depois — chamada só após confirmação explícita na tela (ver
+// AdicionarPautaDialog). Reaproveita o token já existente de cada send, sem
+// rotacionar: o mesmo link volta a funcionar e passa a mostrar a pauta
+// pendente automaticamente (app/v/[token]/page.tsx).
+export async function notificarNovaPautaAction(
+  assembleiaId: string,
+  pautaId: string
+): Promise<NotificarNovaPautaResult> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, sent: 0, failed: 0, error: auth.error }
+
+  try {
+    const assembleia = await getAssembleiaById(assembleiaId)
+    if (!assembleia) return { success: false, sent: 0, failed: 0, error: "Assembleia não encontrada." }
+
+    const acesso = await requireAcessoCondominio(assembleia.condominio_id)
+    if (!acesso.ok) return { success: false, sent: 0, failed: 0, error: acesso.error }
+
+    const pauta = (assembleia.pautas ?? []).find((p) => p.id === pautaId)
+    if (!pauta) return { success: false, sent: 0, failed: 0, error: "Pauta não encontrada." }
+
+    const sends = await getSendsJaVotaram(assembleiaId)
+    const comEmail = sends.filter((s) => s.proprietarioEmail)
+    if (comEmail.length === 0) return { success: true, sent: 0, failed: 0 }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+
+    const { sent, failed } = await sendNovaPautaEmailBatch(
+      comEmail.map((s) => ({
+        sendId: s.id,
+        to: s.proprietarioEmail!,
+        proprietarioNome: s.proprietarioNome,
+        assembleiaTitulo: assembleia.titulo,
+        pautaTitulo: pauta.titulo,
+        votoUrl: `${appUrl}${ROUTES.publicCondoVoto(s.token)}`,
+      }))
+    )
+
+    return {
+      success: true,
+      sent: sent.length,
+      failed: failed.length + (sends.length - comEmail.length),
+    }
+  } catch (err) {
+    return {
+      success: false,
+      sent: 0,
+      failed: 0,
+      error: err instanceof Error ? err.message : "Erro ao notificar participantes.",
+    }
   }
 }
 

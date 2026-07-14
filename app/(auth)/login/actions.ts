@@ -58,7 +58,13 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     return { error: "E-mail ou senha incorretos." }
   }
 
-  const sessionUser = { userId: user.id, email: user.email, nome: user.nome, perfil: user.perfil }
+  const sessionUser = {
+    userId: user.id,
+    email: user.email,
+    nome: user.nome,
+    perfil: user.perfil,
+    acessoTotal: user.acesso_total,
+  }
 
   await createSession(sessionUser)
 

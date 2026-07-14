@@ -42,7 +42,13 @@ export async function setupAction(_prev: SetupState, formData: FormData): Promis
   try {
     const senha_hash = await hash(password, 12)
     const user = await createUsuario({ nome, email, senha_hash, perfil: "administrador" })
-    const sessionUser = { userId: user.id, email: user.email, nome: user.nome, perfil: user.perfil }
+    const sessionUser = {
+      userId: user.id,
+      email: user.email,
+      nome: user.nome,
+      perfil: user.perfil,
+      acessoTotal: user.acesso_total,
+    }
     await createSession(sessionUser)
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Erro ao criar usuário." }

@@ -7,7 +7,7 @@ import {
   updateCondominio,
   updateCondominioInfo,
 } from "@/services/condominios"
-import { requirePerfil } from "@/lib/auth"
+import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
 export async function createCondominioAction(
@@ -15,6 +15,11 @@ export async function createCondominioAction(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  // Criar/excluir condomínio é exclusivo de quem tem acesso total (MASTER)
+  // — um usuário PESSOAL só opera dentro dos condomínios já vinculados a ele.
+  if (!auth.session.acessoTotal) {
+    return { success: false, error: "Apenas usuários com acesso total podem criar condomínios." }
+  }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     const condo = await createCondominio({ nome: nome.trim() })
@@ -31,6 +36,8 @@ export async function updateCondominioAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(id)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     await updateCondominio(id, { nome: nome.trim() })
@@ -46,6 +53,9 @@ export async function deleteCondominioAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  if (!auth.session.acessoTotal) {
+    return { success: false, error: "Apenas usuários com acesso total podem excluir condomínios." }
+  }
   try {
     await deleteCondominio(id)
     revalidatePath(ROUTES.condominios)
@@ -63,6 +73,8 @@ export async function updateCondominioInfoAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(id)
+  if (!acesso.ok) return { success: false, error: acesso.error }
   if (!nome.trim()) return { success: false, error: "Nome obrigatório." }
   try {
     await updateCondominio(id, { nome: nome.trim() })

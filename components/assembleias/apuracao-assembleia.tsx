@@ -4,7 +4,22 @@ import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
 import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assembleia-dialog"
-import type { Assembleia, AssembleiaApuracao, PautaApuracao } from "@/types"
+import { AdicionarPautaDialog } from "@/components/assembleias/adicionar-pauta-dialog"
+import type { Assembleia, AssembleiaApuracao, PautaApuracao, PautaStatus } from "@/types"
+
+const PAUTA_STATUS_LABEL: Record<PautaStatus, string> = {
+  rascunho: "Rascunho",
+  aberta: "Aberta",
+  em_votacao: "Em votação",
+  encerrada: "Encerrada",
+}
+
+const PAUTA_STATUS_CLASS: Record<PautaStatus, string> = {
+  rascunho: "bg-muted text-muted-foreground",
+  aberta: "bg-emerald-500/15 text-emerald-500",
+  em_votacao: "bg-indigo-500/15 text-indigo-500",
+  encerrada: "bg-rose-500/15 text-rose-500",
+}
 
 interface Props {
   assembleia: Assembleia
@@ -99,6 +114,9 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
                   condominioId={condominioId}
                   temVotos={temVotos}
                 />
+              )}
+              {canExport && assembleia.status === "aberta" && (
+                <AdicionarPautaDialog assembleiaId={assembleia.id} condominioId={condominioId} />
               )}
               {canExport && (
                 <>
@@ -205,11 +223,16 @@ function PautaApuracaoSection({ index, item }: { index: number; item: PautaApura
   return (
     <div className="space-y-3">
       {/* Título da pauta */}
-      <div className="flex items-baseline gap-2">
+      <div className="flex flex-wrap items-baseline gap-2">
         <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-primary/60">
           Pauta {index + 1}
         </span>
         <h2 className="text-base font-semibold tracking-tight">{pauta.titulo}</h2>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAUTA_STATUS_CLASS[pauta.status]}`}
+        >
+          {PAUTA_STATUS_LABEL[pauta.status]}
+        </span>
       </div>
 
       {pauta.descricao && <p className="text-sm text-muted-foreground">{pauta.descricao}</p>}

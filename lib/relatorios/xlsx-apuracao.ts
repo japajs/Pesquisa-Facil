@@ -129,7 +129,23 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     "% Abst. (unid.)",
     "Resultado (part.)",
     "Resultado (ponderado)",
+    "Incluída após abertura",
   ]
+
+  // Item 8 do pedido de evolução: sinaliza no relatório quando uma pauta foi
+  // adicionada depois que a assembleia já estava aberta. Não usa
+  // assembleia.data_abertura (relógio da aplicação) contra pauta.created_at
+  // (relógio do banco) — os dois podem divergir (confirmado em teste, ~73s
+  // de diferença neste ambiente). Compara em vez disso cada pauta com a
+  // mais antiga da própria assembleia: o lote original inteiro nasce no
+  // mesmo INSERT (mesmo `now()` de transação), então só uma pauta
+  // adicionada depois, numa chamada separada, tem created_at maior — sempre
+  // a mesma fonte de relógio dos dois lados.
+  const primeiraPautaCreatedAtMs = Math.min(
+    ...apuracao.pautas.map((p) => new Date(p.pauta.created_at).getTime())
+  )
+  const foiIncluidaAposAbertura = (pautaCreatedAt: string): string =>
+    new Date(pautaCreatedAt).getTime() > primeiraPautaCreatedAtMs ? "Sim" : "Não"
 
   const resRows = pautasSimNao.map((p, i) => {
     const tp = p.por_participantes.sim + p.por_participantes.nao + p.por_participantes.abstencao
@@ -170,6 +186,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
       pctStr(p.ponderado.abstencao, tw),
       vP,
       vW,
+      foiIncluidaAposAbertura(p.pauta.created_at),
     ]
   })
 
@@ -180,7 +197,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     { wch: 8 }, { wch: 8 }, { wch: 8 },
     { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
     { wch: 14 }, { wch: 14 }, { wch: 14 },
-    { wch: 18 }, { wch: 22 },
+    { wch: 18 }, { wch: 22 }, { wch: 18 },
   ]
   boldRow(wsRes, 0, resHeader.length)
   XLSX.utils.book_append_sheet(wb, wsRes, "Resultados por Pauta")
@@ -198,7 +215,8 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
         opcoes.reduce((sum, o) => sum + o.participantes, 0) + p.por_participantes.abstencao
       const totalPonderado = opcoes.reduce((sum, o) => sum + o.ponderado, 0) + p.ponderado.abstencao
 
-      meRows.push([p.pauta.titulo])
+      const marcaNova = foiIncluidaAposAbertura(p.pauta.created_at) === "Sim" ? " (incluída após abertura)" : ""
+      meRows.push([`${p.pauta.titulo}${marcaNova}`])
       opcoes.forEach((o) => {
         meRows.push([
           "",

@@ -21,12 +21,20 @@ function rowToCondominio(row: DbRow): Condominio {
   }
 }
 
-export async function getAllCondominios(): Promise<Condominio[]> {
+// `condominioIds` filtra o resultado quando informado — usado para usuários
+// PESSOAL (acesso_total = false), que só devem ver os condomínios vinculados
+// em usuario_condominios. `undefined` (padrão) mantém o comportamento de
+// sempre: MASTER/usuário antigo continua vendo todos.
+export async function getAllCondominios(condominioIds?: string[]): Promise<Condominio[]> {
   const db = createServerClient()
-  const { data, error } = await db
-    .from("condominios")
-    .select("*")
-    .order("nome", { ascending: true })
+  let query = db.from("condominios").select("*").order("nome", { ascending: true })
+
+  if (condominioIds) {
+    if (condominioIds.length === 0) return []
+    query = query.in("id", condominioIds)
+  }
+
+  const { data, error } = await query
 
   if (error) throw new Error(error.message)
   return (data ?? []).map((r) => rowToCondominio(r as DbRow))

@@ -108,6 +108,16 @@ const s = StyleSheet.create({
   pautaHeader: { flexDirection: "row", alignItems: "baseline", marginBottom: 3 },
   pautaIdx: { fontSize: 7, fontFamily: "Helvetica-Bold", color: C.muted, marginRight: 6 },
   pautaTitle: { fontSize: 10, fontFamily: "Helvetica-Bold" },
+  pautaNovaBadge: {
+    marginLeft: 6,
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    color: C.abstencao,
+    backgroundColor: C.abstBg,
+    borderRadius: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1.5,
+  },
   pautaDesc: { fontSize: 8, color: C.muted, marginBottom: 8, lineHeight: 1.5 },
   /* ── result tables ────────────────────── */
   tablePair: { flexDirection: "row", marginBottom: 6 },
@@ -446,6 +456,21 @@ export function ApuracaoPDF({
   // pautas). Com 2+ pautas, mantém o layout compacto de sempre.
   const layoutExpandido = apuracao.pautas.length === 1
 
+  // "Incluída após a abertura" (evolução do fluxo): comparar contra
+  // assembleia.data_abertura pareceria natural, mas esse campo é gravado
+  // pelo relógio da aplicação (JS), enquanto pauta.created_at vem do
+  // relógio do banco — os dois podem divergir (confirmado em teste: ~73s de
+  // diferença neste ambiente). Em vez disso, compara cada pauta com a mais
+  // antiga da própria assembleia: todas as pautas do lote original nascem
+  // no mesmo INSERT (mesmo `now()` de transação), então só uma pauta
+  // adicionada depois — via ação separada — tem created_at estritamente
+  // maior. Mesma fonte de relógio dos dois lados, sem risco de descompasso.
+  const primeiraPautaCreatedAtMs = Math.min(
+    ...apuracao.pautas.map((p) => new Date(p.pauta.created_at).getTime())
+  )
+  const pautaIncluidaDepois = (pautaCreatedAt: string) =>
+    new Date(pautaCreatedAt).getTime() > primeiraPautaCreatedAtMs
+
   return (
     <Document
       title={`Apuracao - ${assembleia.titulo}`}
@@ -559,6 +584,9 @@ export function ApuracaoPDF({
                 <View style={s.pautaHeader}>
                   <Text style={s.pautaIdx}>PAUTA {i + 1}</Text>
                   <Text style={s.pautaTitle}>{pauta.titulo}</Text>
+                  {pautaIncluidaDepois(pauta.created_at) ? (
+                    <Text style={s.pautaNovaBadge}>INCLUÍDA APÓS A ABERTURA</Text>
+                  ) : null}
                 </View>
                 {pauta.descricao ? (
                   <Text style={s.pautaDesc}>{pauta.descricao}</Text>

@@ -7,13 +7,21 @@ export interface SessionUser {
   email: string
   nome: string
   perfil: UserPerfil
+  // Escopo por condomínio (MASTER/PESSOAL): true = enxerga todos os
+  // condomínios (comportamento de sempre); false = só os vinculados em
+  // usuario_condominios. Vai no próprio JWT para não precisar consultar o
+  // banco a cada checagem — ver lib/auth.ts.
+  acessoTotal: boolean
 }
 
 export interface Usuario {
   id: string
   nome: string
   email: string
+  cpf: string | null
+  celular: string | null
   perfil: UserPerfil
+  acesso_total: boolean
   ativo: boolean
   created_at: string
 }
@@ -103,6 +111,13 @@ export interface Proprietario {
 export type AssembleiaStatus = "rascunho" | "aberta" | "encerrada"
 export type AssembleiaRespostaValor = "Sim" | "Não" | "Abstenção"
 export type PautaTipo = "sim_nao" | "multipla_escolha"
+// Ciclo de vida da pauta, independente do status da assembleia: "aberta" é o
+// estado normal de uma pauta pronta para votar; passa para "em_votacao"
+// sozinha assim que recebe o 1º voto (ver services/pautas.ts) e só vira
+// "encerrada" quando a assembleia inteira é encerrada (nenhuma pauta fecha
+// isoladamente). "rascunho" existe só por simetria/futuro — hoje toda pauta
+// nasce direto em "aberta".
+export type PautaStatus = "rascunho" | "aberta" | "em_votacao" | "encerrada"
 
 export interface Assembleia {
   id: string
@@ -135,6 +150,7 @@ export interface Pauta {
   ativa: boolean
   tipo: PautaTipo
   permite_abstencao: boolean
+  status: PautaStatus
   created_at: string
   // joined — só populado para pautas do tipo "multipla_escolha"
   opcoes?: PautaOpcao[]

@@ -5,7 +5,9 @@ import { ArrowLeft } from "lucide-react"
 import { getAssembleiaById } from "@/services/assembleias"
 import { getCondominioById } from "@/services/condominios"
 import { getApuracaoAssembleia } from "@/services/assembleia-votos"
+import { getHistoricoParticipacao } from "@/services/relatorios"
 import { ApuracaoAssembleia } from "@/components/assembleias/apuracao-assembleia"
+import { HistoricoParticipacao } from "@/components/assembleias/historico-participacao"
 import { getSession } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
 
@@ -47,6 +49,10 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
     total_respondidos: 0,
   }))
 
+  const historicoParticipacao = await getHistoricoParticipacao(assembleiaId, pautas.length).catch(
+    () => []
+  )
+
   return (
     <div className="flex flex-col gap-8 p-6 pt-8">
       {/* Back */}
@@ -70,6 +76,8 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
         apuracao={apuracao}
         canExport={session?.perfil !== "visualizador"}
       />
+
+      <HistoricoParticipacao historico={historicoParticipacao} />
     </div>
   )
 }

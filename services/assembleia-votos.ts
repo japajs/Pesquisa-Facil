@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { getPesoParticipante } from "@/lib/peso"
+import { marcarPautaEmVotacaoSeNecessario } from "@/services/pautas"
 import type {
   AssembleiaSend,
   AssembleiaResposta,
@@ -9,6 +10,7 @@ import type {
   OpcaoApuracao,
   Pauta,
   PautaOpcao,
+  PautaStatus,
   SendStatus,
 } from "@/types"
 
@@ -29,6 +31,7 @@ type JoinedPauta = {
   ativa: boolean
   tipo: Pauta["tipo"]
   permite_abstencao: boolean
+  status: PautaStatus
   created_at: string
   pauta_opcoes: JoinedPautaOpcao[] | null
 }
@@ -82,7 +85,7 @@ type JoinedSend = JoinedSendSnapshot & {
 }
 
 const SELECT_SEND_JOINED =
-  "*, assembleias(id, titulo, descricao, status, data_abertura, data_encerramento, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
+  "*, assembleias(id, titulo, descricao, status, data_abertura, data_encerramento, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, status, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
 
 function rowToSend(row: JoinedSend): AssembleiaSend {
   const a = row.assembleias
@@ -123,6 +126,7 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
               ativa: p.ativa,
               tipo: p.tipo,
               permite_abstencao: p.permite_abstencao,
+              status: p.status,
               created_at: p.created_at,
               opcoes: p.pauta_opcoes
                 ? [...p.pauta_opcoes].sort((x, y) => x.ordem - y.ordem).map(rowToPautaOpcao)
@@ -221,6 +225,7 @@ export interface RespostaInput {
 
 type SendComProprietarioCompleto = {
   assembleia_id: string
+  votado_em: string | null
   proprietarios: {
     nome: string
     cpf: string | null
@@ -242,21 +247,25 @@ export interface ContextoVoto {
 // pauta_id de outro lugar). Sem isso, alguém com um token válido poderia
 // votar depois do encerramento ou injetar respostas em pautas alheias.
 //
-// Auditoria funcional: também garante que TODAS as pautas da assembleia
-// estão sendo respondidas de uma vez. O formulário público já só libera o
-// botão de enviar quando todas as pautas têm resposta, mas essa action é
-// pública (sem sessão) — sem essa checagem aqui, um envio parcial (rede
-// caindo no meio, ou uma chamada direta fora do formulário) trava esse
-// participante permanentemente: a página passa a tratá-lo como "já votou" e
-// ele nunca mais consegue responder a(s) pauta(s) que faltou.
+// Votação parcial/complementar: não exige mais responder todas as pautas de
+// uma vez (uma pauta pode surgir depois que o participante já votou nas
+// outras — ver item 5 do pedido). Em vez disso, garante que nenhuma pauta
+// enviada agora já foi respondida por este mesmo send_id — sem essa
+// checagem, uma tentativa de reenvio bateria direto na constraint única do
+// banco com uma mensagem menos clara, e um voto já registrado nunca pode ser
+// alterado.
 async function validarVotoOuFalhar(
   db: ReturnType<typeof createServerClient>,
+  sendId: string,
   assembleiaId: string,
   status: AssembleiaStatus,
   pautaIds: string[]
 ): Promise<void> {
   if (status !== "aberta") {
     throw new Error("Esta assembleia não está aberta para votação.")
+  }
+  if (pautaIds.length === 0) {
+    throw new Error("Nenhuma pauta para registrar.")
   }
 
   const idsUnicos = [...new Set(pautaIds)]
@@ -271,8 +280,16 @@ async function validarVotoOuFalhar(
   if (idsUnicos.some((id) => !idsValidos.has(id))) {
     throw new Error("Pauta inválida para esta assembleia.")
   }
-  if (idsUnicos.length !== idsValidos.size) {
-    throw new Error("É necessário responder a todas as pautas da assembleia.")
+
+  const { data: respostasExistentes, error: respostasError } = await db
+    .from("assembleia_respostas")
+    .select("pauta_id")
+    .eq("send_id", sendId)
+    .in("pauta_id", idsUnicos)
+
+  if (respostasError) throw new Error(respostasError.message)
+  if ((respostasExistentes ?? []).length > 0) {
+    throw new Error("Uma ou mais pautas enviadas já foram respondidas anteriormente.")
   }
 }
 
@@ -291,7 +308,9 @@ export async function createAssembleiaRespostas(
 
   const { data: sendRow, error: sendError } = await db
     .from("assembleia_sends")
-    .select("assembleia_id, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco)), assembleias(status)")
+    .select(
+      "assembleia_id, votado_em, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco)), assembleias(status)"
+    )
     .eq("id", sendId)
     .single()
 
@@ -301,6 +320,7 @@ export async function createAssembleiaRespostas(
 
   await validarVotoOuFalhar(
     db,
+    sendId,
     send.assembleia_id,
     send.assembleias?.status ?? "encerrada",
     respostas.map((r) => r.pauta_id)
@@ -321,8 +341,15 @@ export async function createAssembleiaRespostas(
 
   if (error) throw new Error(error.message)
 
-  // Snapshot definitivo em assembleia_sends — não afeta assembleia_respostas.peso
-  // acima (já gravado) nem a apuração (que só lê aquele campo).
+  // Votação parcial: cada pauta respondida agora sobe pra "em_votacao" assim
+  // que recebe seu 1º voto (nunca reverte, nunca mexe em pauta já
+  // encerrada). Isolado por pauta — não depende do restante da assembleia.
+  await Promise.all(respostas.map((r) => marcarPautaEmVotacaoSeNecessario(r.pauta_id)))
+
+  // Snapshot em assembleia_sends — os campos de identidade/peso podem ser
+  // regravados a cada chamada (refletem o cadastro no momento desta
+  // contribuição), mas `votado_em` só é definido na 1ª vez: marca quando o
+  // participante começou a votar, não a última vez que complementou.
   const { error: snapshotError } = await db
     .from("assembleia_sends")
     .update({
@@ -333,7 +360,7 @@ export async function createAssembleiaRespostas(
       quantidade_unidades_snapshot: unidades.length,
       unidades_snapshot: unidades,
       peso_snapshot: peso,
-      votado_em: new Date().toISOString(),
+      votado_em: send.votado_em ?? new Date().toISOString(),
       ip_snapshot: contexto.ip ?? null,
       user_agent_snapshot: contexto.userAgent ?? null,
     })
@@ -434,7 +461,7 @@ export async function getApuracaoAssembleia(
 ): Promise<AssembleiaApuracao> {
   const db = createServerClient()
 
-  const [respostasRes, sendsCount] = await Promise.all([
+  const [respostasRes, sendsCount, respondidosCount] = await Promise.all([
     db
       .from("assembleia_respostas")
       .select("pauta_id, resposta, opcao_id, peso, assembleia_sends!inner(assembleia_id)")
@@ -443,12 +470,27 @@ export async function getApuracaoAssembleia(
       .from("assembleia_sends")
       .select("*", { count: "exact", head: true })
       .eq("assembleia_id", assembleiaId),
+    // Votação parcial: um participante pode responder só parte das pautas,
+    // então "quem respondeu" não é mais igual a "quantos responderam a
+    // primeira pauta" (suposição antiga, só válida quando tudo era
+    // respondido de uma vez só). `votado_em` é gravado uma única vez, no 1º
+    // voto de cada send (ver createAssembleiaRespostas) — contar por ele dá
+    // o total de participantes distintos que já votaram, sem depender de
+    // nenhuma pauta específica.
+    db
+      .from("assembleia_sends")
+      .select("*", { count: "exact", head: true })
+      .eq("assembleia_id", assembleiaId)
+      .not("votado_em", "is", null),
   ])
 
   if (respostasRes.error) throw new Error(respostasRes.error.message)
+  if (sendsCount.error) throw new Error(sendsCount.error.message)
+  if (respondidosCount.error) throw new Error(respondidosCount.error.message)
 
   const rows = (respostasRes.data ?? []) as unknown as ApuracaoRow[]
   const total_enviados = sendsCount.count ?? 0
+  const total_respondidos = respondidosCount.count ?? 0
 
   // Agrupa respostas por pauta
   const byPauta = new Map<string, ApuracaoRow[]>()
@@ -467,13 +509,6 @@ export async function getApuracaoAssembleia(
 
     return { pauta, ...resultado }
   })
-
-  // Total de respondidos = respostas para a primeira pauta ativa
-  // (as respostas são enviadas de uma vez, todas as pautas juntas)
-  const firstPauta = pautas[0]
-  const total_respondidos = firstPauta
-    ? (byPauta.get(firstPauta.id) ?? []).length
-    : 0
 
   return {
     pautas: pautaApuracoes,
@@ -500,4 +535,41 @@ export async function getProprietariosQueJaVotaram(condominioId: string): Promis
       .map((r) => r.assembleia_sends?.proprietario_id)
       .filter((id): id is string => Boolean(id))
   )
+}
+
+export interface SendJaVotado {
+  id: string
+  token: string
+  proprietarioNome: string
+  proprietarioEmail: string | null
+}
+
+// Item 5 do pedido de evolução: quem já votou nesta assembleia (mesmo que
+// parcialmente) — usado para notificar sobre uma pauta nova, reaproveitando
+// o token de cada um (sem rotacionar) já que o link continua válido e passa
+// a mostrar a pauta pendente automaticamente.
+export async function getSendsJaVotaram(assembleiaId: string): Promise<SendJaVotado[]> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("assembleia_sends")
+    .select("id, token, nome_snapshot, email_snapshot, proprietarios(nome, email)")
+    .eq("assembleia_id", assembleiaId)
+    .not("votado_em", "is", null)
+
+  if (error) throw new Error(error.message)
+
+  type Row = {
+    id: string
+    token: string
+    nome_snapshot: string | null
+    email_snapshot: string | null
+    proprietarios: { nome: string; email: string } | null
+  }
+
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    token: r.token,
+    proprietarioNome: r.nome_snapshot ?? r.proprietarios?.nome ?? "Proprietário",
+    proprietarioEmail: r.email_snapshot ?? r.proprietarios?.email ?? null,
+  }))
 }

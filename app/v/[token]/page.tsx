@@ -52,13 +52,20 @@ export default async function PublicVotoPage({ params }: Props) {
   const assembleia = send.assembleia
   const pautas = assembleia.pautas ?? []
 
-  let alreadyAnswered = false
+  // Votação parcial/complementar (item 4/5): "já votou" não é mais um estado
+  // binário — um participante pode ter respondido só parte das pautas (ex.:
+  // uma pauta nova foi adicionada depois). `pautasPendentes` é o que falta
+  // para ELE especificamente; pautas já respondidas nunca reaparecem aqui,
+  // então não há como sobrescrever um voto já registrado.
+  let pautasPendentes = pautas
   try {
     const respostas = await getRespostasBySendId(send.id)
-    if (respostas.length > 0) alreadyAnswered = true
+    const respondidas = new Set(respostas.map((r) => r.pauta_id))
+    pautasPendentes = pautas.filter((p) => !respondidas.has(p.id))
   } catch {
     // DB unique constraint prevents double votes even if this check fails
   }
+  const alreadyAnswered = pautasPendentes.length === 0
 
   let status = assembleia.status
 
@@ -193,7 +200,7 @@ export default async function PublicVotoPage({ params }: Props) {
         {heading}
         <AssembleiaVotoForm
           sendId={send.id}
-          pautas={pautas}
+          pautas={pautasPendentes}
           assembleiaTitulo={assembleia.titulo}
         />
       </div>

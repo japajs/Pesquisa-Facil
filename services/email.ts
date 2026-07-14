@@ -129,6 +129,136 @@ function buildAssembleiaEmailHtml({
 </html>`
 }
 
+// Item 5 do pedido de evolução do fluxo: quando uma pauta nova é adicionada
+// a uma assembleia já aberta, quem já votou recebe este e-mail (não o de
+// convite normal) — mesmo link de sempre, que agora mostra só a(s) pauta(s)
+// pendente(s) (ver app/v/[token]/page.tsx). Reaproveita o mesmo estilo
+// visual do e-mail de convite.
+interface NovaPautaTemplateInput {
+  proprietarioNome: string
+  assembleiaTitulo: string
+  pautaTitulo: string
+  votoUrl: string
+}
+
+function buildNovaPautaEmailHtml({
+  proprietarioNome,
+  assembleiaTitulo,
+  pautaTitulo,
+  votoUrl,
+}: NovaPautaTemplateInput): string {
+  const accent = "#6366f1"
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>${assembleiaTitulo}</title>
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f9fafb;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" role="presentation"
+               style="background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+          <tr>
+            <td style="background:${accent};padding:24px 32px;">
+              <p style="margin:0;font-size:16px;font-weight:600;color:#ffffff;letter-spacing:-0.01em;">
+                ${APP_NAME}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 32px 28px;">
+              <h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 8px;line-height:1.3;">
+                Olá, ${proprietarioNome}!
+              </h1>
+              <p style="font-size:15px;color:#374151;margin:0 0 12px;line-height:1.6;">
+                Uma nova pauta foi incluída na assembleia
+                <strong>&ldquo;${assembleiaTitulo}&rdquo;</strong>, na qual você já votou:
+              </p>
+              <p style="font-size:15px;color:#111827;font-weight:600;margin:0 0 24px;line-height:1.5;">
+                ${pautaTitulo}
+              </p>
+              <p style="font-size:13px;color:#6b7280;margin:0 0 20px;line-height:1.5;">
+                Seus votos já registrados continuam válidos — basta responder a pauta nova.
+              </p>
+              <a href="${votoUrl}"
+                 style="display:inline-block;background:${accent};color:#ffffff;font-size:15px;
+                        font-weight:600;padding:14px 28px;border-radius:8px;text-decoration:none;
+                        letter-spacing:-0.01em;">
+                Responder nova pauta →
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 28px;">
+              <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.5;">
+                Se o botão não funcionar, acesse:<br/>
+                <a href="${votoUrl}" style="color:${accent};word-break:break-all;">${votoUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 32px;">
+              <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.5;">
+                Este e-mail foi enviado por <strong>${APP_NAME}</strong>.
+                Se você não esperava recebê-lo, pode ignorar esta mensagem com segurança.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+export interface NovaPautaEmailInput {
+  sendId: string
+  to: string
+  proprietarioNome: string
+  assembleiaTitulo: string
+  pautaTitulo: string
+  votoUrl: string
+}
+
+export async function sendNovaPautaEmailBatch(
+  emails: NovaPautaEmailInput[]
+): Promise<EmailBatchResult> {
+  const resend = getResend()
+  const from = getFromEmail()
+  const sent: string[] = []
+  const failed: string[] = []
+
+  const CHUNK = 100
+  for (let i = 0; i < emails.length; i += CHUNK) {
+    const chunk = emails.slice(i, i + CHUNK)
+    try {
+      const batch = chunk.map((e) => ({
+        from,
+        to: e.to,
+        subject: `Nova pauta: ${e.assembleiaTitulo}`,
+        html: buildNovaPautaEmailHtml({
+          proprietarioNome: e.proprietarioNome,
+          assembleiaTitulo: e.assembleiaTitulo,
+          pautaTitulo: e.pautaTitulo,
+          votoUrl: e.votoUrl,
+        }),
+      }))
+      await resend.batch.send(batch)
+      chunk.forEach((e) => sent.push(e.sendId))
+    } catch {
+      chunk.forEach((e) => failed.push(e.sendId))
+    }
+  }
+
+  return { sent, failed }
+}
+
 export interface AssembleiaEmailInput {
   sendId: string
   to: string

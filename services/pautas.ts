@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
-import type { Pauta, PautaOpcao } from "@/types"
+import type { Pauta, PautaOpcao, PautaStatus } from "@/types"
 
 type PautaRow = {
   id: string
@@ -10,6 +10,7 @@ type PautaRow = {
   ativa: boolean
   tipo: "sim_nao" | "multipla_escolha"
   permite_abstencao: boolean
+  status: PautaStatus
   created_at: string
   pauta_opcoes?: PautaOpcaoRow[] | null
 }
@@ -42,6 +43,7 @@ function rowToPauta(row: PautaRow): Pauta {
     ativa: row.ativa,
     tipo: row.tipo,
     permite_abstencao: row.permite_abstencao,
+    status: row.status,
     created_at: row.created_at,
     opcoes: row.pauta_opcoes
       ? row.pauta_opcoes.map(rowToPautaOpcao).sort((a, b) => a.ordem - b.ordem)
@@ -104,6 +106,37 @@ export async function createPautasBatch(
   }
 
   return getPautasByAssembleiaId(pautas[0]!.assembleia_id)
+}
+
+// Versão por pauta de hasVotosRegistrados (services/assembleias.ts) — usada
+// para travar edição/exclusão de UMA pauta específica assim que ela recebe
+// o 1º voto, mesmo que a assembleia continue aberta e outras pautas ainda
+// não tenham voto nenhum.
+export async function hasVotoPauta(pautaId: string): Promise<boolean> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("assembleia_respostas")
+    .select("id")
+    .eq("pauta_id", pautaId)
+    .limit(1)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).length > 0
+}
+
+// Chamada logo após o 1º voto de uma pauta ser gravado (services/
+// assembleia-votos.ts). Só sobe rascunho/aberta → em_votacao; nunca reverte
+// e nunca mexe em "encerrada" (que só acontece junto com a assembleia — ver
+// updateAssembleiaStatus).
+export async function marcarPautaEmVotacaoSeNecessario(pautaId: string): Promise<void> {
+  const db = createServerClient()
+  const { error } = await db
+    .from("pautas")
+    .update({ status: "em_votacao" })
+    .eq("id", pautaId)
+    .in("status", ["rascunho", "aberta"])
+
+  if (error) throw new Error(error.message)
 }
 
 export async function deletePauta(id: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { createPautasBatch } from "@/services/pautas"
-import type { Assembleia, AssembleiaStatus, Pauta, PautaOpcao } from "@/types"
+import type { Assembleia, AssembleiaStatus, Pauta, PautaOpcao, PautaStatus } from "@/types"
 
 type JoinedPautaOpcao = {
   id: string
@@ -19,6 +19,7 @@ type JoinedPauta = {
   ativa: boolean
   tipo: Pauta["tipo"]
   permite_abstencao: boolean
+  status: PautaStatus
   created_at: string
   pauta_opcoes: JoinedPautaOpcao[] | null
 }
@@ -56,6 +57,7 @@ function rowToPauta(row: JoinedPauta): Pauta {
     ativa: row.ativa,
     tipo: row.tipo,
     permite_abstencao: row.permite_abstencao,
+    status: row.status,
     created_at: row.created_at,
     opcoes: row.pauta_opcoes
       ? [...row.pauta_opcoes].sort((a, b) => a.ordem - b.ordem).map(rowToPautaOpcao)
@@ -298,4 +300,31 @@ export async function updateAssembleiaStatus(
 
   const { error } = await db.from("assembleias").update(updates).eq("id", id)
   if (error) throw new Error(error.message)
+
+  // Uma pauta nunca encerra sozinha (decisão do produto) — todas fecham
+  // junto quando a assembleia inteira é encerrada, independente do status
+  // individual de cada uma (aberta ou em_votacao).
+  if (status === "encerrada") {
+    const { error: pautasError } = await db
+      .from("pautas")
+      .update({ status: "encerrada" })
+      .eq("assembleia_id", id)
+    if (pautasError) throw new Error(pautasError.message)
+  }
+}
+
+// Quantos participantes desta assembleia já registraram pelo menos 1 voto —
+// usado para decidir se, ao adicionar uma pauta nova, existe alguém que
+// precisa ser avisado por e-mail (ver app/actions/assembleias.ts e
+// app/actions/assembleia-votos.ts).
+export async function contarParticipantesJaVotaram(assembleiaId: string): Promise<number> {
+  const db = createServerClient()
+  const { count, error } = await db
+    .from("assembleia_sends")
+    .select("id", { count: "exact", head: true })
+    .eq("assembleia_id", assembleiaId)
+    .not("votado_em", "is", null)
+
+  if (error) throw new Error(error.message)
+  return count ?? 0
 }

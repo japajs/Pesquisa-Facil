@@ -9,7 +9,10 @@ export type Database = {
           nome: string
           email: string
           senha_hash: string
+          cpf: string | null
+          celular: string | null
           perfil: "administrador" | "operador" | "visualizador"
+          acesso_total: boolean
           ativo: boolean
           created_at: string
         }
@@ -18,7 +21,10 @@ export type Database = {
           nome: string
           email: string
           senha_hash: string
+          cpf?: string | null
+          celular?: string | null
           perfil?: "administrador" | "operador" | "visualizador"
+          acesso_total?: boolean
           ativo?: boolean
           created_at?: string
         }
@@ -26,8 +32,26 @@ export type Database = {
           nome?: string
           email?: string
           senha_hash?: string
+          cpf?: string | null
+          celular?: string | null
           perfil?: "administrador" | "operador" | "visualizador"
+          acesso_total?: boolean
           ativo?: boolean
+        }
+        Relationships: []
+      }
+      usuario_condominios: {
+        Row: {
+          usuario_id: string
+          condominio_id: string
+        }
+        Insert: {
+          usuario_id: string
+          condominio_id: string
+        }
+        Update: {
+          usuario_id?: string
+          condominio_id?: string
         }
         Relationships: []
       }
@@ -188,6 +212,7 @@ export type Database = {
           ativa: boolean
           tipo: "sim_nao" | "multipla_escolha"
           permite_abstencao: boolean
+          status: "rascunho" | "aberta" | "em_votacao" | "encerrada"
           created_at: string
         }
         Insert: {
@@ -199,6 +224,7 @@ export type Database = {
           ativa?: boolean
           tipo?: "sim_nao" | "multipla_escolha"
           permite_abstencao?: boolean
+          status?: "rascunho" | "aberta" | "em_votacao" | "encerrada"
           created_at?: string
         }
         Update: {
@@ -208,6 +234,7 @@ export type Database = {
           ativa?: boolean
           tipo?: "sim_nao" | "multipla_escolha"
           permite_abstencao?: boolean
+          status?: "rascunho" | "aberta" | "em_votacao" | "encerrada"
         }
         Relationships: []
       }

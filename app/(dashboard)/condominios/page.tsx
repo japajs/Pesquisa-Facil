@@ -1,13 +1,22 @@
 import type { Metadata } from "next"
 import { getAllCondominios } from "@/services/condominios"
+import { getCondominiosAutorizados } from "@/services/usuarios"
+import { getSession } from "@/lib/auth"
 import { CriarCondominioDialog } from "@/components/condominios/criar-condominio-dialog"
 import { CondominiosList } from "@/components/condominios/condominios-list"
 import type { Condominio } from "@/types"
 
 export const metadata: Metadata = { title: "Condomínios" }
 
+// Usuário PESSOAL (acessoTotal: false) só vê os condomínios vinculados a ele
+// em usuario_condominios — MASTER/sessão antiga continua vendo todos.
 async function fetchCondominios(): Promise<Condominio[]> {
   try {
+    const session = await getSession()
+    if (session && !session.acessoTotal) {
+      const ids = await getCondominiosAutorizados(session.userId)
+      return await getAllCondominios(ids)
+    }
     return await getAllCondominios()
   } catch {
     return []

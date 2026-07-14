@@ -12,6 +12,7 @@ import {
   LogOut,
   Settings,
   UserCircle,
+  Users,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,10 @@ const NAV_ITEMS = [
   { href: "/relatorios",    label: "Relatórios",   icon: FileText         },
   { href: "/configuracoes", label: "Configurações", icon: Settings        },
 ] as const
+
+// Só aparece para administrador — mesma tela que gerencia perfil e escopo
+// por condomínio (MASTER/PESSOAL) dos demais usuários.
+const NAV_ITEM_USUARIOS = { href: "/usuarios", label: "Usuários", icon: Users } as const
 
 const PERFIL_LABELS: Record<UserPerfil, string> = {
   administrador: "Administrador",
@@ -78,7 +83,8 @@ export function Sidebar({ user, open, onClose }: Props) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-3">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {[...NAV_ITEMS, ...(user.perfil === "administrador" ? [NAV_ITEM_USUARIOS] : [])].map(
+          ({ href, label, icon: Icon }) => {
           const isActive = pathname === href || pathname.startsWith(href + "/")
           return (
             <Link
