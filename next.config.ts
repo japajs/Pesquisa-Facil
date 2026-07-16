@@ -1,9 +1,11 @@
+import { withSentryConfig } from "@sentry/nextjs"
 import type { NextConfig } from "next"
 
 // Auditoria de segurança: não há cliente Supabase no navegador (todo acesso a
 // dados passa por Server Actions/Server Components) e as fontes (next/font)
 // são auto-hospedadas — então não é preciso liberar domínios externos para
-// script/connect/font além da própria Vercel. 'unsafe-inline' é necessário em
+// script/connect/font além da própria Vercel e do Sentry (monitoramento de
+// erros). 'unsafe-inline' é necessário em
 // script-src e style-src porque o Next.js injeta scripts inline de
 // hydration/RSC em toda página renderizada — bloquear isso quebra a própria
 // aplicação (só há como evitar com CSP baseada em nonce via proxy.ts, que
@@ -17,7 +19,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://vercel.live wss://vercel.live",
+  "connect-src 'self' https://vercel.live wss://vercel.live https://o4511745215823872.ingest.us.sentry.io",
   "frame-src https://vercel.live",
   "frame-ancestors 'self'",
   "base-uri 'self'",
@@ -63,4 +65,13 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// org/project/authToken só existem para o upload de source maps (stack
+// traces legíveis no painel do Sentry) — sem eles, o build funciona normal
+// e a captura de erro em si (o que foi pedido) já funciona só com o DSN.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+})
