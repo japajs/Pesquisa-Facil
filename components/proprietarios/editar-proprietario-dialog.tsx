@@ -42,6 +42,17 @@ function formatDate(iso: string): string {
   })
 }
 
+// Achado de auditoria LGPD: o CPF/CNPJ aparecia em texto puro pra qualquer
+// perfil que conseguisse abrir este diálogo — só a EDIÇÃO já era restrita a
+// administrador (isAdmin), a LEITURA não. Mascara para quem não é admin,
+// mostrando só os últimos 4 dígitos.
+function maskCpf(valor: string): string {
+  const digitos = valor.replace(/\D/g, "")
+  if (digitos.length <= 4) return "•".repeat(valor.length)
+  const visiveis = digitos.slice(-4)
+  return `${"•".repeat(digitos.length - 4)}${visiveis}`
+}
+
 // Painel com título + ícone, usado para separar visualmente "Editar
 // cadastro", "Transferência de unidade" e "Vincular unidade" — três ações
 // com objetivos diferentes que antes ficavam só divididas por uma linha.
@@ -281,7 +292,7 @@ export function EditarProprietarioDialog({
                 </Label>
                 <Input
                   id="edit-cpf"
-                  value={proprietario.cpf ?? ""}
+                  value={proprietario.cpf ? (isAdmin ? proprietario.cpf : maskCpf(proprietario.cpf)) : ""}
                   disabled
                   placeholder="Não cadastrado"
                   className="disabled:opacity-70"

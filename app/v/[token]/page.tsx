@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { headers } from "next/headers"
 import { CheckCircle2, Clock } from "lucide-react"
 import {
   getAssembleiaSendByToken,
@@ -11,6 +12,7 @@ import { getConfiguracao } from "@/services/configuracoes"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
 import { APP_NAME } from "@/lib/constants"
+import { checkRateLimit } from "@/lib/rate-limit"
 
 interface Props {
   params: Promise<{ token: string }>
@@ -40,6 +42,15 @@ function formatDate(iso: string | null): string {
 
 export default async function PublicVotoPage({ params }: Props) {
   const { token } = await params
+
+  // Achado de auditoria LGPD: esta rota resolvia o token sem nenhum limite de
+  // tentativas. Mesmo com o token tendo entropia alta (crypto.randomUUID,
+  // 122 bits), fica sem essa camada de defesa a mais. Usa notFound() em vez
+  // de uma mensagem de "muitas tentativas" para não criar um sinal que
+  // diferencie "limite excedido" de "token inexistente" — a resposta
+  // uniforme contra enumeração já era um ponto forte do sistema.
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  if (!(await checkRateLimit(`voto-view:${ip}`))) notFound()
 
   let send
   try {

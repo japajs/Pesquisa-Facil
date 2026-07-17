@@ -15,6 +15,7 @@ import { sendAssembleiaEmailBatch, sendNovaPautaEmailBatch } from "@/services/em
 import { generateSurveyToken } from "@/lib/tokens"
 import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
+import { checkRateLimit } from "@/lib/rate-limit"
 
 export interface EnviarAssembleiaResult {
   sent: number
@@ -238,6 +239,12 @@ export async function registrarVotosAction(
     const h = await headers()
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null
     const userAgent = h.get("user-agent") ?? null
+
+    // Achado de auditoria LGPD: o envio de voto em si não tinha nenhum
+    // limite de tentativas (só a página de leitura do token agora tem).
+    if (!(await checkRateLimit(`voto-submit:${ip ?? "unknown"}`))) {
+      return { success: false, error: "Muitas tentativas. Aguarde um momento e tente novamente." }
+    }
 
     await createAssembleiaRespostas(sendId, respostas, { ip, userAgent })
     return { success: true }

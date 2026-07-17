@@ -1,6 +1,21 @@
 import { Resend } from "resend"
 import { APP_NAME } from "@/lib/constants"
 
+// Achado de auditoria LGPD: nome do proprietário, título/descrição da
+// assembleia e título da pauta vêm de campos de texto livre preenchidos por
+// um admin e eram interpolados direto no HTML do e-mail, sem escape — quem
+// recebesse um e-mail com um desses campos contendo marcação HTML veria essa
+// marcação renderizada de verdade na caixa de entrada (injeção de conteúdo/
+// phishing dentro de um e-mail legítimo do sistema).
+function escapeHtml(valor: string): string {
+  return valor
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY
   if (!key) throw new Error("RESEND_API_KEY não está configurado.")
@@ -39,8 +54,10 @@ function buildAssembleiaEmailHtml({
   temAnexo,
 }: AssembleiaTemplateInput & { temAnexo: boolean }): string {
   const accent = "#6366f1"
+  proprietarioNome = escapeHtml(proprietarioNome)
+  assembleiaTitulo = escapeHtml(assembleiaTitulo)
   const description = assembleiaDescricao
-    ? `<p style="font-size:15px;color:#6b7280;margin:0 0 20px;line-height:1.6;">${assembleiaDescricao}</p>`
+    ? `<p style="font-size:15px;color:#6b7280;margin:0 0 20px;line-height:1.6;">${escapeHtml(assembleiaDescricao)}</p>`
     : ""
   const anexoAviso = temAnexo
     ? `<p style="font-size:13px;color:#6b7280;margin:16px 0 0;line-height:1.5;">📎 Este e-mail inclui um documento em anexo.</p>`
@@ -48,7 +65,7 @@ function buildAssembleiaEmailHtml({
   const pautasList = pautas
     .map(
       (p, i) =>
-        `<li style="font-size:14px;color:#374151;padding:4px 0;line-height:1.5;">${i + 1}. ${p.titulo}</li>`
+        `<li style="font-size:14px;color:#374151;padding:4px 0;line-height:1.5;">${i + 1}. ${escapeHtml(p.titulo)}</li>`
     )
     .join("")
 
@@ -148,6 +165,9 @@ function buildNovaPautaEmailHtml({
   votoUrl,
 }: NovaPautaTemplateInput): string {
   const accent = "#6366f1"
+  proprietarioNome = escapeHtml(proprietarioNome)
+  assembleiaTitulo = escapeHtml(assembleiaTitulo)
+  pautaTitulo = escapeHtml(pautaTitulo)
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">

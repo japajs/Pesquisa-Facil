@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
-import { getSession } from "@/lib/auth"
+import { getSession, requireAcessoCondominio } from "@/lib/auth"
 import { getCondominioById } from "@/services/condominios"
 import { getAllProprietarios } from "@/services/proprietarios"
 import { APP_NAME } from "@/lib/constants"
@@ -14,6 +14,13 @@ export async function GET(
   if (session.perfil === "visualizador") return new NextResponse("Forbidden", { status: 403 })
 
   const { id } = await params
+
+  // Achado de auditoria LGPD: sem esta checagem, um usuário com escopo
+  // PESSOAL (restrito a certos condomínios) conseguia exportar nome+CPF+
+  // e-mail+telefone de QUALQUER condomínio só trocando o id na URL — as
+  // rotas irmãs de relatório já faziam essa checagem, esta não fazia.
+  const acesso = await requireAcessoCondominio(id)
+  if (!acesso.ok) return new NextResponse("Not Found", { status: 404 })
 
   const [condominio, proprietarios] = await Promise.all([
     getCondominioById(id).catch(() => null),

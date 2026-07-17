@@ -7,7 +7,11 @@ import { AUTH_COOKIE_NAME } from "@/lib/constants"
 const PUBLIC_PREFIXES = ["/login", "/setup", "/v/"]
 
 // Rotas que exigem autenticação
-const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes", "/importacao", "/relatorios"]
+// Achado de auditoria LGPD: /usuarios ficava fora desta lista — a página em
+// si já tinha seu próprio getSession()+checagem de perfil, então nunca
+// esteve realmente exposta, mas quebrava a camada de defesa que todas as
+// outras páginas administrativas têm aqui no proxy.
+const PROTECTED_PREFIXES = ["/dashboard", "/condominios", "/configuracoes", "/importacao", "/relatorios", "/usuarios"]
 
 function getSecret(): Uint8Array | null {
   const password = process.env.AUTH_PASSWORD
