@@ -20,22 +20,12 @@ function escaparCuringasIlike(valor: string): string {
   return valor.replace(/[%_,]/g, (c) => `\\${c}`)
 }
 
-// Busca proprietário existente no condomínio por CPF > e-mail > nome
+// Busca proprietário existente no condomínio por e-mail > nome
 async function findProprietarioExistente(
   condominioId: string,
   prop: ProprietarioImport
 ): Promise<string | null> {
   const db = createServerClient()
-
-  if (prop.cpf) {
-    const { data } = await db
-      .from("proprietarios")
-      .select("id")
-      .eq("condominio_id", condominioId)
-      .eq("cpf", prop.cpf)
-      .maybeSingle()
-    if (data) return (data as { id: string }).id
-  }
 
   if (prop.email) {
     const { data } = await db
@@ -74,7 +64,6 @@ async function processarProprietario(
         condominio_id: condominioId,
         nome: prop.nome,
         email: prop.email,
-        cpf: prop.cpf,
         telefone: prop.telefone,
       })
       proprietarioId = novo.id
@@ -128,8 +117,8 @@ async function processarProprietario(
 // lógica de "unidade já existente" por Set), e entre lotes o processamento é
 // sequencial — só há paralelismo DENTRO de um lote de CHUNK_SIZE
 // proprietários, o que mantém baixo o risco de condição de corrida na busca
-// por nome (caso raro: dois proprietários sem CPF/e-mail e com nomes iguais
-// no mesmo lote) e ainda reduz o tempo total várias vezes.
+// por nome (caso raro: dois proprietários sem e-mail e com nomes iguais no
+// mesmo lote) e ainda reduz o tempo total várias vezes.
 const CHUNK_SIZE = 10
 
 export async function executarLoteImportacao(

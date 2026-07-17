@@ -6,30 +6,6 @@ import type {
 } from "@/types"
 import { dividirCandidatosContato, normalizarCelular, validarEmailFormato } from "@/lib/format"
 
-// ─── CPF ──────────────────────────────────────────────────────────────────────
-
-function limparCPF(cpf: string): string {
-  return cpf.replace(/\D/g, "")
-}
-
-function validarCPF(cpf: string): boolean {
-  const d = limparCPF(cpf)
-  if (d.length !== 11) return false
-  if (/^(\d)\1{10}$/.test(d)) return false // todos dígitos iguais
-
-  let soma = 0
-  for (let i = 0; i < 9; i++) soma += parseInt(d[i]) * (10 - i)
-  let resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  if (resto !== parseInt(d[9])) return false
-
-  soma = 0
-  for (let i = 0; i < 10; i++) soma += parseInt(d[i]) * (11 - i)
-  resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  return resto === parseInt(d[10])
-}
-
 // ─── E-mail / Celular ─────────────────────────────────────────────────────────
 // Validação de formato compartilhada com o cadastro manual/edição — ver
 // lib/format.ts. Aqui também é preciso lidar com célula-com-mais-de-um-valor
@@ -66,14 +42,9 @@ function resolverTelefone(valorBruto: string | null): ResultadoCampoContato {
 }
 
 // ─── Chave de agrupamento ─────────────────────────────────────────────────────
-// Prioridade: CPF > e-mail > nome
+// Prioridade: e-mail > nome
 
-function chaveProprietario(
-  cpf: string | null,
-  email: string | null,
-  nome: string
-): string {
-  if (cpf) return `cpf:${cpf}`
+function chaveProprietario(email: string | null, nome: string): string {
   if (email) return `email:${email.toLowerCase()}`
   return `nome:${nome.toLowerCase().trim()}`
 }
@@ -101,23 +72,6 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
       erros.push({ linha: linha._linhaOriginal, campo: "Imóvel", mensagem: "Imóvel vazio" })
       linhasIgnoradas++
       continue
-    }
-
-    // Valida e normaliza CPF
-    let cpf: string | null = null
-    if (linha.cpf) {
-      const cpfLimpo = limparCPF(linha.cpf)
-      if (validarCPF(cpfLimpo)) {
-        cpf = cpfLimpo
-      } else {
-        erros.push({
-          linha: linha._linhaOriginal,
-          campo: "CPF",
-          mensagem: "CPF inválido — será ignorado",
-          dados: linha.cpf,
-        })
-        // Continua sem CPF; usa e-mail ou nome para agrupar
-      }
     }
 
     // Valida e-mail — e detecta célula com mais de um e-mail
@@ -156,7 +110,7 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
       })
     }
 
-    const chave = chaveProprietario(cpf, email, nome)
+    const chave = chaveProprietario(email, nome)
 
     if (mapa.has(chave)) {
       // Proprietário já existe — só adiciona a unidade
@@ -173,16 +127,16 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
         continue
       }
 
-      // Auditoria funcional: sem CPF, o agrupamento cai para o e-mail — comum
-      // quando um mesmo administrador/contador é o contato de vários donos
-      // diferentes. Nesse caso o nome da linha nova diverge do proprietário
-      // já criado no grupo; avisa em vez de fundir silenciosamente, para o
-      // admin decidir (corrigir CPF/e-mail antes de importar, ou aceitar).
-      if (!cpf && email && prop.nome.trim().toLowerCase() !== nome.trim().toLowerCase()) {
+      // Auditoria funcional: o agrupamento é por e-mail — comum quando um
+      // mesmo administrador/contador é o contato de vários donos diferentes.
+      // Nesse caso o nome da linha nova diverge do proprietário já criado no
+      // grupo; avisa em vez de fundir silenciosamente, para o admin decidir
+      // (corrigir o e-mail antes de importar, ou aceitar).
+      if (email && prop.nome.trim().toLowerCase() !== nome.trim().toLowerCase()) {
         erros.push({
           linha: linha._linhaOriginal,
           campo: "Proprietário",
-          mensagem: `E-mail "${email}" já usado por "${prop.nome}" — "${nome}" será tratado como o mesmo proprietário (sem CPF para diferenciar)`,
+          mensagem: `E-mail "${email}" já usado por "${prop.nome}" — "${nome}" será tratado como o mesmo proprietário`,
           dados: imovel,
         })
       }
@@ -194,7 +148,6 @@ export function processarLinhas(linhas: ImportacaoLinha[]): ImportacaoPreview {
       mapa.set(chave, {
         nome,
         email,
-        cpf,
         telefone,
         unidades: [imovel],
         linhasOrigem: [linha._linhaOriginal],

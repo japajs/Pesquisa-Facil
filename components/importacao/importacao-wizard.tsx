@@ -53,7 +53,6 @@ type Step = (typeof STEPS)[number]["id"]
 const CAMPO_LABELS: Record<CampoImportacao, string> = {
   imovel: "Imóvel",
   nome: "Nome",
-  cpf: "CPF",
   whatsapp: "WhatsApp / Telefone",
   email: "E-mail",
   ignorar: "Ignorar coluna",
@@ -62,10 +61,6 @@ const CAMPO_LABELS: Record<CampoImportacao, string> = {
 const CAMPOS_REQUERIDOS: CampoImportacao[] = ["imovel", "nome"]
 
 // ─── Auxiliares ───────────────────────────────────────────────────────────────
-
-function formatCPF(cpf: string) {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-}
 
 function formatTempo(ms: number): string {
   if (ms < 1000) return `${ms}ms`
@@ -385,9 +380,6 @@ function ProprietariosTable({
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Nome
               </th>
-              <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
-                CPF
-              </th>
               <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
                 E-mail
               </th>
@@ -406,9 +398,6 @@ function ProprietariosTable({
             {preview.proprietarios.map((p, i) => (
               <tr key={i} className="transition-colors hover:bg-accent/30">
                 <td className="px-4 py-2.5 font-medium">{p.nome}</td>
-                <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground sm:table-cell">
-                  {p.cpf ? formatCPF(p.cpf) : "—"}
-                </td>
                 <td className="hidden max-w-[200px] px-4 py-2.5 text-muted-foreground md:table-cell">
                   <div className="truncate">{p.email ?? "—"}</div>
                   {p.emailCandidatos && (

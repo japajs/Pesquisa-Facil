@@ -235,7 +235,7 @@ export interface AssembleiaApuracao {
 
 // ─── Importação de planilha ────────────────────────────────────────────────
 
-export type CampoImportacao = "imovel" | "nome" | "cpf" | "whatsapp" | "email" | "ignorar"
+export type CampoImportacao = "imovel" | "nome" | "whatsapp" | "email" | "ignorar"
 
 export interface DeteccaoColuna {
   colIdx: number
@@ -252,7 +252,6 @@ export interface LeituraArquivo {
 export interface ImportacaoLinha {
   imovel: string
   nome: string
-  cpf: string | null
   whatsapp: string | null
   email: string | null
   _linhaOriginal: number
@@ -268,7 +267,6 @@ export interface ImportacaoErro {
 export interface ProprietarioImport {
   nome: string
   email: string | null
-  cpf: string | null
   telefone: string | null
   unidades: string[]
   linhasOrigem: number[]

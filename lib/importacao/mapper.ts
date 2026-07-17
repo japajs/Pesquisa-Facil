@@ -33,15 +33,6 @@ export const ALIASES: Record<CampoMapeavel, string[]> = {
     "nomecompleto",
     "nomeproprietario",
   ],
-  cpf: [
-    "cpf",
-    "documento",
-    "doc",
-    "cpfcnpj",
-    "cnpj",
-    "cpfdocumento",
-    "documentocpf",
-  ],
   whatsapp: [
     "whatsapp",
     "telefone",
@@ -121,7 +112,6 @@ export function aplicarMapeamento(
     linhas.push({
       imovel,
       nome,
-      cpf: campos.cpf ?? null,
       whatsapp: campos.whatsapp ?? null,
       email: campos.email ?? null,
       _linhaOriginal: rowIdx + 2, // +1 para 1-index, +1 pelo cabeçalho
