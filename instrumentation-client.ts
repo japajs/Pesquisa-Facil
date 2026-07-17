@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs"
+import { scrubSentryEvent } from "@/lib/sentry-scrub"
 
 // Só captura de erro — sem tracing de performance, replay ou widget de
 // feedback (não é o que foi pedido, e evita gastar a cota gratuita do
@@ -6,6 +7,8 @@ import * as Sentry from "@sentry/nextjs"
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   tracesSampleRate: 0,
+  dataCollection: { cookies: false },
+  beforeSend: scrubSentryEvent,
 })
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
