@@ -12,13 +12,26 @@ import {
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { ROUTES } from "@/lib/constants"
-import type { AssembleiaRecente } from "@/types"
+import type { AssembleiaRecente, AssembleiaStatus } from "@/types"
 
 interface RecentSurveysTableProps {
   assembleias: AssembleiaRecente[]
 }
 
-function formatDate(dateString: string) {
+const STATUS_LABEL: Record<AssembleiaStatus, string> = {
+  rascunho: "Rascunho",
+  aberta: "Aberta",
+  encerrada: "Encerrada",
+}
+
+const STATUS_CLASS: Record<AssembleiaStatus, string> = {
+  rascunho: "bg-muted text-muted-foreground",
+  aberta: "bg-emerald-500/15 text-emerald-500",
+  encerrada: "bg-rose-500/15 text-rose-500",
+}
+
+function formatDate(dateString: string | null) {
+  if (!dateString) return "—"
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -27,17 +40,29 @@ function formatDate(dateString: string) {
 }
 
 function Participacao({ respondidos, enviados }: { respondidos: number; enviados: number }) {
+  const pendentes = Math.max(0, enviados - respondidos)
   const pct = enviados > 0 ? Math.round((respondidos / enviados) * 100) : 0
+  // Sem convites enviados ainda não é "participação baixa" — é neutro, não
+  // alarmar o operador com vermelho por algo que ainda nem começou.
   const color =
-    pct >= 75 ? "text-emerald-500" : pct >= 40 ? "text-amber-500" : "text-rose-500"
+    enviados === 0
+      ? "text-muted-foreground"
+      : pct > 80
+        ? "text-emerald-500"
+        : pct >= 40
+          ? "text-amber-500"
+          : "text-rose-500"
 
   return (
-    <span className="text-sm tabular-nums">
-      <span className="font-medium text-foreground">
-        {respondidos}/{enviados}
-      </span>{" "}
-      <span className={cn("font-medium", color)}>({pct}%)</span>
-    </span>
+    <div className="text-sm">
+      <p className="font-medium tabular-nums text-foreground">
+        {respondidos} / {enviados} votos
+      </p>
+      <p className={cn("tabular-nums font-medium", color)}>{pct}%</p>
+      {pendentes > 0 && (
+        <p className="text-xs text-muted-foreground">{pendentes} pendentes</p>
+      )}
+    </div>
   )
 }
 
@@ -71,10 +96,14 @@ export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 hover:bg-transparent">
-                  <TableHead className="pl-6 text-xs">Assembleia</TableHead>
                   <TableHead className="hidden text-xs sm:table-cell">Condomínio</TableHead>
+                  <TableHead className="pl-6 text-xs sm:pl-0">Assembleia</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">Participação</TableHead>
-                  <TableHead className="hidden pr-6 text-right text-xs sm:table-cell">Criada em</TableHead>
+                  <TableHead className="hidden text-xs md:table-cell">Criada em</TableHead>
+                  <TableHead className="hidden pr-6 text-right text-xs lg:table-cell">
+                    Encerramento
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -83,16 +112,27 @@ export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
                     key={a.id}
                     className="border-border/60 transition-colors hover:bg-accent/30"
                   >
-                    <TableCell className="pl-6">
+                    <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
+                      {a.condominio_nome}
+                    </TableCell>
+                    <TableCell className="pl-6 sm:pl-0">
                       <Link
                         href={ROUTES.condominioAssembleia(a.condominio_id, a.id)}
                         className="font-medium text-foreground hover:text-primary hover:underline"
                       >
                         {a.titulo}
                       </Link>
+                      <p className="text-xs text-muted-foreground sm:hidden">{a.condominio_nome}</p>
                     </TableCell>
-                    <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                      {a.condominio_nome}
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+                          STATUS_CLASS[a.status]
+                        )}
+                      >
+                        {STATUS_LABEL[a.status]}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Participacao
@@ -100,8 +140,11 @@ export function RecentSurveysTable({ assembleias }: RecentSurveysTableProps) {
                         enviados={a.total_enviados}
                       />
                     </TableCell>
-                    <TableCell className="hidden pr-6 text-right text-xs text-muted-foreground sm:table-cell">
+                    <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
                       {formatDate(a.created_at)}
+                    </TableCell>
+                    <TableCell className="hidden pr-6 text-right text-sm text-muted-foreground lg:table-cell">
+                      {formatDate(a.data_encerramento)}
                     </TableCell>
                   </TableRow>
                 ))}

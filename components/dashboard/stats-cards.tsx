@@ -1,4 +1,4 @@
-import { Building2, CircleCheck, ClipboardList, Clock, Home, Send, Users } from "lucide-react"
+import { Building2, ClipboardList, Home, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { CondoDashboardStats } from "@/types"
 
@@ -7,8 +7,6 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
-  const pendentes = Math.max(0, stats.total_votos_enviados - stats.total_votos_recebidos)
-
   const cards = [
     {
       title: "Condomínios",
@@ -41,30 +39,6 @@ export function StatsCards({ stats }: StatsCardsProps) {
       icon: ClipboardList,
       color: "text-amber-400",
       bg: "bg-amber-400/10",
-    },
-    {
-      title: "Convites enviados",
-      value: stats.total_votos_enviados,
-      description: "em todas as assembleias",
-      icon: Send,
-      color: "text-slate-400",
-      bg: "bg-slate-400/10",
-    },
-    {
-      title: "Respondidos",
-      value: stats.total_votos_recebidos,
-      description: "votos já recebidos",
-      icon: CircleCheck,
-      color: "text-emerald-400",
-      bg: "bg-emerald-400/10",
-    },
-    {
-      title: "Pendentes",
-      value: pendentes,
-      description: "convites ainda sem resposta",
-      icon: Clock,
-      color: "text-rose-400",
-      bg: "bg-rose-400/10",
     },
   ]
 

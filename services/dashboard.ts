@@ -1,37 +1,29 @@
 import { createServerClient } from "@/lib/supabase/server"
-import type { CondoDashboardStats, AssembleiaRecente } from "@/types"
+import type { AssembleiaStatus, CondoDashboardStats, AssembleiaRecente } from "@/types"
+
+// Prioridade de exibição no painel operacional (dashboard): abertas antes de
+// encerradas, para o operador ver primeiro o que ainda exige ação.
+const STATUS_PRIORIDADE: Record<AssembleiaStatus, number> = {
+  aberta: 0,
+  rascunho: 1,
+  encerrada: 2,
+}
 
 export async function getCondoDashboardStats(): Promise<CondoDashboardStats> {
   const db = createServerClient()
 
-  const [condosRes, propsRes, unidsRes, assembleiaRes, sendsRes, respostasRes] =
-    await Promise.all([
-      db.from("condominios").select("*", { count: "exact", head: true }),
-      db.from("proprietarios").select("*", { count: "exact", head: true }),
-      db.from("unidades").select("*", { count: "exact", head: true }),
-      db.from("assembleias").select("*", { count: "exact", head: true }),
-      db.from("assembleia_sends").select("*", { count: "exact", head: true }),
-      db.from("assembleia_respostas").select("send_id"),
-    ])
-
-  const total_condominios = condosRes.count ?? 0
-  const total_proprietarios = propsRes.count ?? 0
-  const total_unidades = unidsRes.count ?? 0
-  const total_assembleias = assembleiaRes.count ?? 0
-  const total_votos_enviados = sendsRes.count ?? 0
-
-  const respondidos = new Set(
-    (respostasRes.data ?? []).map((r) => (r as { send_id: string }).send_id)
-  )
-  const total_votos_recebidos = respondidos.size
+  const [condosRes, propsRes, unidsRes, assembleiaRes] = await Promise.all([
+    db.from("condominios").select("*", { count: "exact", head: true }),
+    db.from("proprietarios").select("*", { count: "exact", head: true }),
+    db.from("unidades").select("*", { count: "exact", head: true }),
+    db.from("assembleias").select("*", { count: "exact", head: true }),
+  ])
 
   return {
-    total_condominios,
-    total_proprietarios,
-    total_unidades,
-    total_assembleias,
-    total_votos_enviados,
-    total_votos_recebidos,
+    total_condominios: condosRes.count ?? 0,
+    total_proprietarios: propsRes.count ?? 0,
+    total_unidades: unidsRes.count ?? 0,
+    total_assembleias: assembleiaRes.count ?? 0,
   }
 }
 
@@ -40,7 +32,7 @@ export async function getRecentAssembleias(limit = 6): Promise<AssembleiaRecente
 
   const { data, error } = await db
     .from("assembleias")
-    .select("id, titulo, created_at, condominio_id, condominios(nome)")
+    .select("id, titulo, status, created_at, data_encerramento, condominio_id, condominios(nome)")
     .order("created_at", { ascending: false })
     .limit(limit)
 
@@ -81,13 +73,33 @@ export async function getRecentAssembleias(limit = 6): Promise<AssembleiaRecente
     }
   }
 
-  return (data ?? []).map((row) => ({
+  const resultado = (data ?? []).map((row) => ({
     id: row.id,
     titulo: row.titulo,
+    status: row.status as AssembleiaStatus,
     created_at: row.created_at,
+    data_encerramento: row.data_encerramento,
     condominio_id: row.condominio_id,
     condominio_nome: (row.condominios as unknown as { nome: string } | null)?.nome ?? "—",
     total_enviados: sendsByAssembleia.get(row.id) ?? 0,
     total_respondidos: respondidosByAssembleia.get(row.id) ?? 0,
   }))
+
+  // Ordena por prioridade operacional, não por data: abertas primeiro, depois
+  // menor participação (quem mais precisa de acompanhamento), e por último a
+  // data de encerramento mais próxima como desempate.
+  resultado.sort((a, b) => {
+    const statusDiff = STATUS_PRIORIDADE[a.status] - STATUS_PRIORIDADE[b.status]
+    if (statusDiff !== 0) return statusDiff
+
+    const pctA = a.total_enviados > 0 ? a.total_respondidos / a.total_enviados : 0
+    const pctB = b.total_enviados > 0 ? b.total_respondidos / b.total_enviados : 0
+    if (pctA !== pctB) return pctA - pctB
+
+    const dateA = a.data_encerramento ? new Date(a.data_encerramento).getTime() : Infinity
+    const dateB = b.data_encerramento ? new Date(b.data_encerramento).getTime() : Infinity
+    return dateA - dateB
+  })
+
+  return resultado
 }

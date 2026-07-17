@@ -11,8 +11,6 @@ const EMPTY_STATS: CondoDashboardStats = {
   total_proprietarios: 0,
   total_unidades: 0,
   total_assembleias: 0,
-  total_votos_enviados: 0,
-  total_votos_recebidos: 0,
 }
 
 async function fetchDashboardData(): Promise<{

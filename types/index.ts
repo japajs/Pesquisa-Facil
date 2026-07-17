@@ -37,14 +37,14 @@ export interface CondoDashboardStats {
   total_proprietarios: number
   total_unidades: number
   total_assembleias: number
-  total_votos_enviados: number
-  total_votos_recebidos: number
 }
 
 export interface AssembleiaRecente {
   id: string
   titulo: string
+  status: AssembleiaStatus
   created_at: string
+  data_encerramento: string | null
   condominio_id: string
   condominio_nome: string
   total_enviados: number
