@@ -3,6 +3,7 @@ import * as XLSX from "xlsx"
 import { getSession } from "@/lib/auth"
 import { getCondominioById } from "@/services/condominios"
 import { getAllProprietarios } from "@/services/proprietarios"
+import { APP_NAME } from "@/lib/constants"
 
 export async function GET(
   _request: Request,
@@ -62,7 +63,7 @@ export async function GET(
 
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" })
 
-  const filename = `CondoAssembleia_${condominio.nome.replace(/[^a-z0-9]/gi, "_")}_Proprietarios.xlsx`
+  const filename = `${APP_NAME}_${condominio.nome.replace(/[^a-z0-9]/gi, "_")}_Proprietarios.xlsx`
 
   return new NextResponse(buffer, {
     headers: {

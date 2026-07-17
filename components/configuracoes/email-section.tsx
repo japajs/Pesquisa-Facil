@@ -11,6 +11,7 @@ import {
   updateEmailNomeRemetenteAction,
   enviarEmailTesteAction,
 } from "@/app/actions/configuracoes"
+import { APP_NAME } from "@/lib/constants"
 
 interface EmailSectionProps {
   fromEmail: string
@@ -81,7 +82,7 @@ export function EmailSection({ fromEmail, nomeRemetente, apiKeyConfigured }: Ema
             <Input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="CondoAssembleia"
+              placeholder={APP_NAME}
               className="max-w-sm"
             />
             <Button

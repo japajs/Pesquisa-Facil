@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { APP_NAME } from "@/lib/constants"
 
 interface Props {
   condominioId: string
@@ -13,7 +14,7 @@ export function ExportarProprietariosButton({ condominioId, condominioNome }: Pr
     const url = `/api/condominios/${condominioId}/exportar`
     const a = document.createElement("a")
     a.href = url
-    a.download = `CondoAssembleia_${condominioNome.replace(/[^a-z0-9]/gi, "_")}_Proprietarios.xlsx`
+    a.download = `${APP_NAME}_${condominioNome.replace(/[^a-z0-9]/gi, "_")}_Proprietarios.xlsx`
     a.click()
   }
 

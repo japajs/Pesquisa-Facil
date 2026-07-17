@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { APP_NAME } from "@/lib/constants"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -19,12 +20,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CondoAssembleia",
-    template: "%s | CondoAssembleia",
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
   },
   description: "Sistema de Assembleias Eletrônicas para Condomínios.",
   openGraph: {
-    title: "CondoAssembleia",
+    title: APP_NAME,
     description: "Sistema de Assembleias Eletrônicas para Condomínios.",
     type: "website",
   },

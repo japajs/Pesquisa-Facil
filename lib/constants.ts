@@ -1,4 +1,4 @@
-export const APP_NAME = "VotaçãoCondo"
+export const APP_NAME = "VotoOnline"
 export const APP_VERSION = "1.0"
 
 export const ROUTES = {

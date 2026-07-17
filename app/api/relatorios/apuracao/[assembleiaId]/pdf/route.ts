@@ -10,6 +10,7 @@ import { getApuracaoAssembleia } from "@/services/assembleia-votos"
 import { getVotosDetalhados } from "@/services/relatorios"
 import { ApuracaoPDF } from "@/lib/relatorios/pdf-apuracao"
 import { safeFilename, formatDateTimeBR } from "@/lib/relatorios/utils"
+import { APP_NAME } from "@/lib/constants"
 
 export async function GET(
   _req: Request,
@@ -51,7 +52,7 @@ export async function GET(
 
   const condo = safeFilename(condominio.nome)
   const titulo = safeFilename(assembleia.titulo)
-  const filename = `CondoAssembleia_Apuracao_${condo}_${titulo}.pdf`
+  const filename = `${APP_NAME}_Apuracao_${condo}_${titulo}.pdf`
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {

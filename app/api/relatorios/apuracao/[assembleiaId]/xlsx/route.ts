@@ -10,6 +10,7 @@ import {
 } from "@/services/relatorios"
 import { gerarXlsxApuracao } from "@/lib/relatorios/xlsx-apuracao"
 import { safeFilename, formatDateTimeBR } from "@/lib/relatorios/utils"
+import { APP_NAME } from "@/lib/constants"
 
 export async function GET(
   _req: Request,
@@ -53,7 +54,7 @@ export async function GET(
 
   const condo = safeFilename(condominio.nome)
   const titulo = safeFilename(assembleia.titulo)
-  const filename = `CondoAssembleia_Apuracao_${condo}_${titulo}.xlsx`
+  const filename = `${APP_NAME}_Apuracao_${condo}_${titulo}.xlsx`
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

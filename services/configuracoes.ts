@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { APP_NAME } from "@/lib/constants"
 
 export type ConfigKey =
   | "admin_nome"
@@ -25,7 +26,7 @@ const DEFAULTS: Configuracoes = {
   admin_nome: "Administrador",
   admin_email: "admin@exemplo.com",
   auth_password: "",
-  email_nome_remetente: "CondoAssembleia",
+  email_nome_remetente: APP_NAME,
   votacao_resposta_unica: true,
   votacao_ponderada: true,
   votacao_permite_abstencao: true,

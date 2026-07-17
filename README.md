@@ -1,4 +1,4 @@
-# CondoAssembleia
+# VotoOnline
 
 Sistema de Assembleias Eletrônicas para Condomínios.
 
@@ -72,7 +72,7 @@ Obtenha em **Dashboard → Settings → API**:
 | Variável | Descrição |
 |---|---|
 | `RESEND_API_KEY` | API key do Resend (`re_...`) |
-| `RESEND_FROM_EMAIL` | Remetente verificado (ex.: `CondoAssembleia <no-reply@seudominio.com>`) |
+| `RESEND_FROM_EMAIL` | Remetente verificado (ex.: `VotoOnline <no-reply@seudominio.com>`) |
 
 ### Auth
 
@@ -84,7 +84,7 @@ Obtenha em **Dashboard → Settings → API**:
 
 | Variável | Descrição |
 |---|---|
-| `NEXT_PUBLIC_APP_URL` | URL pública sem barra final (ex.: `https://condoassembleia.vercel.app`) |
+| `NEXT_PUBLIC_APP_URL` | URL pública sem barra final (ex.: `https://votoonline.vercel.app`) |
 
 ---
 

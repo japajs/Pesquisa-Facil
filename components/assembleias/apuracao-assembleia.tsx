@@ -9,6 +9,7 @@ import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assemble
 import { AdicionarPautaDialog } from "@/components/assembleias/adicionar-pauta-dialog"
 import { EditarPautaDialog } from "@/components/assembleias/editar-pauta-dialog"
 import { excluirPautaAction } from "@/app/actions/assembleias"
+import { APP_NAME } from "@/lib/constants"
 import type { Assembleia, AssembleiaApuracao, PautaApuracao, PautaStatus } from "@/types"
 
 const PAUTA_STATUS_LABEL: Record<PautaStatus, string> = {
@@ -89,7 +90,7 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
     <div className="space-y-6">
       {/* Cabeçalho de impressão — visível apenas no print */}
       <div className="hidden print:flex items-center justify-between border-b border-gray-300 pb-4 mb-2">
-        <span className="text-lg font-bold text-gray-900">CondoAssembleia</span>
+        <span className="text-lg font-bold text-gray-900">{APP_NAME}</span>
         <span className="text-xs text-gray-500">Sistema de Assembleias Eletrônicas para Condomínios</span>
       </div>
 
