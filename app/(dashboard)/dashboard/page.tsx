@@ -34,8 +34,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-8 p-6 pt-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary/70">CondoAssembleia</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Visão geral das assembleias e condomínios
         </p>
