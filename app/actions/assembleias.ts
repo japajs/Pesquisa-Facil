@@ -23,7 +23,18 @@ interface PautaInput {
   descricao: string
   tipo?: PautaTipo
   permite_abstencao?: boolean
+  // Fração (0–1) de Sim sobre Sim+Não exigida pra aprovar — 0.5 = maioria
+  // simples (padrão), 0.6667 ≈ 2/3, 1 = unanimidade.
+  quorum_aprovacao?: number
   opcoes?: string[]
+}
+
+function validarQuorum(valor: number | undefined | null, campo: string): string | null {
+  if (valor === undefined || valor === null) return null
+  if (Number.isNaN(valor) || valor <= 0 || valor > 1) {
+    return `${campo} precisa ser maior que 0% e no máximo 100%.`
+  }
+  return null
 }
 
 export async function createAssembleiaAction(input: {
@@ -32,6 +43,9 @@ export async function createAssembleiaAction(input: {
   descricao: string
   data_abertura: string | null
   data_encerramento: string | null
+  // Fração (0–1) do peso total do condomínio exigida pra assembleia valer.
+  // Null/undefined = sem checagem de quórum mínimo.
+  quorum_minimo?: number | null
   pautas: PautaInput[]
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
@@ -44,6 +58,9 @@ export async function createAssembleiaAction(input: {
   if (input.pautas.some((p) => !p.titulo.trim()))
     return { success: false, error: "Todas as pautas precisam ter título." }
 
+  const erroQuorumMinimo = validarQuorum(input.quorum_minimo, "Quórum mínimo")
+  if (erroQuorumMinimo) return { success: false, error: erroQuorumMinimo }
+
   for (const p of input.pautas) {
     if (p.tipo === "multipla_escolha") {
       const opcoesValidas = (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -54,6 +71,8 @@ export async function createAssembleiaAction(input: {
         }
       }
     }
+    const erroQuorumPauta = validarQuorum(p.quorum_aprovacao, `Quórum de aprovação de "${p.titulo.trim()}"`)
+    if (erroQuorumPauta) return { success: false, error: erroQuorumPauta }
   }
 
   let assembleiaId: string | null = null
@@ -64,6 +83,7 @@ export async function createAssembleiaAction(input: {
       descricao: input.descricao.trim() || null,
       data_abertura: input.data_abertura || null,
       data_encerramento: input.data_encerramento || null,
+      quorum_minimo: input.quorum_minimo ?? null,
     })
     assembleiaId = assembleia.id
 
@@ -75,6 +95,7 @@ export async function createAssembleiaAction(input: {
         descricao: p.descricao.trim() || null,
         tipo: p.tipo ?? "sim_nao",
         permite_abstencao: p.permite_abstencao ?? true,
+        quorum_aprovacao: p.quorum_aprovacao ?? 0.5,
         opcoes:
           p.tipo === "multipla_escolha"
             ? (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -109,6 +130,7 @@ export async function updateAssembleiaAction(input: {
   descricao: string
   data_abertura: string | null
   data_encerramento: string | null
+  quorum_minimo?: number | null
   pautas: PautaInput[] | null
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
@@ -116,6 +138,9 @@ export async function updateAssembleiaAction(input: {
   const acesso = await requireAcessoCondominio(input.condominio_id)
   if (!acesso.ok) return { success: false, error: acesso.error }
   if (!input.titulo.trim()) return { success: false, error: "Título obrigatório." }
+
+  const erroQuorumMinimo = validarQuorum(input.quorum_minimo, "Quórum mínimo")
+  if (erroQuorumMinimo) return { success: false, error: erroQuorumMinimo }
 
   if (input.pautas !== null) {
     if (input.pautas.length === 0) return { success: false, error: "Adicione pelo menos uma pauta." }
@@ -133,6 +158,8 @@ export async function updateAssembleiaAction(input: {
           }
         }
       }
+      const erroQuorumPauta = validarQuorum(p.quorum_aprovacao, `Quórum de aprovação de "${p.titulo.trim()}"`)
+      if (erroQuorumPauta) return { success: false, error: erroQuorumPauta }
     }
   }
 
@@ -144,6 +171,7 @@ export async function updateAssembleiaAction(input: {
         descricao: input.descricao.trim() || null,
         data_abertura: input.data_abertura || null,
         data_encerramento: input.data_encerramento || null,
+        quorum_minimo: input.quorum_minimo ?? null,
       },
       input.pautas === null
         ? null
@@ -152,6 +180,7 @@ export async function updateAssembleiaAction(input: {
             descricao: p.descricao.trim() || null,
             tipo: p.tipo ?? "sim_nao",
             permite_abstencao: p.permite_abstencao ?? true,
+            quorum_aprovacao: p.quorum_aprovacao ?? 0.5,
             opcoes:
               p.tipo === "multipla_escolha"
                 ? (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -217,6 +246,8 @@ export async function adicionarPautaAssembleiaAction(input: {
       return { success: false, error: "A pauta precisa de pelo menos 2 opções." }
     }
   }
+  const erroQuorumPauta = validarQuorum(input.pauta.quorum_aprovacao, "Quórum de aprovação")
+  if (erroQuorumPauta) return { success: false, error: erroQuorumPauta }
 
   try {
     const assembleia = await getAssembleiaById(input.assembleiaId)
@@ -237,6 +268,7 @@ export async function adicionarPautaAssembleiaAction(input: {
         descricao: input.pauta.descricao.trim() || null,
         tipo: input.pauta.tipo ?? "sim_nao",
         permite_abstencao: input.pauta.permite_abstencao ?? true,
+        quorum_aprovacao: input.pauta.quorum_aprovacao ?? 0.5,
         opcoes:
           input.pauta.tipo === "multipla_escolha"
             ? (input.pauta.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -269,6 +301,7 @@ export async function editarPautaAction(input: {
   descricao: string
   tipo?: PautaTipo
   permite_abstencao?: boolean
+  quorum_aprovacao?: number
   opcoes?: string[]
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
@@ -284,6 +317,8 @@ export async function editarPautaAction(input: {
       return { success: false, error: "A pauta precisa de pelo menos 2 opções." }
     }
   }
+  const erroQuorumPauta = validarQuorum(input.quorum_aprovacao, "Quórum de aprovação")
+  if (erroQuorumPauta) return { success: false, error: erroQuorumPauta }
 
   try {
     const assembleia = await getAssembleiaById(input.assembleiaId)
@@ -297,6 +332,7 @@ export async function editarPautaAction(input: {
       descricao: input.descricao.trim() || null,
       tipo,
       permite_abstencao: input.permite_abstencao ?? true,
+      quorum_aprovacao: input.quorum_aprovacao ?? 0.5,
       opcoes: tipo === "multipla_escolha" ? (input.opcoes ?? []).map((o) => o.trim()).filter(Boolean) : undefined,
     })
 

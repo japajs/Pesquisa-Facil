@@ -36,6 +36,13 @@ function isoParaDatetimeLocal(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// Fração (0–1) vinda do banco → percentual em texto pro form (ver
+// pctParaFracao em use-assembleia-form.ts, o caminho inverso).
+function fracaoParaPctTexto(fracao: number | null): string {
+  if (fracao === null) return ""
+  return String(Math.round(fracao * 10000) / 100)
+}
+
 function pautasParaFormState(assembleia: Assembleia): PautaFormState[] {
   const pautas = assembleia.pautas ?? []
   if (pautas.length === 0) return []
@@ -44,6 +51,7 @@ function pautasParaFormState(assembleia: Assembleia): PautaFormState[] {
     descricao: p.descricao ?? "",
     tipo: p.tipo,
     permiteAbstencao: p.permite_abstencao,
+    quorumAprovacao: fracaoParaPctTexto(p.quorum_aprovacao) || "50",
     opcoes: (p.opcoes ?? []).map((o) => o.label),
   }))
 }
@@ -60,6 +68,7 @@ export function EditarAssembleiaDialog({ assembleia, condominioId, temVotos }: P
     descricao: assembleia.descricao ?? "",
     dataAbertura: isoParaDatetimeLocal(assembleia.data_abertura),
     dataEncerramento: isoParaDatetimeLocal(assembleia.data_encerramento),
+    quorumMinimo: fracaoParaPctTexto(assembleia.quorum_minimo),
     pautas: pautasParaFormState(assembleia),
   })
 
@@ -71,6 +80,7 @@ export function EditarAssembleiaDialog({ assembleia, condominioId, temVotos }: P
         descricao: assembleia.descricao ?? "",
         dataAbertura: isoParaDatetimeLocal(assembleia.data_abertura),
         dataEncerramento: isoParaDatetimeLocal(assembleia.data_encerramento),
+        quorumMinimo: fracaoParaPctTexto(assembleia.quorum_minimo),
         pautas: pautasParaFormState(assembleia),
       })
     }
@@ -85,12 +95,14 @@ export function EditarAssembleiaDialog({ assembleia, condominioId, temVotos }: P
         descricao: form.descricao,
         data_abertura: form.dataAbertura ? new Date(form.dataAbertura).toISOString() : null,
         data_encerramento: form.dataEncerramento ? new Date(form.dataEncerramento).toISOString() : null,
+        quorum_minimo: form.pctParaFracao(form.quorumMinimo) ?? null,
         pautas: pautasEditaveis
           ? form.pautas.map((p) => ({
               titulo: p.titulo,
               descricao: p.descricao,
               tipo: p.tipo,
               permite_abstencao: p.permiteAbstencao,
+              quorum_aprovacao: form.pctParaFracao(p.quorumAprovacao),
               opcoes: p.tipo === "multipla_escolha" ? p.opcoes : undefined,
             }))
           : null,

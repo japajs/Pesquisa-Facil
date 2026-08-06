@@ -123,6 +123,29 @@ export async function addUnidadeAction(
   }
 }
 
+// Auditoria de assembleias — Fase 1: fração ideal da unidade (usada quando
+// o condomínio tem criterio_peso = "fracao_ideal" — ver lib/peso.ts).
+export async function updateFracaoIdealAction(
+  unidadeId: string,
+  condominioId: string,
+  fracaoIdeal: number | null
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
+  if (fracaoIdeal !== null && (Number.isNaN(fracaoIdeal) || fracaoIdeal < 0)) {
+    return { success: false, error: "Fração ideal precisa ser um número maior ou igual a zero." }
+  }
+  try {
+    await updateUnidade(unidadeId, { fracao_ideal: fracaoIdeal })
+    revalidatePath(`${ROUTES.condominios}/${condominioId}`)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Erro ao salvar fração ideal." }
+  }
+}
+
 export async function removeUnidadeAction(
   unidadeId: string,
   condominioId: string

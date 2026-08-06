@@ -20,6 +20,7 @@ type JoinedPauta = {
   tipo: Pauta["tipo"]
   permite_abstencao: boolean
   status: PautaStatus
+  quorum_aprovacao: number
   created_at: string
   pauta_opcoes: JoinedPautaOpcao[] | null
 }
@@ -32,6 +33,7 @@ type JoinedAssembleia = {
   status: AssembleiaStatus
   data_abertura: string | null
   data_encerramento: string | null
+  quorum_minimo: number | null
   created_at: string
   updated_at: string
   pautas: JoinedPauta[] | null
@@ -58,6 +60,7 @@ function rowToPauta(row: JoinedPauta): Pauta {
     tipo: row.tipo,
     permite_abstencao: row.permite_abstencao,
     status: row.status,
+    quorum_aprovacao: row.quorum_aprovacao,
     created_at: row.created_at,
     opcoes: row.pauta_opcoes
       ? [...row.pauta_opcoes].sort((a, b) => a.ordem - b.ordem).map(rowToPautaOpcao)
@@ -74,6 +77,7 @@ function rowToAssembleia(row: JoinedAssembleia): Assembleia {
     status: row.status ?? "rascunho",
     data_abertura: row.data_abertura ?? null,
     data_encerramento: row.data_encerramento ?? null,
+    quorum_minimo: row.quorum_minimo ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     pautas: (row.pautas ?? []).map(rowToPauta).sort((a, b) => a.ordem - b.ordem),
@@ -110,7 +114,10 @@ export async function getAssembleiaById(id: string): Promise<Assembleia | null> 
 }
 
 export async function createAssembleia(
-  input: Pick<Assembleia, "condominio_id" | "titulo" | "descricao" | "data_abertura" | "data_encerramento">
+  input: Pick<
+    Assembleia,
+    "condominio_id" | "titulo" | "descricao" | "data_abertura" | "data_encerramento" | "quorum_minimo"
+  >
 ): Promise<Assembleia> {
   const db = createServerClient()
   const { data, error } = await db
@@ -121,6 +128,7 @@ export async function createAssembleia(
       descricao: input.descricao,
       data_abertura: input.data_abertura,
       data_encerramento: input.data_encerramento,
+      quorum_minimo: input.quorum_minimo,
     })
     .select(SELECT_WITH_PAUTAS)
     .single()
@@ -174,6 +182,7 @@ export interface PautaEdicaoInput {
   descricao: string | null
   tipo: Pauta["tipo"]
   permite_abstencao: boolean
+  quorum_aprovacao: number
   opcoes?: string[]
 }
 
@@ -193,6 +202,7 @@ export async function updateAssembleiaCompleta(
     descricao: string | null
     data_abertura: string | null
     data_encerramento: string | null
+    quorum_minimo: number | null
   },
   pautas: PautaEdicaoInput[] | null
 ): Promise<void> {
@@ -225,6 +235,7 @@ export async function updateAssembleiaCompleta(
       descricao: dadosBasicos.descricao,
       data_abertura: dadosBasicos.data_abertura,
       data_encerramento: dadosBasicos.data_encerramento,
+      quorum_minimo: dadosBasicos.quorum_minimo,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -243,6 +254,7 @@ export async function updateAssembleiaCompleta(
           descricao: p.descricao,
           tipo: p.tipo,
           permite_abstencao: p.permite_abstencao,
+          quorum_aprovacao: p.quorum_aprovacao,
           opcoes: p.tipo === "multipla_escolha" ? p.opcoes : undefined,
         }))
       )

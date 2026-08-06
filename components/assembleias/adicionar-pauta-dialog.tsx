@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { adicionarPautaAssembleiaAction } from "@/app/actions/assembleias"
 import { notificarNovaPautaAction } from "@/app/actions/assembleia-votos"
+import { Label } from "@/components/ui/label"
 import { MIN_OPCOES } from "@/components/assembleias/use-assembleia-form"
 import type { PautaTipo } from "@/types"
 
@@ -37,6 +38,7 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
   const [descricao, setDescricao] = useState("")
   const [tipo, setTipo] = useState<PautaTipo>("sim_nao")
   const [permiteAbstencao, setPermiteAbstencao] = useState(true)
+  const [quorumAprovacao, setQuorumAprovacao] = useState("50")
   const [opcoes, setOpcoes] = useState<string[]>(["", ""])
   const [pautaCriadaId, setPautaCriadaId] = useState<string | null>(null)
   const [participantesParaNotificar, setParticipantesParaNotificar] = useState(0)
@@ -49,6 +51,7 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
     setDescricao("")
     setTipo("sim_nao")
     setPermiteAbstencao(true)
+    setQuorumAprovacao("50")
     setOpcoes(["", ""])
     setPautaCriadaId(null)
     setParticipantesParaNotificar(0)
@@ -60,8 +63,12 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
   }
 
   const opcoesValidas = opcoes.map((o) => o.trim()).filter(Boolean).length
+  const quorumNum = Number(quorumAprovacao.replace(",", "."))
+  const quorumValido = !Number.isNaN(quorumNum) && quorumNum > 0 && quorumNum <= 100
   const canSubmit =
-    titulo.trim().length > 0 && (tipo !== "multipla_escolha" || opcoesValidas >= MIN_OPCOES)
+    titulo.trim().length > 0 &&
+    (tipo !== "multipla_escolha" || opcoesValidas >= MIN_OPCOES) &&
+    (tipo !== "sim_nao" || quorumValido)
 
   function handleCriar() {
     startTransition(async () => {
@@ -73,6 +80,7 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
           descricao,
           tipo,
           permite_abstencao: permiteAbstencao,
+          quorum_aprovacao: tipo === "sim_nao" ? quorumNum / 100 : undefined,
           opcoes: tipo === "multipla_escolha" ? opcoes : undefined,
         },
       })
@@ -169,6 +177,24 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
                   Múltipla escolha
                 </button>
               </div>
+
+              {tipo === "sim_nao" && (
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="add-pauta-quorum" className="shrink-0 text-xs text-muted-foreground">
+                    Quórum de aprovação (%)
+                  </Label>
+                  <Input
+                    id="add-pauta-quorum"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    value={quorumAprovacao}
+                    onChange={(e) => setQuorumAprovacao(e.target.value)}
+                    className="h-7 text-xs"
+                  />
+                </div>
+              )}
 
               {tipo === "multipla_escolha" && (
                 <div className="space-y-2 rounded-md border border-border/50 bg-muted/20 p-2">

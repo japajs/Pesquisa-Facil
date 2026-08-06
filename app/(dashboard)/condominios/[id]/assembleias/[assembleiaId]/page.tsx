@@ -44,15 +44,21 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
 
   const pautas = assembleia.pautas ?? []
 
-  const apuracao = await getApuracaoAssembleia(assembleiaId, pautas).catch(() => ({
+  const apuracao = await getApuracaoAssembleia(assembleiaId, pautas, condominioId).catch(() => ({
     pautas: pautas.map((p) => ({
       pauta: p,
       por_participantes: { sim: 0, nao: 0, abstencao: 0 },
       ponderado: { sim: 0, nao: 0, abstencao: 0 },
       total_apartamentos_representados: 0,
+      percentual_aprovacao: null,
+      aprovada: null,
     })),
     total_enviados: 0,
     total_respondidos: 0,
+    peso_total_condominio: 0,
+    peso_representado: 0,
+    percentual_quorum: null,
+    quorum_atingido: null,
   }))
 
   const historicoParticipacao = await getHistoricoParticipacao(assembleiaId, pautas.length).catch(

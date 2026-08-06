@@ -90,6 +90,22 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     ["Responderam", apuracao.total_respondidos],
     ["Taxa de participação", taxaPart],
     [],
+    // Auditoria de assembleias — Fase 1: quórum sobre o peso do CONDOMÍNIO
+    // INTEIRO (todas as unidades), métrica diferente da Participação acima
+    // (que é só sobre quem recebeu convite). Só aparece quando a assembleia
+    // tem quorum_minimo configurado.
+    ...(assembleia.quorum_minimo !== null
+      ? ([
+          ["QUÓRUM MÍNIMO"],
+          ["Exigido", pctStr(assembleia.quorum_minimo, 1)],
+          ["Atingido", pctStr(apuracao.percentual_quorum ?? 0, 1)],
+          [
+            "Resultado",
+            apuracao.quorum_atingido ? "QUÓRUM ATINGIDO" : "QUÓRUM NÃO ATINGIDO",
+          ],
+          [],
+        ] as (string | number)[][])
+      : []),
     ["PAUTAS VOTADAS", assembleia.pautas?.length ?? 0],
     ...(assembleia.pautas ?? []).map((p, i) => [`Pauta ${i + 1}`, p.titulo]),
     [],
@@ -128,6 +144,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     "% NÃO (unid.)",
     "% Abst. (unid.)",
     "Resultado (part.)",
+    "Quórum exigido",
     "Resultado (ponderado)",
     "Incluída após abertura",
   ]
@@ -158,14 +175,12 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
           : p.por_participantes.nao > p.por_participantes.sim
             ? "NÃO"
             : "EMPATE"
-    const vW =
-      tw === 0
-        ? "SEM VOTOS"
-        : p.ponderado.sim > p.ponderado.nao
-          ? "SIM"
-          : p.ponderado.nao > p.ponderado.sim
-            ? "NÃO"
-            : "EMPATE"
+    // Auditoria de assembleias — Fase 1: `p.aprovada` já vem calculado do
+    // servidor respeitando pauta.quorum_aprovacao (maioria simples, 2/3,
+    // unanimidade etc.) — nunca mais ">50%" fixo aqui. Este é o documento
+    // oficial de apuração, o lugar mais importante pra essa conta estar
+    // certa.
+    const vW = p.aprovada === null ? "SEM VOTOS" : p.aprovada ? "APROVADA" : "REJEITADA"
 
     return [
       i + 1,
@@ -185,6 +200,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
       pctStr(p.ponderado.nao, tw),
       pctStr(p.ponderado.abstencao, tw),
       vP,
+      pctStr(p.pauta.quorum_aprovacao, 1),
       vW,
       foiIncluidaAposAbertura(p.pauta.created_at),
     ]
@@ -197,7 +213,7 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     { wch: 8 }, { wch: 8 }, { wch: 8 },
     { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
     { wch: 14 }, { wch: 14 }, { wch: 14 },
-    { wch: 18 }, { wch: 22 }, { wch: 18 },
+    { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 18 },
   ]
   boldRow(wsRes, 0, resHeader.length)
   XLSX.utils.book_append_sheet(wb, wsRes, "Resultados por Pauta")

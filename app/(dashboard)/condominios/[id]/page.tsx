@@ -111,6 +111,7 @@ export default async function CondominioDetailPage({ params }: Props) {
           condominioId={id}
           proprietariosQueJaVotaram={proprietariosQueJaVotaram}
           isAdmin={session?.perfil === "administrador"}
+          criterioPeso={condominio.criterio_peso}
         />
       </section>
     </div>

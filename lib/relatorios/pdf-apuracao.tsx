@@ -201,8 +201,8 @@ const s = StyleSheet.create({
 })
 
 function verdictColor(v: string): string {
-  if (v === "SIM") return C.sim
-  if (v === "NÃO") return C.nao
+  if (v === "SIM" || v === "APROVADA") return C.sim
+  if (v === "NÃO" || v === "REJEITADA") return C.nao
   if (v === "EMPATE") return C.muted
   return C.muted
 }
@@ -212,6 +212,15 @@ function calcVerdict(sim: number, nao: number, total: number): string {
   if (sim > nao) return "SIM"
   if (nao > sim) return "NÃO"
   return "EMPATE"
+}
+
+// Auditoria de assembleias — Fase 1: aprovação ponderada respeita
+// pauta.quorum_aprovacao (maioria simples, 2/3, unanimidade etc.) — nunca
+// mais ">50%" fixo. Este PDF é o documento oficial de apuração (a ata),
+// então é o lugar mais importante pra essa conta estar certa.
+function verdictAprovacao(aprovada: boolean | null): string {
+  if (aprovada === null) return "SEM VOTOS"
+  return aprovada ? "APROVADA" : "REJEITADA"
 }
 
 const CORES_OPCOES = ["#4F46E5", "#0EA5E9", "#15803D", "#D946EF", "#EA580C", "#0D9488"]
@@ -559,6 +568,32 @@ export function ApuracaoPDF({
           </View>
         </View>
 
+        {/* Auditoria de assembleias — Fase 1: quórum sobre o peso do
+            CONDOMÍNIO INTEIRO (todas as unidades), diferente da
+            Participação acima (que é só sobre quem recebeu convite). Só
+            aparece quando a assembleia tem quorum_minimo configurado. */}
+        {assembleia.quorum_minimo !== null ? (
+          <>
+            <Text style={s.sectionLabel}>QUÓRUM MÍNIMO</Text>
+            <View style={s.partRow}>
+              <View style={[s.partCell, s.partBorderR]}>
+                <Text style={s.partNum}>{pctStr(assembleia.quorum_minimo, 1)}</Text>
+                <Text style={s.partLbl}>Exigido</Text>
+              </View>
+              <View style={[s.partCell, s.partBorderR]}>
+                <Text style={s.partNum}>{pctStr(apuracao.percentual_quorum ?? 0, 1)}</Text>
+                <Text style={s.partLbl}>Atingido</Text>
+              </View>
+              <View style={s.partCell}>
+                <Text style={[s.partNum, { color: apuracao.quorum_atingido ? C.sim : C.nao }]}>
+                  {apuracao.quorum_atingido ? "SIM" : "NÃO"}
+                </Text>
+                <Text style={s.partLbl}>Quórum atingido?</Text>
+              </View>
+            </View>
+          </>
+        ) : null}
+
         {/* ── Pautas ────────────────────────── */}
         <Text style={s.sectionLabel}>RESULTADOS POR PAUTA</Text>
 
@@ -568,7 +603,7 @@ export function ApuracaoPDF({
             por_participantes.sim + por_participantes.nao + por_participantes.abstencao
           const tw = ponderado.sim + ponderado.nao + ponderado.abstencao
           const vP = calcVerdict(por_participantes.sim, por_participantes.nao, tp)
-          const vW = calcVerdict(ponderado.sim, ponderado.nao, tw)
+          const vW = verdictAprovacao(item.aprovada)
           const votosPauta = votosDetalhados.filter((v) => v.pauta_id === pauta.id)
 
           return (
@@ -617,8 +652,8 @@ export function ApuracaoPDF({
                         verdict={vW}
                         verdictSub={
                           total_apartamentos_representados > 0
-                            ? `${total_apartamentos_representados} apt(s) representado(s)`
-                            : undefined
+                            ? `${total_apartamentos_representados} apt(s) representado(s) · quórum exigido: ${Math.round(pauta.quorum_aprovacao * 100)}%`
+                            : `quórum exigido: ${Math.round(pauta.quorum_aprovacao * 100)}%`
                         }
                         full
                       />
@@ -649,8 +684,8 @@ export function ApuracaoPDF({
                         verdict={vW}
                         verdictSub={
                           total_apartamentos_representados > 0
-                            ? `${total_apartamentos_representados} apt(s) representado(s)`
-                            : undefined
+                            ? `${total_apartamentos_representados} apt(s) representado(s) · quórum exigido: ${Math.round(pauta.quorum_aprovacao * 100)}%`
+                            : `quórum exigido: ${Math.round(pauta.quorum_aprovacao * 100)}%`
                         }
                         full={false}
                       />

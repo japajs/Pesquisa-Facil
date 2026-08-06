@@ -96,6 +96,7 @@ export type Database = {
           endereco: string | null
           sindico_nome: string | null
           sindico_contato: string | null
+          criterio_peso: "unidade" | "fracao_ideal"
           created_at: string
         }
         Insert: {
@@ -104,6 +105,7 @@ export type Database = {
           endereco?: string | null
           sindico_nome?: string | null
           sindico_contato?: string | null
+          criterio_peso?: "unidade" | "fracao_ideal"
           created_at?: string
         }
         Update: {
@@ -111,6 +113,7 @@ export type Database = {
           endereco?: string | null
           sindico_nome?: string | null
           sindico_contato?: string | null
+          criterio_peso?: "unidade" | "fracao_ideal"
         }
         Relationships: []
       }
@@ -154,6 +157,7 @@ export type Database = {
           condominio_id: string
           numero: string
           bloco: string | null
+          fracao_ideal: number | null
           numero_normalizado: string
           created_at: string
         }
@@ -163,11 +167,13 @@ export type Database = {
           condominio_id: string
           numero: string
           bloco?: string | null
+          fracao_ideal?: number | null
           created_at?: string
         }
         Update: {
           numero?: string
           bloco?: string | null
+          fracao_ideal?: number | null
           proprietario_id?: string
           condominio_id?: string
         }
@@ -182,6 +188,7 @@ export type Database = {
           status: "rascunho" | "aberta" | "encerrada"
           data_abertura: string | null
           data_encerramento: string | null
+          quorum_minimo: number | null
           created_at: string
           updated_at: string
         }
@@ -193,6 +200,7 @@ export type Database = {
           status?: "rascunho" | "aberta" | "encerrada"
           data_abertura?: string | null
           data_encerramento?: string | null
+          quorum_minimo?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -202,6 +210,7 @@ export type Database = {
           status?: "rascunho" | "aberta" | "encerrada"
           data_abertura?: string | null
           data_encerramento?: string | null
+          quorum_minimo?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -217,6 +226,7 @@ export type Database = {
           tipo: "sim_nao" | "multipla_escolha"
           permite_abstencao: boolean
           status: "rascunho" | "aberta" | "em_votacao" | "encerrada"
+          quorum_aprovacao: number
           created_at: string
         }
         Insert: {
@@ -229,6 +239,7 @@ export type Database = {
           tipo?: "sim_nao" | "multipla_escolha"
           permite_abstencao?: boolean
           status?: "rascunho" | "aberta" | "em_votacao" | "encerrada"
+          quorum_aprovacao?: number
           created_at?: string
         }
         Update: {
@@ -239,6 +250,7 @@ export type Database = {
           tipo?: "sim_nao" | "multipla_escolha"
           permite_abstencao?: boolean
           status?: "rascunho" | "aberta" | "em_votacao" | "encerrada"
+          quorum_aprovacao?: number
         }
         Relationships: []
       }

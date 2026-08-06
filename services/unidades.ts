@@ -7,6 +7,7 @@ function rowToUnidade(row: {
   proprietario_id: string
   numero: string
   bloco: string | null
+  fracao_ideal: number | null
   created_at: string
 }): Unidade {
   return {
@@ -14,6 +15,7 @@ function rowToUnidade(row: {
     proprietario_id: row.proprietario_id,
     numero: row.numero,
     bloco: row.bloco,
+    fracao_ideal: row.fracao_ideal,
     created_at: row.created_at,
   }
 }
@@ -84,7 +86,7 @@ async function getCondominioIdDoProprietario(
 }
 
 export async function createUnidade(
-  input: Pick<Unidade, "proprietario_id" | "numero" | "bloco">
+  input: Pick<Unidade, "proprietario_id" | "numero" | "bloco"> & { fracao_ideal?: number | null }
 ): Promise<Unidade> {
   const db = createServerClient()
 
@@ -103,6 +105,7 @@ export async function createUnidade(
       proprietario_id: input.proprietario_id,
       numero: input.numero,
       bloco: input.bloco,
+      fracao_ideal: input.fracao_ideal ?? null,
       condominio_id: condominioId,
     })
     .select()
@@ -114,7 +117,7 @@ export async function createUnidade(
 
 export async function updateUnidade(
   id: string,
-  input: Partial<Pick<Unidade, "numero" | "bloco" | "proprietario_id">>
+  input: Partial<Pick<Unidade, "numero" | "bloco" | "proprietario_id" | "fracao_ideal">>
 ): Promise<Unidade> {
   const db = createServerClient()
 
@@ -148,6 +151,7 @@ export async function updateUnidade(
     .update({
       ...(input.numero !== undefined && { numero: input.numero }),
       ...(input.bloco !== undefined && { bloco: input.bloco }),
+      ...(input.fracao_ideal !== undefined && { fracao_ideal: input.fracao_ideal }),
       ...(input.proprietario_id !== undefined && { proprietario_id: input.proprietario_id }),
       ...(condominioId !== undefined && { condominio_id: condominioId }),
     })
@@ -157,6 +161,23 @@ export async function updateUnidade(
 
   if (error) throw new Error(error.message)
   return rowToUnidade(data)
+}
+
+// Todas as unidades de um condomínio, independente de proprietário — usado
+// pra calcular o peso TOTAL do condomínio (denominador do quórum mínimo da
+// assembleia, ver lib/peso.ts:getPesoTotalCondominio). Precisa ser todas as
+// unidades, não só as de proprietários com e-mail/convite enviado.
+export async function getUnidadesByCondominioId(
+  condominioId: string
+): Promise<Pick<Unidade, "id" | "fracao_ideal">[]> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("unidades")
+    .select("id, fracao_ideal")
+    .eq("condominio_id", condominioId)
+
+  if (error) throw new Error(error.message)
+  return data ?? []
 }
 
 export async function deleteUnidade(id: string): Promise<void> {

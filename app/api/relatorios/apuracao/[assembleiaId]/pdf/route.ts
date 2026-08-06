@@ -31,7 +31,7 @@ export async function GET(
 
   const [condominio, apuracao, votosDetalhados] = await Promise.all([
     getCondominioById(assembleia.condominio_id),
-    getApuracaoAssembleia(assembleiaId, assembleia.pautas ?? []),
+    getApuracaoAssembleia(assembleiaId, assembleia.pautas ?? [], assembleia.condominio_id),
     getVotosDetalhados(assembleiaId),
   ])
 

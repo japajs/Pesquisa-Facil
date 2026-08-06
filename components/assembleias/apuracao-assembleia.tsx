@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { Download, FileSpreadsheet, FileText, Printer, Trash2 } from "lucide-react"
+import { Download, FileSpreadsheet, FileText, Printer, Trash2, Scale } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
@@ -183,19 +183,45 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
       </div>
 
       {/* Participação geral */}
-      <div className="grid grid-cols-3 divide-x divide-border/40 rounded-xl border border-border/60 bg-card">
-        <div className="px-5 py-4 text-center">
-          <p className="text-2xl font-semibold tabular-nums">{total_enviados}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Convites enviados</p>
+      <div className="rounded-xl border border-border/60 bg-card">
+        <div className="grid grid-cols-3 divide-x divide-border/40">
+          <div className="px-5 py-4 text-center">
+            <p className="text-2xl font-semibold tabular-nums">{total_enviados}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Convites enviados</p>
+          </div>
+          <div className="px-5 py-4 text-center">
+            <p className="text-2xl font-semibold tabular-nums">{total_respondidos}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Responderam</p>
+          </div>
+          <div className="px-5 py-4 text-center">
+            <p className="text-2xl font-semibold tabular-nums">{participacao}%</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Participação</p>
+          </div>
         </div>
-        <div className="px-5 py-4 text-center">
-          <p className="text-2xl font-semibold tabular-nums">{total_respondidos}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Responderam</p>
-        </div>
-        <div className="px-5 py-4 text-center">
-          <p className="text-2xl font-semibold tabular-nums">{participacao}%</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Participação</p>
-        </div>
+
+        {/* Auditoria de assembleias — Fase 1: quórum mínimo é sobre o peso do
+            CONDOMÍNIO INTEIRO (todas as unidades), diferente da Participação
+            acima (que é só sobre quem recebeu convite). Só aparece quando a
+            assembleia tem assembleia.quorum_minimo configurado. */}
+        {apuracao.percentual_quorum !== null && (
+          <div className="flex items-center justify-between gap-3 border-t border-border/40 px-5 py-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Scale className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+              <span>Quórum do condomínio: {Math.round(apuracao.percentual_quorum * 100)}%</span>
+            </div>
+            {apuracao.quorum_atingido !== null && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  apuracao.quorum_atingido
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                {apuracao.quorum_atingido ? "Quórum atingido" : "Quórum não atingido"}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Uma seção por pauta */}
@@ -350,7 +376,7 @@ function MultiplaEscolhaApuracao({ item }: { item: PautaApuracao }) {
 }
 
 function SimNaoApuracao({ item }: { item: PautaApuracao }) {
-  const { por_participantes, ponderado, total_apartamentos_representados } = item
+  const { por_participantes, ponderado, total_apartamentos_representados, aprovada } = item
 
   const totalP = por_participantes.sim + por_participantes.nao + por_participantes.abstencao
   const totalW = ponderado.sim + ponderado.nao + ponderado.abstencao
@@ -377,14 +403,14 @@ function SimNaoApuracao({ item }: { item: PautaApuracao }) {
           ? "NÃO"
           : "EMPATE"
       : null
-  const vencedorW =
-    totalW > 0
-      ? ponderado.sim > ponderado.nao
-        ? "SIM"
-        : ponderado.nao > ponderado.sim
-          ? "NÃO"
-          : "EMPATE"
-      : null
+
+  // Auditoria de assembleias — Fase 1: `aprovada` já vem calculada do
+  // servidor respeitando pauta.quorum_aprovacao (maioria simples, 2/3,
+  // unanimidade etc.) — nunca mais ">50%" fixo aqui no client. Note que
+  // isso responde "a pauta foi aprovada?", que pode divergir de "quem teve
+  // mais votos" quando o quórum exigido é qualificado (ex.: 2/3): SIM pode
+  // ter maioria simples e ainda assim a pauta ser REJEITADA.
+  const rotuloAprovacao = aprovada === null ? "—" : aprovada ? "APROVADA" : "REJEITADA"
 
   return (
     <>
@@ -410,13 +436,18 @@ function SimNaoApuracao({ item }: { item: PautaApuracao }) {
 
         {/* Ponderado */}
         <div className="rounded-xl border border-border/60 bg-card p-5">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Resultado ponderado
-          </p>
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Resultado ponderado
+            </p>
+            <span className="text-[11px] text-muted-foreground">
+              quórum exigido: {Math.round(item.pauta.quorum_aprovacao * 100)}%
+            </span>
+          </div>
           <div className="flex items-center gap-5">
             <DonutChart
               segments={segmentsW}
-              centerLabel={vencedorW ?? "—"}
+              centerLabel={rotuloAprovacao}
               centerSub={`${total_apartamentos_representados} apts`}
             />
             <div className="flex-1 space-y-3">

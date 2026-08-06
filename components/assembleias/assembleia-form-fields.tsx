@@ -73,6 +73,26 @@ export function AssembleiaFormFields({ form, pautasEditaveis, mensagemPautasBloq
         </div>
       </div>
 
+      {/* Auditoria de assembleias — Fase 1: quórum mínimo pra assembleia
+          valer, sobre o peso do condomínio inteiro (não só quem foi
+          convidado). Vazio = sem checagem, comportamento de sempre. */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-quorum-minimo`} className="text-xs">
+          Quórum mínimo (%) <span className="font-normal text-muted-foreground">(opcional)</span>
+        </Label>
+        <Input
+          id={`${idPrefix}-quorum-minimo`}
+          type="number"
+          inputMode="decimal"
+          min={0}
+          max={100}
+          placeholder="Ex.: 50 — sem preencher, não checa quórum"
+          value={form.quorumMinimo}
+          onChange={(e) => form.setQuorumMinimo(e.target.value)}
+          className="text-xs"
+        />
+      </div>
+
       {/* Pautas */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -157,6 +177,31 @@ export function AssembleiaFormFields({ form, pautasEditaveis, mensagemPautasBloq
                     Múltipla escolha
                   </button>
                 </div>
+
+                {/* Auditoria de assembleias — Fase 1: só se aplica a Sim/Não
+                    — múltipla escolha não tem "aprovada", é sempre "opção
+                    mais votada" (ver services/assembleia-votos.ts). */}
+                {pauta.tipo === "sim_nao" && (
+                  <div className="flex items-center gap-1.5">
+                    <Label
+                      htmlFor={`${idPrefix}-pauta-${i}-quorum`}
+                      className="shrink-0 text-xs text-muted-foreground"
+                    >
+                      Quórum de aprovação (%)
+                    </Label>
+                    <Input
+                      id={`${idPrefix}-pauta-${i}-quorum`}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={100}
+                      value={pauta.quorumAprovacao}
+                      onChange={(e) => form.updatePautaQuorum(i, e.target.value)}
+                      disabled={!pautasEditaveis}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                )}
 
                 {pauta.tipo === "multipla_escolha" && (
                   <div className="space-y-2 rounded-md border border-border/50 bg-card/60 p-2">

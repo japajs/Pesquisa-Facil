@@ -34,11 +34,13 @@ export function CriarAssembleiaDialog({ condominioId }: { condominioId: string }
         descricao: form.descricao,
         data_abertura: form.dataAbertura ? new Date(form.dataAbertura).toISOString() : null,
         data_encerramento: form.dataEncerramento ? new Date(form.dataEncerramento).toISOString() : null,
+        quorum_minimo: form.pctParaFracao(form.quorumMinimo) ?? null,
         pautas: form.pautas.map((p) => ({
           titulo: p.titulo,
           descricao: p.descricao,
           tipo: p.tipo,
           permite_abstencao: p.permiteAbstencao,
+          quorum_aprovacao: form.pctParaFracao(p.quorumAprovacao),
           opcoes: p.tipo === "multipla_escolha" ? p.opcoes : undefined,
         })),
       })

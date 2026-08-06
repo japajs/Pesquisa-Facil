@@ -9,6 +9,10 @@ export interface PautaFormState {
   descricao: string
   tipo: PautaTipo
   permiteAbstencao: boolean
+  // Percentual (0–100) de Sim sobre Sim+Não exigido pra aprovar — texto no
+  // form pra aceitar campo vazio/em edição; convertido pra fração (0–1) só
+  // na hora de enviar (ver services/pautas.ts). "50" = maioria simples.
+  quorumAprovacao: string
   opcoes: string[]
 }
 
@@ -17,11 +21,21 @@ export interface AssembleiaFormValues {
   descricao: string
   dataAbertura: string
   dataEncerramento: string
+  // Percentual (0–100) do peso do condomínio inteiro exigido pra
+  // assembleia valer. Vazio = sem checagem de quórum mínimo.
+  quorumMinimo: string
   pautas: PautaFormState[]
 }
 
 export function novaPauta(): PautaFormState {
-  return { titulo: "", descricao: "", tipo: "sim_nao", permiteAbstencao: true, opcoes: [] }
+  return {
+    titulo: "",
+    descricao: "",
+    tipo: "sim_nao",
+    permiteAbstencao: true,
+    quorumAprovacao: "50",
+    opcoes: [],
+  }
 }
 
 function valoresIniciais(initial?: Partial<AssembleiaFormValues>): AssembleiaFormValues {
@@ -30,6 +44,7 @@ function valoresIniciais(initial?: Partial<AssembleiaFormValues>): AssembleiaFor
     descricao: initial?.descricao ?? "",
     dataAbertura: initial?.dataAbertura ?? "",
     dataEncerramento: initial?.dataEncerramento ?? "",
+    quorumMinimo: initial?.quorumMinimo ?? "",
     pautas: initial?.pautas?.length ? initial.pautas : [novaPauta()],
   }
 }
@@ -42,6 +57,7 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
   const [descricao, setDescricao] = useState(() => valoresIniciais(initial).descricao)
   const [dataAbertura, setDataAbertura] = useState(() => valoresIniciais(initial).dataAbertura)
   const [dataEncerramento, setDataEncerramento] = useState(() => valoresIniciais(initial).dataEncerramento)
+  const [quorumMinimo, setQuorumMinimo] = useState(() => valoresIniciais(initial).quorumMinimo)
   const [pautas, setPautas] = useState<PautaFormState[]>(() => valoresIniciais(initial).pautas)
 
   function reset(values?: Partial<AssembleiaFormValues>) {
@@ -50,6 +66,7 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     setDescricao(v.descricao)
     setDataAbertura(v.dataAbertura)
     setDataEncerramento(v.dataEncerramento)
+    setQuorumMinimo(v.quorumMinimo)
     setPautas(v.pautas)
   }
 
@@ -64,6 +81,10 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
 
   function updatePauta(index: number, field: "titulo" | "descricao", value: string) {
     setPautas((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)))
+  }
+
+  function updatePautaQuorum(index: number, value: string) {
+    setPautas((prev) => prev.map((p, i) => (i === index ? { ...p, quorumAprovacao: value } : p)))
   }
 
   function updatePautaTipo(index: number, tipo: PautaTipo) {
@@ -119,11 +140,27 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     )
   }
 
+  // Percentual em texto → fração (0–1) pra enviar ao servidor. Vazio =
+  // undefined (sem checagem, no caso do quórum mínimo da assembleia).
+  function pctParaFracao(texto: string): number | undefined {
+    if (texto.trim() === "") return undefined
+    const n = Number(texto.replace(",", "."))
+    return Number.isNaN(n) ? NaN : n / 100
+  }
+
+  function quorumValido(texto: string, obrigatorio: boolean): boolean {
+    const fracao = pctParaFracao(texto)
+    if (fracao === undefined) return !obrigatorio
+    return !Number.isNaN(fracao) && fracao > 0 && fracao <= 1
+  }
+
   const canSubmit =
     titulo.trim().length > 0 &&
+    quorumValido(quorumMinimo, false) &&
     pautas.length > 0 &&
     pautas.every((p) => {
       if (!p.titulo.trim()) return false
+      if (!quorumValido(p.quorumAprovacao, true)) return false
       if (p.tipo !== "multipla_escolha") return true
       return p.opcoes.map((o) => o.trim()).filter(Boolean).length >= MIN_OPCOES
     })
@@ -137,11 +174,14 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     setDataAbertura,
     dataEncerramento,
     setDataEncerramento,
+    quorumMinimo,
+    setQuorumMinimo,
     pautas,
     addPauta,
     removePauta,
     updatePauta,
     updatePautaTipo,
+    updatePautaQuorum,
     togglePermiteAbstencao,
     addOpcao,
     removeOpcao,
@@ -149,6 +189,7 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     moveOpcao,
     canSubmit,
     reset,
+    pctParaFracao,
   }
 }
 

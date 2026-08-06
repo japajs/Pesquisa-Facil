@@ -11,6 +11,7 @@ type PautaRow = {
   tipo: "sim_nao" | "multipla_escolha"
   permite_abstencao: boolean
   status: PautaStatus
+  quorum_aprovacao: number
   created_at: string
   pauta_opcoes?: PautaOpcaoRow[] | null
 }
@@ -44,6 +45,7 @@ function rowToPauta(row: PautaRow): Pauta {
     tipo: row.tipo,
     permite_abstencao: row.permite_abstencao,
     status: row.status,
+    quorum_aprovacao: row.quorum_aprovacao,
     created_at: row.created_at,
     opcoes: row.pauta_opcoes
       ? row.pauta_opcoes.map(rowToPautaOpcao).sort((a, b) => a.ordem - b.ordem)
@@ -67,6 +69,7 @@ export async function createPautasBatch(
   pautas: (Pick<Pauta, "assembleia_id" | "ordem" | "titulo" | "descricao"> & {
     tipo?: Pauta["tipo"]
     permite_abstencao?: boolean
+    quorum_aprovacao?: number
     opcoes?: string[]
   })[]
 ): Promise<Pauta[]> {
@@ -81,6 +84,7 @@ export async function createPautasBatch(
         descricao: p.descricao,
         tipo: p.tipo ?? "sim_nao",
         permite_abstencao: p.permite_abstencao ?? true,
+        quorum_aprovacao: p.quorum_aprovacao ?? 0.5,
       }))
     )
     .select()
@@ -150,6 +154,7 @@ export interface PautaEdicaoIndividualInput {
   descricao: string | null
   tipo: Pauta["tipo"]
   permite_abstencao: boolean
+  quorum_aprovacao: number
   opcoes?: string[] // só relevante quando tipo === "multipla_escolha"
 }
 
@@ -175,6 +180,7 @@ export async function updatePautaIndividual(
       descricao: dados.descricao,
       tipo: dados.tipo,
       permite_abstencao: dados.permite_abstencao,
+      quorum_aprovacao: dados.quorum_aprovacao,
     })
     .eq("id", pautaId)
   if (error) throw new Error(error.message)

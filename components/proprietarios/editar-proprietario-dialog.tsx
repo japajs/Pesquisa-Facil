@@ -19,9 +19,10 @@ import {
   updateProprietarioAction,
   updateCpfProprietarioAction,
   transferUnidadeAction,
+  updateFracaoIdealAction,
 } from "@/app/actions/proprietarios"
 import { formatUnidade } from "@/lib/unidade-format"
-import type { Proprietario } from "@/types"
+import type { Proprietario, CriterioPeso } from "@/types"
 
 interface Props {
   proprietario: Proprietario
@@ -29,6 +30,9 @@ interface Props {
   todosProprietarios: Proprietario[]
   jaVotou: boolean
   isAdmin: boolean
+  // Só mostra o campo de fração ideal quando o condomínio realmente usa
+  // esse critério de peso — evita confundir quem vota por unidade.
+  criterioPeso: CriterioPeso
 }
 
 function formatDate(iso: string): string {
@@ -84,8 +88,37 @@ export function EditarProprietarioDialog({
   todosProprietarios,
   jaVotou,
   isAdmin,
+  criterioPeso,
 }: Props) {
   const [open, setOpen] = useState(false)
+
+  const [fracaoIdealPorUnidade, setFracaoIdealPorUnidade] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        (proprietario.unidades ?? []).map((u) => [u.id, u.fracao_ideal?.toString() ?? ""])
+      )
+  )
+  const [salvandoFracaoId, setSalvandoFracaoId] = useState<string | null>(null)
+  const [, startTransitionFracao] = useTransition()
+
+  function handleSalvarFracaoIdeal(unidadeId: string) {
+    const bruto = fracaoIdealPorUnidade[unidadeId]?.trim() ?? ""
+    const valor = bruto === "" ? null : Number(bruto.replace(",", "."))
+    if (valor !== null && Number.isNaN(valor)) {
+      toast.error("Fração ideal inválida.")
+      return
+    }
+    setSalvandoFracaoId(unidadeId)
+    startTransitionFracao(async () => {
+      const result = await updateFracaoIdealAction(unidadeId, condominioId, valor)
+      setSalvandoFracaoId(null)
+      if (result.success) {
+        toast.success("Fração ideal salva.")
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
 
   const [nome, setNome] = useState(proprietario.nome)
   const [email, setEmail] = useState(proprietario.email ?? "")
@@ -390,6 +423,31 @@ export function EditarProprietarioDialog({
                       {transferindoUnidadeId === u.id ? "Cancelar" : "Transferir…"}
                     </button>
                   </div>
+
+                  {criterioPeso === "fracao_ideal" && (
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor={`fracao-${u.id}`} className="text-xs text-muted-foreground shrink-0">
+                        Fração ideal
+                      </Label>
+                      <Input
+                        id={`fracao-${u.id}`}
+                        inputMode="decimal"
+                        placeholder="ex.: 0.014235"
+                        className="h-7 text-xs"
+                        value={fracaoIdealPorUnidade[u.id] ?? ""}
+                        onChange={(e) =>
+                          setFracaoIdealPorUnidade((prev) => ({ ...prev, [u.id]: e.target.value }))
+                        }
+                        onBlur={() => {
+                          const original = u.fracao_ideal?.toString() ?? ""
+                          if ((fracaoIdealPorUnidade[u.id] ?? "") !== original) {
+                            handleSalvarFracaoIdeal(u.id)
+                          }
+                        }}
+                        disabled={salvandoFracaoId === u.id}
+                      />
+                    </div>
+                  )}
 
                   {transferindoUnidadeId === u.id && (
                     <div className="space-y-2 rounded-md bg-muted/30 p-2">

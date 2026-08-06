@@ -1,12 +1,15 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { getPesoParticipante } from "@/lib/peso"
+import { getPesoParticipante, getPesoTotalCondominio } from "@/lib/peso"
 import { marcarPautaEmVotacaoSeNecessario } from "@/services/pautas"
+import { getCondominioById } from "@/services/condominios"
+import { getUnidadesByCondominioId } from "@/services/unidades"
 import type {
   AssembleiaSend,
   AssembleiaResposta,
   AssembleiaRespostaValor,
   AssembleiaApuracao,
   AssembleiaStatus,
+  CriterioPeso,
   OpcaoApuracao,
   Pauta,
   PautaOpcao,
@@ -32,6 +35,7 @@ type JoinedPauta = {
   tipo: Pauta["tipo"]
   permite_abstencao: boolean
   status: PautaStatus
+  quorum_aprovacao: number
   created_at: string
   pauta_opcoes: JoinedPautaOpcao[] | null
 }
@@ -48,11 +52,13 @@ function rowToPautaOpcao(row: JoinedPautaOpcao): PautaOpcao {
 
 type JoinedAssembleia = {
   id: string
+  condominio_id: string
   titulo: string
   descricao: string | null
   status: AssembleiaStatus
   data_abertura: string | null
   data_encerramento: string | null
+  quorum_minimo: number | null
   condominios: { nome: string } | null
   pautas: JoinedPauta[] | null
 }
@@ -85,7 +91,7 @@ type JoinedSend = JoinedSendSnapshot & {
 }
 
 const SELECT_SEND_JOINED =
-  "*, assembleias(id, titulo, descricao, status, data_abertura, data_encerramento, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, status, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
+  "*, assembleias(id, condominio_id, titulo, descricao, status, data_abertura, data_encerramento, quorum_minimo, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, status, quorum_aprovacao, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
 
 function rowToSend(row: JoinedSend): AssembleiaSend {
   const a = row.assembleias
@@ -110,11 +116,13 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
     assembleia: a
       ? {
           id: a.id,
+          condominio_id: a.condominio_id,
           titulo: a.titulo,
           descricao: a.descricao,
           status: a.status,
           data_abertura: a.data_abertura,
           data_encerramento: a.data_encerramento,
+          quorum_minimo: a.quorum_minimo,
           condominio_nome: a.condominios?.nome ?? null,
           pautas: (a.pautas ?? [])
             .map((p) => ({
@@ -127,6 +135,7 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
               tipo: p.tipo,
               permite_abstencao: p.permite_abstencao,
               status: p.status,
+              quorum_aprovacao: p.quorum_aprovacao,
               created_at: p.created_at,
               opcoes: p.pauta_opcoes
                 ? [...p.pauta_opcoes].sort((x, y) => x.ordem - y.ordem).map(rowToPautaOpcao)
@@ -231,9 +240,9 @@ type SendComProprietarioCompleto = {
     cpf: string | null
     email: string | null
     telefone: string | null
-    unidades: { numero: string; bloco: string | null }[] | null
+    unidades: { numero: string; bloco: string | null; fracao_ideal: number | null }[] | null
   } | null
-  assembleias: { status: AssembleiaStatus } | null
+  assembleias: { status: AssembleiaStatus; condominios: { criterio_peso: CriterioPeso } | null } | null
 }
 
 export interface ContextoVoto {
@@ -309,7 +318,7 @@ export async function createAssembleiaRespostas(
   const { data: sendRow, error: sendError } = await db
     .from("assembleia_sends")
     .select(
-      "assembleia_id, votado_em, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco)), assembleias(status)"
+      "assembleia_id, votado_em, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco, fracao_ideal)), assembleias(status, condominios(criterio_peso))"
     )
     .eq("id", sendId)
     .single()
@@ -327,7 +336,8 @@ export async function createAssembleiaRespostas(
   )
 
   const unidades = proprietario?.unidades ?? []
-  const peso = getPesoParticipante({ unidades })
+  const criterioPeso = send.assembleias?.condominios?.criterio_peso ?? "unidade"
+  const peso = getPesoParticipante({ unidades }, criterioPeso)
 
   const { error } = await db.from("assembleia_respostas").insert(
     respostas.map((r) => ({
@@ -376,9 +386,25 @@ type ApuracaoRow = {
   peso: number
 }
 
+// Auditoria de assembleias — Fase 1: Sim / (Sim + Não), ponderado —
+// abstenção não entra no denominador (não conta a favor nem contra, regra
+// mais comum em assembleia de condomínio). Comparado com
+// pauta.quorum_aprovacao pra decidir `aprovada`. Null se ninguém votou Sim
+// nem Não ainda.
+function calcularAprovacao(
+  ponderadoSim: number,
+  ponderadoNao: number,
+  quorumAprovacao: number
+): { percentual_aprovacao: number | null; aprovada: boolean | null } {
+  const base = ponderadoSim + ponderadoNao
+  if (base === 0) return { percentual_aprovacao: null, aprovada: null }
+  const percentual = ponderadoSim / base
+  return { percentual_aprovacao: percentual, aprovada: percentual >= quorumAprovacao }
+}
+
 // Apuração de uma pauta "sim_nao" — lê o peso congelado em cada resposta
 // (nunca recalculado a partir das unidades atuais do proprietário).
-function apurarSimNao(pautaRows: ApuracaoRow[]) {
+function apurarSimNao(pautaRows: ApuracaoRow[], quorumAprovacao: number) {
   let participantesSim = 0
   let participantesNao = 0
   let participantesAbstencao = 0
@@ -407,6 +433,7 @@ function apurarSimNao(pautaRows: ApuracaoRow[]) {
     por_participantes: { sim: participantesSim, nao: participantesNao, abstencao: participantesAbstencao },
     ponderado: { sim: ponderadoSim, nao: ponderadoNao, abstencao: ponderadoAbstencao },
     total_apartamentos_representados: totalApartamentos,
+    ...calcularAprovacao(ponderadoSim, ponderadoNao, quorumAprovacao),
   }
 }
 
@@ -448,6 +475,12 @@ function apurarMultiplaEscolha(pauta: Pauta, pautaRows: ApuracaoRow[]) {
     por_participantes: { sim: 0, nao: 0, abstencao: participantesAbstencao },
     ponderado: { sim: 0, nao: 0, abstencao: ponderadoAbstencao },
     total_apartamentos_representados: totalApartamentos,
+    // Auditoria de assembleias — Fase 1: "aprovada" (Sim vs Não acima de um
+    // quórum) não se aplica a múltipla escolha — aqui o resultado é sempre
+    // "qual opção teve mais votos", não um passa/não passa. Ver
+    // PautaApuracao.aprovada em types/index.ts.
+    percentual_aprovacao: null,
+    aprovada: null,
     opcoes_resultado,
   }
 }
@@ -455,42 +488,78 @@ function apurarMultiplaEscolha(pauta: Pauta, pautaRows: ApuracaoRow[]) {
 // O peso de cada resposta já vem congelado em `peso` (ver createAssembleiaRespostas)
 // — a apuração só soma o que foi gravado no momento do voto, nunca recalcula
 // a partir das unidades atuais do proprietário.
+//
+// Auditoria de assembleias — Fase 1: `condominioId` é usado só para o
+// quórum mínimo (peso_total_condominio) — precisa ser o peso de TODAS as
+// unidades do condomínio, não só de quem recebeu convite (ver
+// lib/peso.ts:getPesoTotalCondominio), senão um proprietário sem e-mail
+// cadastrado infla artificialmente o percentual de quórum atingido.
 export async function getApuracaoAssembleia(
   assembleiaId: string,
-  pautas: Pauta[]
+  pautas: Pauta[],
+  condominioId: string
 ): Promise<AssembleiaApuracao> {
   const db = createServerClient()
 
-  const [respostasRes, sendsCount, respondidosCount] = await Promise.all([
-    db
-      .from("assembleia_respostas")
-      .select("pauta_id, resposta, opcao_id, peso, assembleia_sends!inner(assembleia_id)")
-      .eq("assembleia_sends.assembleia_id", assembleiaId),
-    db
-      .from("assembleia_sends")
-      .select("*", { count: "exact", head: true })
-      .eq("assembleia_id", assembleiaId),
-    // Votação parcial: um participante pode responder só parte das pautas,
-    // então "quem respondeu" não é mais igual a "quantos responderam a
-    // primeira pauta" (suposição antiga, só válida quando tudo era
-    // respondido de uma vez só). `votado_em` é gravado uma única vez, no 1º
-    // voto de cada send (ver createAssembleiaRespostas) — contar por ele dá
-    // o total de participantes distintos que já votaram, sem depender de
-    // nenhuma pauta específica.
-    db
-      .from("assembleia_sends")
-      .select("*", { count: "exact", head: true })
-      .eq("assembleia_id", assembleiaId)
-      .not("votado_em", "is", null),
-  ])
+  const [respostasRes, sendsCount, respondidosCount, pesoRepresentadoRes, quorumMinimoRes, condominio, unidadesCondominio] =
+    await Promise.all([
+      db
+        .from("assembleia_respostas")
+        .select("pauta_id, resposta, opcao_id, peso, assembleia_sends!inner(assembleia_id)")
+        .eq("assembleia_sends.assembleia_id", assembleiaId),
+      db
+        .from("assembleia_sends")
+        .select("*", { count: "exact", head: true })
+        .eq("assembleia_id", assembleiaId),
+      // Votação parcial: um participante pode responder só parte das pautas,
+      // então "quem respondeu" não é mais igual a "quantos responderam a
+      // primeira pauta" (suposição antiga, só válida quando tudo era
+      // respondido de uma vez só). `votado_em` é gravado uma única vez, no 1º
+      // voto de cada send (ver createAssembleiaRespostas) — contar por ele dá
+      // o total de participantes distintos que já votaram, sem depender de
+      // nenhuma pauta específica.
+      db
+        .from("assembleia_sends")
+        .select("*", { count: "exact", head: true })
+        .eq("assembleia_id", assembleiaId)
+        .not("votado_em", "is", null),
+      // Peso representado = peso_snapshot (congelado 1x por participante, ver
+      // createAssembleiaRespostas), somado por participante distinto — nunca
+      // somar assembleia_respostas.peso aqui, que é por PAUTA e dobraria/
+      // triplicaria a contagem de quem votou em mais de uma pauta.
+      db
+        .from("assembleia_sends")
+        .select("peso_snapshot")
+        .eq("assembleia_id", assembleiaId)
+        .not("votado_em", "is", null),
+      db.from("assembleias").select("quorum_minimo").eq("id", assembleiaId).single(),
+      getCondominioById(condominioId),
+      getUnidadesByCondominioId(condominioId),
+    ])
 
   if (respostasRes.error) throw new Error(respostasRes.error.message)
   if (sendsCount.error) throw new Error(sendsCount.error.message)
   if (respondidosCount.error) throw new Error(respondidosCount.error.message)
+  if (pesoRepresentadoRes.error) throw new Error(pesoRepresentadoRes.error.message)
+  if (quorumMinimoRes.error) throw new Error(quorumMinimoRes.error.message)
 
   const rows = (respostasRes.data ?? []) as unknown as ApuracaoRow[]
   const total_enviados = sendsCount.count ?? 0
   const total_respondidos = respondidosCount.count ?? 0
+
+  const criterioPeso: CriterioPeso = condominio?.criterio_peso ?? "unidade"
+  const peso_total_condominio = getPesoTotalCondominio(unidadesCondominio, criterioPeso)
+  const peso_representado = (
+    (pesoRepresentadoRes.data ?? []) as { peso_snapshot: number | null }[]
+  ).reduce((soma, s) => soma + (s.peso_snapshot ?? 0), 0)
+
+  // assembleias.quorum_minimo é opcional — null = sem checagem configurada,
+  // percentual/atingido também ficam null (não é "quórum não atingido", é
+  // "não se aplica").
+  const quorumMinimo = (quorumMinimoRes.data as { quorum_minimo: number | null } | null)?.quorum_minimo ?? null
+  const percentual_quorum = peso_total_condominio > 0 ? peso_representado / peso_total_condominio : null
+  const quorum_atingido =
+    quorumMinimo === null || percentual_quorum === null ? null : percentual_quorum >= quorumMinimo
 
   // Agrupa respostas por pauta
   const byPauta = new Map<string, ApuracaoRow[]>()
@@ -505,7 +574,7 @@ export async function getApuracaoAssembleia(
     const resultado =
       pauta.tipo === "multipla_escolha"
         ? apurarMultiplaEscolha(pauta, pautaRows)
-        : apurarSimNao(pautaRows)
+        : apurarSimNao(pautaRows, pauta.quorum_aprovacao)
 
     return { pauta, ...resultado }
   })
@@ -514,6 +583,10 @@ export async function getApuracaoAssembleia(
     pautas: pautaApuracoes,
     total_enviados,
     total_respondidos,
+    peso_total_condominio,
+    peso_representado,
+    percentual_quorum,
+    quorum_atingido,
   }
 }
 

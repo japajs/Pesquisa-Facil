@@ -9,6 +9,7 @@ import {
 } from "@/services/assembleia-votos"
 import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
+import { getCondominioById } from "@/services/condominios"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
 import { APP_NAME } from "@/lib/constants"
@@ -146,7 +147,10 @@ export default async function PublicVotoPage({ params }: Props) {
 
   // ── Situação 4: Encerrada — exibir resultados ──────────────────────────────
   if (status === "encerrada") {
-    const apuracao = await getApuracaoAssembleia(assembleia.id, pautas).catch(() => null)
+    const [apuracao, condominio] = await Promise.all([
+      getApuracaoAssembleia(assembleia.id, pautas, assembleia.condominio_id).catch(() => null),
+      getCondominioById(assembleia.condominio_id).catch(() => null),
+    ])
 
     return (
       <div className="min-h-screen bg-background">
@@ -159,6 +163,7 @@ export default async function PublicVotoPage({ params }: Props) {
               data_abertura={assembleia.data_abertura ?? null}
               data_encerramento={assembleia.data_encerramento ?? null}
               apuracao={apuracao}
+              criterioPeso={condominio?.criterio_peso ?? "unidade"}
             />
           ) : (
             <div className="rounded-xl border border-border/60 bg-card px-6 py-10 text-center">

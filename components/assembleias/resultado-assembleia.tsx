@@ -1,11 +1,17 @@
-import { CheckCircle2, XCircle, Building2, CalendarDays, Users } from "lucide-react"
-import type { AssembleiaApuracao } from "@/types"
+import { CheckCircle2, XCircle, Building2, CalendarDays, Users, Scale } from "lucide-react"
+import type { AssembleiaApuracao, CriterioPeso } from "@/types"
 
 interface Props {
   condominio_nome: string | null
   data_abertura: string | null
   data_encerramento: string | null
   apuracao: AssembleiaApuracao
+  criterioPeso?: CriterioPeso
+}
+
+function formatPesoValor(valor: number, criterioPeso: CriterioPeso): string {
+  if (criterioPeso === "fracao_ideal") return `${(valor * 100).toFixed(2)}%`
+  return `${valor} ${valor === 1 ? "unidade" : "unidades"}`
 }
 
 function formatDate(iso: string | null): string {
@@ -55,12 +61,14 @@ function VotoBar({
   label,
   participantes,
   ponderado,
+  criterioPeso,
   pct: pctValue,
   color,
 }: {
   label: string
   participantes: number
   ponderado: number
+  criterioPeso: CriterioPeso
   pct: number
   color: VotoBarColor
 }) {
@@ -72,7 +80,7 @@ function VotoBar({
         <span className={`font-semibold ${textClass}`}>{label}</span>
         <span className="tabular-nums text-muted-foreground">
           {participantes} {participantes === 1 ? "participante" : "participantes"} ·{" "}
-          {ponderado} {ponderado === 1 ? "unidade" : "unidades"} ·{" "}
+          {formatPesoValor(ponderado, criterioPeso)} ·{" "}
           <span className="font-medium text-foreground">{pctValue}%</span>
         </span>
       </div>
@@ -83,8 +91,14 @@ function VotoBar({
   )
 }
 
-export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encerramento, apuracao }: Props) {
-  const { pautas, total_enviados, total_respondidos } = apuracao
+export function ResultadoAssembleia({
+  condominio_nome,
+  data_abertura,
+  data_encerramento,
+  apuracao,
+  criterioPeso = "unidade",
+}: Props) {
+  const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido } = apuracao
   const participacaoPct = pct(total_respondidos, total_enviados)
   const totalUnidades = pautas[0]?.total_apartamentos_representados ?? 0
 
@@ -134,8 +148,31 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
           <Stat label="Aptos a votar" value={total_enviados} />
           <Stat label="Votaram" value={total_respondidos} />
           <Stat label="Participação" value={`${participacaoPct}%`} highlight={participacaoPct >= 50} />
-          <Stat label="Unidades repr." value={totalUnidades} />
+          <Stat label="Unidades repr." value={formatPesoValor(totalUnidades, criterioPeso)} />
         </div>
+
+        {/* Auditoria de assembleias — Fase 1: quórum mínimo é sobre o peso do
+            CONDOMÍNIO INTEIRO (todas as unidades), não sobre quem recebeu
+            convite — por isso é uma métrica separada da Participação acima. */}
+        {percentual_quorum !== null && (
+          <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Scale className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+              <span>Quórum do condomínio: {Math.round(percentual_quorum * 100)}%</span>
+            </div>
+            {quorum_atingido !== null && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  quorum_atingido
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                {quorum_atingido ? "Quórum atingido" : "Quórum não atingido"}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Pautas */}
@@ -158,7 +195,10 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
             ? opcoesOrdenadas.reduce((sum, o) => sum + o.participantes, 0) + por_participantes.abstencao
             : por_participantes.sim + por_participantes.nao + por_participantes.abstencao
 
-          const aprovada = !multiplaEscolha && ponderado.sim > ponderado.nao
+          // Auditoria de assembleias — Fase 1: `aprovada` já vem calculada do
+          // servidor respeitando pauta.quorum_aprovacao (maioria simples,
+          // 2/3, unanimidade etc.) — nunca mais ">50%" fixo aqui no client.
+          const { aprovada } = item
           const vencedora = multiplaEscolha && opcoesOrdenadas.length > 0 && opcoesOrdenadas[0]!.ponderado > 0
             ? opcoesOrdenadas[0]
             : null
@@ -182,6 +222,10 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                       {vencedora.label}
                     </div>
                   )
+                ) : aprovada === null ? (
+                  <div className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    Sem votos
+                  </div>
                 ) : (
                   <div
                     className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
@@ -209,6 +253,7 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                         label={opcao.label}
                         participantes={opcao.participantes}
                         ponderado={opcao.ponderado}
+                        criterioPeso={criterioPeso}
                         pct={pct(opcao.ponderado, totalPonderado)}
                         color={CORES_OPCOES[oi % CORES_OPCOES.length]!}
                       />
@@ -218,6 +263,7 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                         label="ABSTENÇÃO"
                         participantes={por_participantes.abstencao}
                         ponderado={ponderado.abstencao}
+                        criterioPeso={criterioPeso}
                         pct={pct(ponderado.abstencao, totalPonderado)}
                         color="amber"
                       />
@@ -229,6 +275,7 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                       label="SIM"
                       participantes={por_participantes.sim}
                       ponderado={ponderado.sim}
+                      criterioPeso={criterioPeso}
                       pct={pct(ponderado.sim, totalPonderado)}
                       color="emerald"
                     />
@@ -236,6 +283,7 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                       label="NÃO"
                       participantes={por_participantes.nao}
                       ponderado={ponderado.nao}
+                      criterioPeso={criterioPeso}
                       pct={pct(ponderado.nao, totalPonderado)}
                       color="rose"
                     />
@@ -244,6 +292,7 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                         label="ABSTENÇÃO"
                         participantes={por_participantes.abstencao}
                         ponderado={ponderado.abstencao}
+                        criterioPeso={criterioPeso}
                         pct={pct(ponderado.abstencao, totalPonderado)}
                         color="amber"
                       />
@@ -252,8 +301,10 @@ export function ResultadoAssembleia({ condominio_nome, data_abertura, data_encer
                 )}
                 <p className="pt-1 text-xs text-muted-foreground">
                   {totalParticipantes} {totalParticipantes === 1 ? "participante" : "participantes"} ·{" "}
-                  {total_apartamentos_representados}{" "}
-                  {total_apartamentos_representados === 1 ? "unidade representada" : "unidades representadas"}
+                  {formatPesoValor(total_apartamentos_representados, criterioPeso)} representada(s)
+                  {!multiplaEscolha && (
+                    <> · quórum de aprovação exigido: {Math.round(pauta.quorum_aprovacao * 100)}%</>
+                  )}
                 </p>
               </div>
             </div>

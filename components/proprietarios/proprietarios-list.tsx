@@ -14,13 +14,19 @@ import { getPesoParticipante } from "@/lib/peso"
 import { formatUnidade, menorNumeroUnidade } from "@/lib/unidade-format"
 import { formatCelular } from "@/lib/format"
 import { EditarProprietarioDialog } from "@/components/proprietarios/editar-proprietario-dialog"
-import type { Proprietario } from "@/types"
+import type { Proprietario, CriterioPeso } from "@/types"
 
 interface ProprietariosListProps {
   proprietarios: Proprietario[]
   condominioId: string
   proprietariosQueJaVotaram?: Set<string>
   isAdmin?: boolean
+  criterioPeso?: CriterioPeso
+}
+
+function formatPeso(peso: number, criterioPeso: CriterioPeso): string {
+  if (criterioPeso === "fracao_ideal") return `${(peso * 100).toFixed(4)}%`
+  return `${peso} ${peso === 1 ? "voto" : "votos"}`
 }
 
 type Ordenacao = "nome" | "unidade"
@@ -49,6 +55,7 @@ export function ProprietariosList({
   condominioId,
   proprietariosQueJaVotaram,
   isAdmin = false,
+  criterioPeso = "unidade",
 }: ProprietariosListProps) {
   const [busca, setBusca] = useState("")
   const [ordenacao, setOrdenacao] = useState<Ordenacao>("nome")
@@ -152,6 +159,7 @@ export function ProprietariosList({
                 todosProprietarios={proprietarios}
                 jaVotou={proprietariosQueJaVotaram?.has(p.id) ?? false}
                 isAdmin={isAdmin}
+                criterioPeso={criterioPeso}
               />
             ))}
           </div>
@@ -167,12 +175,14 @@ const ProprietarioRow = memo(function ProprietarioRow({
   todosProprietarios,
   jaVotou,
   isAdmin,
+  criterioPeso,
 }: {
   proprietario: Proprietario
   condominioId: string
   todosProprietarios: Proprietario[]
   jaVotou: boolean
   isAdmin: boolean
+  criterioPeso: CriterioPeso
 }) {
   const [novaUnidade, setNovaUnidade] = useState("")
   const [showAdd, setShowAdd] = useState(false)
@@ -180,7 +190,7 @@ const ProprietarioRow = memo(function ProprietarioRow({
   const [isPendingAdd, startAddTransition] = useTransition()
   const [isPendingRemove, startRemoveTransition] = useTransition()
 
-  const peso = getPesoParticipante(proprietario)
+  const peso = getPesoParticipante(proprietario, criterioPeso)
   const unidades = proprietario.unidades ?? []
   const celular = proprietario.telefone ? formatCelular(proprietario.telefone) : null
 
@@ -220,6 +230,7 @@ const ProprietarioRow = memo(function ProprietarioRow({
         todosProprietarios={todosProprietarios}
         jaVotou={jaVotou}
         isAdmin={isAdmin}
+        criterioPeso={criterioPeso}
       />
       <Button
         variant="ghost"
@@ -251,9 +262,13 @@ const ProprietarioRow = memo(function ProprietarioRow({
           <span className="min-w-0 shrink-0 truncate lg:text-sm">{celular ?? "—"}</span>
           <span
             className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary lg:ml-0 lg:w-fit"
-            title="Quantidade de votos deste proprietário, calculada automaticamente pelo número de unidades vinculadas."
+            title={
+              criterioPeso === "fracao_ideal"
+                ? "Percentual de peso de voto deste proprietário, somado a partir da fração ideal de cada unidade vinculada."
+                : "Quantidade de votos deste proprietário, calculada automaticamente pelo número de unidades vinculadas."
+            }
           >
-            {peso} {peso === 1 ? "voto" : "votos"}
+            {formatPeso(peso, criterioPeso)}
           </span>
         </div>
 

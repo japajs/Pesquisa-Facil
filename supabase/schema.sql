@@ -43,12 +43,19 @@ create table if not exists usuarios (
 );
 
 -- ─── Tabela: condominios ───────────────────────────────────────
+-- criterio_peso decide como o peso de voto de cada proprietário é calculado
+-- neste condomínio (ver lib/peso.ts): "unidade" = 1 unidade = 1 voto (padrão,
+-- comportamento histórico); "fracao_ideal" = soma de unidades.fracao_ideal —
+-- uso obrigatório em condomínios cuja convenção segue a regra padrão do
+-- Código Civil (voto proporcional à fração ideal, não por unidade).
 create table if not exists condominios (
   id              uuid        primary key default uuid_generate_v4(),
   nome            text        not null,
   endereco        text,
   sindico_nome    text,
   sindico_contato text,
+  criterio_peso   text        not null default 'unidade'
+                              check (criterio_peso in ('unidade', 'fracao_ideal')),
   created_at      timestamptz not null default now()
 );
 
@@ -116,34 +123,44 @@ create table if not exists proprietarios (
 -- "C0502", "c 0502" e "0502 C" sejam sempre a mesma chave de duplicidade.
 -- Espelha exatamente lib/unidade-format.ts:normalizarChaveUnidade — se uma
 -- mudar, a outra precisa mudar junto.
+-- fracao_ideal: fração ideal da unidade em relação ao condomínio (ex.:
+-- 0.014235). Nullable — só é exigida quando condominios.criterio_peso =
+-- 'fracao_ideal' (checado em código, não aqui, pra não travar condomínios
+-- que continuam usando "unidade" e nunca preenchem este campo).
 create table if not exists unidades (
-  id                  uuid        primary key default uuid_generate_v4(),
-  proprietario_id     uuid        not null references proprietarios(id) on delete cascade,
-  condominio_id       uuid        not null references condominios(id)   on delete cascade,
-  numero              text        not null,
+  id                  uuid          primary key default uuid_generate_v4(),
+  proprietario_id     uuid          not null references proprietarios(id) on delete cascade,
+  condominio_id       uuid          not null references condominios(id)   on delete cascade,
+  numero              text          not null,
   bloco               text,
-  numero_normalizado  text        generated always as (
+  fracao_ideal        numeric(14,6),
+  numero_normalizado  text          generated always as (
                         upper(regexp_replace(coalesce(bloco, '') || numero, '[^A-Za-z]', '', 'g'))
                         || regexp_replace(coalesce(bloco, '') || numero, '[^0-9]', '', 'g')
                       ) stored,
-  created_at          timestamptz not null default now()
+  created_at          timestamptz   not null default now()
 );
 
 -- ============================================================
 -- Votação: assembleias, pautas e opções
 -- ============================================================
 
+-- quorum_minimo: fração (0–1) do peso total do condomínio exigida pra
+-- assembleia ser válida (ex.: 0.5 = metade do condomínio precisa ter
+-- participado). Null = sem checagem de quórum mínimo (comportamento
+-- histórico) — ver getApuracaoAssembleia em services/assembleia-votos.ts.
 create table if not exists assembleias (
-  id                 uuid        primary key default uuid_generate_v4(),
-  condominio_id      uuid        not null references condominios(id) on delete cascade,
-  titulo             text        not null,
+  id                 uuid          primary key default uuid_generate_v4(),
+  condominio_id      uuid          not null references condominios(id) on delete cascade,
+  titulo             text          not null,
   descricao          text,
-  status             text        not null default 'rascunho'
-                                 check (status in ('rascunho', 'aberta', 'encerrada')),
+  status             text          not null default 'rascunho'
+                                   check (status in ('rascunho', 'aberta', 'encerrada')),
   data_abertura      timestamptz,
   data_encerramento  timestamptz,
-  created_at         timestamptz not null default now(),
-  updated_at         timestamptz not null default now()
+  quorum_minimo      numeric(5,4)  check (quorum_minimo is null or (quorum_minimo > 0 and quorum_minimo <= 1)),
+  created_at         timestamptz   not null default now(),
+  updated_at         timestamptz   not null default now()
 );
 
 drop trigger if exists assembleias_updated_at on assembleias;
@@ -155,19 +172,26 @@ create trigger assembleias_updated_at
 -- nasce em "aberta" e sobe sozinha para "em_votacao" no 1º voto; só vira
 -- "encerrada" quando a assembleia inteira encerra (nenhuma pauta fecha
 -- isolada). "rascunho" existe só por simetria/futuro.
+-- quorum_aprovacao: fração (0–1) de Sim sobre (Sim + Não) exigida pra pauta
+-- ser aprovada — abstenções não entram no denominador (não contam a favor
+-- nem contra). Default 0.5 = maioria simples dos votantes; 0.6667 pra 2/3;
+-- 1 pra unanimidade. Ver apurarSimNao/apurarMultiplaEscolha em
+-- services/assembleia-votos.ts.
 create table if not exists pautas (
-  id                 uuid        primary key default uuid_generate_v4(),
-  assembleia_id      uuid        not null references assembleias(id) on delete cascade,
-  ordem              integer     not null,
-  titulo             text        not null,
+  id                 uuid          primary key default uuid_generate_v4(),
+  assembleia_id      uuid          not null references assembleias(id) on delete cascade,
+  ordem              integer       not null,
+  titulo             text          not null,
   descricao          text,
-  ativa              boolean     not null default true,
-  tipo               text        not null default 'sim_nao'
-                                 check (tipo in ('sim_nao', 'multipla_escolha')),
-  permite_abstencao  boolean     not null default true,
-  status             text        not null default 'aberta'
-                                 check (status in ('rascunho', 'aberta', 'em_votacao', 'encerrada')),
-  created_at         timestamptz not null default now()
+  ativa              boolean       not null default true,
+  tipo               text          not null default 'sim_nao'
+                                   check (tipo in ('sim_nao', 'multipla_escolha')),
+  permite_abstencao  boolean       not null default true,
+  status             text          not null default 'aberta'
+                                   check (status in ('rascunho', 'aberta', 'em_votacao', 'encerrada')),
+  quorum_aprovacao   numeric(5,4)  not null default 0.5
+                                   check (quorum_aprovacao > 0 and quorum_aprovacao <= 1),
+  created_at         timestamptz   not null default now()
 );
 
 -- Opções de uma pauta de múltipla escolha (ex.: candidatos).
@@ -202,7 +226,7 @@ create table if not exists assembleia_sends (
   telefone_snapshot              text,
   quantidade_unidades_snapshot   integer,
   unidades_snapshot              jsonb,
-  peso_snapshot                  integer,
+  peso_snapshot                  numeric(14,6),
   votado_em                      timestamptz,
   ip_snapshot                    text,
   user_agent_snapshot            text,
@@ -221,7 +245,7 @@ create table if not exists assembleia_respostas (
   pauta_id   uuid        not null references pautas(id)           on delete cascade,
   resposta   text        check (resposta is null or resposta in ('Sim', 'Não', 'Abstenção')),
   opcao_id   uuid        references pauta_opcoes(id) on delete restrict,
-  peso       integer     not null default 0,
+  peso       numeric(14,6) not null default 0,
   created_at timestamptz not null default now(),
   constraint assembleia_respostas_resposta_xor_opcao
     check ((resposta is not null)::int + (opcao_id is not null)::int = 1),
@@ -269,3 +293,43 @@ alter table pautas                enable row level security;
 alter table pauta_opcoes          enable row level security;
 alter table assembleia_sends      enable row level security;
 alter table assembleia_respostas  enable row level security;
+
+-- ============================================================
+-- Migração — Fase 1 da auditoria de assembleias: fração ideal,
+-- quórum de aprovação por pauta, quórum mínimo por assembleia.
+-- Execute este bloco no SQL Editor do Supabase (idempotente e aditivo —
+-- os "create table" acima não recriam tabelas já existentes, então as
+-- colunas novas só chegam ao banco através deste bloco de ALTER).
+-- ============================================================
+
+-- condominios: critério de peso (não quebra quem já vota por unidade —
+-- default 'unidade' preserva o comportamento atual pra todo condomínio
+-- existente).
+alter table condominios add column if not exists criterio_peso text not null default 'unidade';
+alter table condominios drop constraint if exists condominios_criterio_peso_check;
+alter table condominios add constraint condominios_criterio_peso_check
+  check (criterio_peso in ('unidade', 'fracao_ideal'));
+
+-- unidades: fração ideal (opcional — só obrigatória, em código, quando o
+-- condomínio usa criterio_peso = 'fracao_ideal').
+alter table unidades add column if not exists fracao_ideal numeric(14,6);
+
+-- assembleias: quórum mínimo pra validar a assembleia (opcional).
+alter table assembleias add column if not exists quorum_minimo numeric(5,4);
+alter table assembleias drop constraint if exists assembleias_quorum_minimo_check;
+alter table assembleias add constraint assembleias_quorum_minimo_check
+  check (quorum_minimo is null or (quorum_minimo > 0 and quorum_minimo <= 1));
+
+-- pautas: quórum de aprovação (fração de Sim sobre Sim+Não). Default 0.5
+-- preserva a leitura de maioria simples que já era o comportamento
+-- implícito até aqui.
+alter table pautas add column if not exists quorum_aprovacao numeric(5,4) not null default 0.5;
+alter table pautas drop constraint if exists pautas_quorum_aprovacao_check;
+alter table pautas add constraint pautas_quorum_aprovacao_check
+  check (quorum_aprovacao > 0 and quorum_aprovacao <= 1);
+
+-- assembleia_respostas.peso e assembleia_sends.peso_snapshot: de integer
+-- pra numeric, pra suportar peso fracionário (fração ideal). Conversão
+-- direta é segura — todo valor integer existente já é um numeric válido.
+alter table assembleia_respostas alter column peso type numeric(14,6);
+alter table assembleia_sends alter column peso_snapshot type numeric(14,6);

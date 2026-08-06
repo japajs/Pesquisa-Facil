@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { enviarAssembleiaAction, type EnviarAssembleiaResult } from "@/app/actions/assembleia-votos"
-import { getPesoParticipante } from "@/lib/peso"
 import type { Assembleia, Proprietario } from "@/types"
 
 type Step = "compose" | "sending" | "done"
@@ -105,10 +104,13 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
     })
   }
 
+  // Contagem de unidades (não o peso de voto — que pode ser fração ideal,
+  // ver lib/peso.ts) — aqui é só informativo, pra mostrar quantos
+  // apartamentos este envio está alcançando.
   const totalApartamentos = [...selectedIds]
     .map((id) => proprietarios.find((p) => p.id === id))
     .filter(Boolean)
-    .reduce((sum, p) => sum + getPesoParticipante(p!), 0)
+    .reduce((sum, p) => sum + (p!.unidades?.length ?? 0), 0)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -152,7 +154,7 @@ export function DispararAssembleiaDialog({ assembleia, proprietarios }: Disparar
                   </p>
                 ) : (
                   proprietarios.map((p) => {
-                    const peso = getPesoParticipante(p)
+                    const peso = p.unidades?.length ?? 0
                     return (
                       <label
                         key={p.id}

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { editarPautaAction } from "@/app/actions/assembleias"
 import { MIN_OPCOES } from "@/components/assembleias/use-assembleia-form"
@@ -37,6 +38,7 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
   const [descricao, setDescricao] = useState(pauta.descricao ?? "")
   const [tipo, setTipo] = useState<PautaTipo>(pauta.tipo)
   const [permiteAbstencao, setPermiteAbstencao] = useState(pauta.permite_abstencao)
+  const [quorumAprovacao, setQuorumAprovacao] = useState(String(Math.round(pauta.quorum_aprovacao * 10000) / 100))
   const [opcoes, setOpcoes] = useState<string[]>(
     pauta.opcoes && pauta.opcoes.length > 0 ? pauta.opcoes.map((o) => o.label) : ["", ""]
   )
@@ -47,6 +49,7 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
     setDescricao(pauta.descricao ?? "")
     setTipo(pauta.tipo)
     setPermiteAbstencao(pauta.permite_abstencao)
+    setQuorumAprovacao(String(Math.round(pauta.quorum_aprovacao * 10000) / 100))
     setOpcoes(pauta.opcoes && pauta.opcoes.length > 0 ? pauta.opcoes.map((o) => o.label) : ["", ""])
   }
 
@@ -56,7 +59,12 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
   }
 
   const opcoesValidas = opcoes.map((o) => o.trim()).filter(Boolean).length
-  const canSubmit = titulo.trim().length > 0 && (tipo !== "multipla_escolha" || opcoesValidas >= MIN_OPCOES)
+  const quorumNum = Number(quorumAprovacao.replace(",", "."))
+  const quorumValido = !Number.isNaN(quorumNum) && quorumNum > 0 && quorumNum <= 100
+  const canSubmit =
+    titulo.trim().length > 0 &&
+    (tipo !== "multipla_escolha" || opcoesValidas >= MIN_OPCOES) &&
+    (tipo !== "sim_nao" || quorumValido)
 
   function handleSalvar() {
     startTransition(async () => {
@@ -68,6 +76,7 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
         descricao,
         tipo,
         permite_abstencao: permiteAbstencao,
+        quorum_aprovacao: tipo === "sim_nao" ? quorumNum / 100 : undefined,
         opcoes: tipo === "multipla_escolha" ? opcoes : undefined,
       })
       if (result.success) {
@@ -123,6 +132,24 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
               Múltipla escolha
             </button>
           </div>
+
+          {tipo === "sim_nao" && (
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="editar-pauta-quorum" className="shrink-0 text-xs text-muted-foreground">
+                Quórum de aprovação (%)
+              </Label>
+              <Input
+                id="editar-pauta-quorum"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={100}
+                value={quorumAprovacao}
+                onChange={(e) => setQuorumAprovacao(e.target.value)}
+                className="h-7 text-xs"
+              />
+            </div>
+          )}
 
           {tipo === "multipla_escolha" && (
             <div className="space-y-2 rounded-md border border-border/50 bg-muted/20 p-2">

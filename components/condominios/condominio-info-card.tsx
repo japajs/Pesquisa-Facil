@@ -1,16 +1,28 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MapPin, User, Phone, Pencil, Loader2, Save, X } from "lucide-react"
+import { MapPin, User, Phone, Pencil, Loader2, Save, X, Scale } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { updateCondominioInfoAction } from "@/app/actions/condominios"
-import type { Condominio } from "@/types"
+import type { Condominio, CriterioPeso } from "@/types"
 
 interface Props {
   condominio: Condominio
+}
+
+const CRITERIO_LABEL: Record<CriterioPeso, string> = {
+  unidade: "Por unidade (1 unidade = 1 voto)",
+  fracao_ideal: "Por fração ideal",
 }
 
 export function CondominioInfoCard({ condominio }: Props) {
@@ -19,6 +31,7 @@ export function CondominioInfoCard({ condominio }: Props) {
   const [endereco, setEndereco] = useState(condominio.endereco ?? "")
   const [sindicoNome, setSindicoNome] = useState(condominio.sindico_nome ?? "")
   const [sindicoContato, setSindicoContato] = useState(condominio.sindico_contato ?? "")
+  const [criterioPeso, setCriterioPeso] = useState<CriterioPeso>(condominio.criterio_peso)
   const [isPending, startTransition] = useTransition()
 
   const hasInfo = condominio.endereco || condominio.sindico_nome || condominio.sindico_contato
@@ -28,6 +41,7 @@ export function CondominioInfoCard({ condominio }: Props) {
     setEndereco(condominio.endereco ?? "")
     setSindicoNome(condominio.sindico_nome ?? "")
     setSindicoContato(condominio.sindico_contato ?? "")
+    setCriterioPeso(condominio.criterio_peso)
     setEditing(false)
   }
 
@@ -37,6 +51,7 @@ export function CondominioInfoCard({ condominio }: Props) {
         endereco,
         sindico_nome: sindicoNome,
         sindico_contato: sindicoContato,
+        criterio_peso: criterioPeso,
       })
       if (result.success) {
         toast.success("Informações atualizadas.")
@@ -89,6 +104,21 @@ export function CondominioInfoCard({ condominio }: Props) {
               placeholder="(11) 99999-9999 / email"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ci-criterio" className="text-xs">Critério de peso do voto</Label>
+            <Select value={criterioPeso} onValueChange={(v) => setCriterioPeso(v as CriterioPeso)}>
+              <SelectTrigger id="ci-criterio" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unidade">{CRITERIO_LABEL.unidade}</SelectItem>
+                <SelectItem value="fracao_ideal">{CRITERIO_LABEL.fracao_ideal}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Fração ideal exige preencher o campo em toda unidade antes de trocar.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 pt-1">
@@ -112,13 +142,19 @@ export function CondominioInfoCard({ condominio }: Props) {
 
   if (!hasInfo) {
     return (
-      <button
-        onClick={() => setEditing(true)}
-        className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
-      >
-        <Pencil className="h-3.5 w-3.5 shrink-0" />
-        Adicionar endereço e informações do síndico
-      </button>
+      <div className="space-y-2">
+        <button
+          onClick={() => setEditing(true)}
+          className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5 shrink-0" />
+          Adicionar endereço e informações do síndico
+        </button>
+        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <Scale className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+          <span>Peso do voto: {CRITERIO_LABEL[condominio.criterio_peso]}</span>
+        </div>
+      </div>
     )
   }
 
@@ -143,6 +179,10 @@ export function CondominioInfoCard({ condominio }: Props) {
             <span>{condominio.sindico_contato}</span>
           </div>
         )}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Scale className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+          <span>{CRITERIO_LABEL[condominio.criterio_peso]}</span>
+        </div>
       </div>
       <Button
         variant="ghost"

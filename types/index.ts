@@ -60,24 +60,35 @@ export interface ApiResponse<T = unknown> {
 
 // ─── Condomínio ────────────────────────────────────────────────────────────
 
+// "unidade" (padrão) = 1 unidade = peso 1, sempre — comportamento histórico.
+// "fracao_ideal" = peso de cada proprietário é a soma de unidades.fracao_ideal
+// — regra padrão de condomínio no Brasil salvo disposição diversa na
+// convenção. Ver lib/peso.ts.
+export type CriterioPeso = "unidade" | "fracao_ideal"
+
 export interface Condominio {
   id: string
   nome: string
   endereco: string | null
   sindico_nome: string | null
   sindico_contato: string | null
+  criterio_peso: CriterioPeso
   created_at: string
 }
 
 // ─── Proprietário / Unidade ───────────────────────────────────────────────
-// Cadastro permanente: o peso de voto de um proprietário é sempre
-// `unidades.length` — nunca um campo armazenado. Ver lib/peso.ts.
+// Cadastro permanente: o peso de voto de um proprietário é `unidades.length`
+// ou a soma de `unidades.fracao_ideal`, dependendo de
+// `condominios.criterio_peso` — nunca um campo armazenado. Ver lib/peso.ts.
 
 export interface Unidade {
   id: string
   proprietario_id: string
   numero: string
   bloco: string | null
+  // Fração ideal da unidade em relação ao condomínio (ex.: 0.014235). Só é
+  // usada/exigida quando o condomínio tem criterio_peso = "fracao_ideal".
+  fracao_ideal: number | null
   created_at: string
 }
 
@@ -126,6 +137,9 @@ export interface Assembleia {
   status: AssembleiaStatus
   data_abertura: string | null
   data_encerramento: string | null
+  // Fração (0–1) do peso total do condomínio exigida pra assembleia ser
+  // válida. Null = sem checagem de quórum mínimo. Ver lib/peso.ts.
+  quorum_minimo: number | null
   created_at: string
   updated_at: string
   // joined
@@ -150,6 +164,10 @@ export interface Pauta {
   tipo: PautaTipo
   permite_abstencao: boolean
   status: PautaStatus
+  // Fração (0–1) de Sim sobre (Sim + Não) exigida pra pauta ser aprovada —
+  // abstenções não entram no denominador. 0.5 = maioria simples (padrão),
+  // 0.6667 ≈ 2/3, 1 = unanimidade.
+  quorum_aprovacao: number
   created_at: string
   // joined — só populado para pautas do tipo "multipla_escolha"
   opcoes?: PautaOpcao[]
@@ -182,7 +200,10 @@ export interface AssembleiaSend extends AssembleiaSendSnapshot {
   sent_at: string | null
   created_at: string
   // joined
-  assembleia?: Pick<Assembleia, "id" | "titulo" | "descricao" | "status" | "data_abertura" | "data_encerramento"> & {
+  assembleia?: Pick<
+    Assembleia,
+    "id" | "condominio_id" | "titulo" | "descricao" | "status" | "data_abertura" | "data_encerramento" | "quorum_minimo"
+  > & {
     pautas?: Pauta[]
     condominio_nome?: string | null
   }
@@ -223,6 +244,14 @@ export interface PautaApuracao {
   por_participantes: { sim: number; nao: number; abstencao: number }
   ponderado: { sim: number; nao: number; abstencao: number }
   total_apartamentos_representados: number
+  // Sim / (Sim + Não), ponderado — abstenção não entra no denominador.
+  // Comparado com pauta.quorum_aprovacao pra decidir `aprovada`. Null se
+  // ninguém votou Sim nem Não ainda (denominador zero).
+  percentual_aprovacao: number | null
+  // Só calculado para pautas "sim_nao" — em "multipla_escolha" não existe
+  // um único resultado passa/não passa (é a opção mais votada), então fica
+  // null. Também null enquanto percentual_aprovacao for null.
+  aprovada: boolean | null
   // joined — só populado para pautas do tipo "multipla_escolha"
   opcoes_resultado?: OpcaoApuracao[]
 }
@@ -231,6 +260,14 @@ export interface AssembleiaApuracao {
   pautas: PautaApuracao[]
   total_enviados: number
   total_respondidos: number
+  // Quórum da assembleia (ver assembleias.quorum_minimo) — peso de quem já
+  // votou sobre o peso total do condomínio inteiro (todas as unidades, não
+  // só quem recebeu convite). quorum_atingido é null quando a assembleia
+  // não tem quorum_minimo configurado (sem checagem).
+  peso_total_condominio: number
+  peso_representado: number
+  percentual_quorum: number | null
+  quorum_atingido: boolean | null
 }
 
 // ─── Importação de planilha ────────────────────────────────────────────────
