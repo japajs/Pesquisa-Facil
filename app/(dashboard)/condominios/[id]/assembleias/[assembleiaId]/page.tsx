@@ -59,6 +59,8 @@ export default async function ApuracaoAssembleiaPage({ params }: Props) {
     peso_representado: 0,
     percentual_quorum: null,
     quorum_atingido: null,
+    convocacao_aplicada: null,
+    quorum_aplicavel: null,
   }))
 
   const historicoParticipacao = await getHistoricoParticipacao(assembleiaId, pautas.length).catch(

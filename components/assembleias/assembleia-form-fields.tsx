@@ -78,7 +78,10 @@ export function AssembleiaFormFields({ form, pautasEditaveis, mensagemPautasBloq
           convidado). Vazio = sem checagem, comportamento de sempre. */}
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-quorum-minimo`} className="text-xs">
-          Quórum mínimo (%) <span className="font-normal text-muted-foreground">(opcional)</span>
+          Quórum mínimo (%){" "}
+          <span className="font-normal text-muted-foreground">
+            {form.data1aConvocacao ? "— 1ª convocação" : "(opcional)"}
+          </span>
         </Label>
         <Input
           id={`${idPrefix}-quorum-minimo`}
@@ -92,6 +95,50 @@ export function AssembleiaFormFields({ form, pautasEditaveis, mensagemPautasBloq
           className="text-xs"
         />
       </div>
+
+      {/* Auditoria de assembleias — Fase 2: 1ª/2ª convocação, adaptada pra
+          votação assíncrona — não é hora marcada + tolerância, é uma
+          data-limite. Vazia = sem 1ª/2ª convocação (só o quórum mínimo
+          acima, comportamento único da Fase 1). */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-1a-convocacao`} className="text-xs">
+            Data-limite da 1ª convocação{" "}
+            <span className="font-normal text-muted-foreground">(opcional)</span>
+          </Label>
+          <Input
+            id={`${idPrefix}-1a-convocacao`}
+            type="datetime-local"
+            value={form.data1aConvocacao}
+            onChange={(e) => form.setData1aConvocacao(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-quorum-2a`} className="text-xs">
+            Quórum da 2ª convocação (%){" "}
+            <span className="font-normal text-muted-foreground">(opcional)</span>
+          </Label>
+          <Input
+            id={`${idPrefix}-quorum-2a`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={100}
+            placeholder="Vazio = sem checagem na 2ª"
+            value={form.quorumMinimo2a}
+            onChange={(e) => form.setQuorumMinimo2a(e.target.value)}
+            disabled={!form.data1aConvocacao}
+            className="text-xs"
+          />
+        </div>
+      </div>
+      {!form.convocacaoValida && (
+        <p className="text-xs text-destructive">
+          A data-limite da 1ª convocação precisa estar entre a abertura e o encerramento da
+          assembleia.
+        </p>
+      )}
 
       {/* Pautas */}
       <div className="space-y-3">

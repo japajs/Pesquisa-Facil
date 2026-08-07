@@ -42,3 +42,41 @@ export function getPesoTotalCondominio(
   }
   return unidades.length
 }
+
+// Auditoria de assembleias — Fase 2: 1ª/2ª convocação, adaptado pra votação
+// assíncrona (por e-mail, ao longo de dias — não uma reunião num instante
+// só). "Convocação" aqui não é hora marcada + tolerância; é uma
+// DATA-LIMITE (data_1a_convocacao) que decide qual quórum vale.
+//
+// dataReferencia é o momento que decide 1ª vs 2ª: data_encerramento se a
+// assembleia já encerrou (decisão definitiva, congelada), ou "agora" se
+// ainda está aberta (visão "ao vivo" de qual convocação está em vigor
+// neste instante). Nunca recalculado pra trás depois de encerrada.
+//
+// data_1a_convocacao null = sem 1ª/2ª convocação configurada — só o
+// quorum_minimo único de sempre (Fase 1); convocacaoAplicada fica null
+// (não é "1ª convocação", é "essa distinção não existe aqui").
+export interface QuorumEfetivoInput {
+  quorum_minimo: number | null
+  quorum_minimo_2a: number | null
+  data_1a_convocacao: string | null
+  dataReferencia: Date
+}
+
+export interface QuorumEfetivo {
+  quorumAplicavel: number | null
+  convocacaoAplicada: 1 | 2 | null
+}
+
+export function getQuorumEfetivo(input: QuorumEfetivoInput): QuorumEfetivo {
+  const { quorum_minimo, quorum_minimo_2a, data_1a_convocacao, dataReferencia } = input
+
+  if (data_1a_convocacao === null) {
+    return { quorumAplicavel: quorum_minimo, convocacaoAplicada: null }
+  }
+
+  const dentroDa1aConvocacao = dataReferencia.getTime() <= new Date(data_1a_convocacao).getTime()
+  return dentroDa1aConvocacao
+    ? { quorumAplicavel: quorum_minimo, convocacaoAplicada: 1 }
+    : { quorumAplicavel: quorum_minimo_2a, convocacaoAplicada: 2 }
+}

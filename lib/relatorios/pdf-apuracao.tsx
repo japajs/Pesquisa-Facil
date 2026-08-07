@@ -568,20 +568,26 @@ export function ApuracaoPDF({
           </View>
         </View>
 
-        {/* Auditoria de assembleias — Fase 1: quórum sobre o peso do
+        {/* Auditoria de assembleias — Fase 1/2: quórum sobre o peso do
             CONDOMÍNIO INTEIRO (todas as unidades), diferente da
-            Participação acima (que é só sobre quem recebeu convite). Só
-            aparece quando a assembleia tem quorum_minimo configurado. */}
-        {assembleia.quorum_minimo !== null ? (
+            Participação acima (que é só sobre quem recebeu convite). Gate
+            em apuracao.percentual_quorum (quórum EFETIVO, já resolvido pra
+            1ª ou 2ª convocação) — nunca assembleia.quorum_minimo direto,
+            que é sempre o valor da 1ª mesmo com a 2ª em vigor. */}
+        {apuracao.percentual_quorum !== null ? (
           <>
-            <Text style={s.sectionLabel}>QUÓRUM MÍNIMO</Text>
+            <Text style={s.sectionLabel}>
+              {apuracao.convocacao_aplicada !== null
+                ? `QUÓRUM MÍNIMO (${apuracao.convocacao_aplicada}ª CONVOCAÇÃO)`
+                : "QUÓRUM MÍNIMO"}
+            </Text>
             <View style={s.partRow}>
               <View style={[s.partCell, s.partBorderR]}>
-                <Text style={s.partNum}>{pctStr(assembleia.quorum_minimo, 1)}</Text>
+                <Text style={s.partNum}>{pctStr(apuracao.quorum_aplicavel ?? 0, 1)}</Text>
                 <Text style={s.partLbl}>Exigido</Text>
               </View>
               <View style={[s.partCell, s.partBorderR]}>
-                <Text style={s.partNum}>{pctStr(apuracao.percentual_quorum ?? 0, 1)}</Text>
+                <Text style={s.partNum}>{pctStr(apuracao.percentual_quorum, 1)}</Text>
                 <Text style={s.partLbl}>Atingido</Text>
               </View>
               <View style={s.partCell}>

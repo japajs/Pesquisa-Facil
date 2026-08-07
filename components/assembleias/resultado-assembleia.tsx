@@ -98,7 +98,8 @@ export function ResultadoAssembleia({
   apuracao,
   criterioPeso = "unidade",
 }: Props) {
-  const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido } = apuracao
+  const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido, convocacao_aplicada } =
+    apuracao
   const participacaoPct = pct(total_respondidos, total_enviados)
   const totalUnidades = pautas[0]?.total_apartamentos_representados ?? 0
 
@@ -158,7 +159,11 @@ export function ResultadoAssembleia({
           <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Scale className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-              <span>Quórum do condomínio: {Math.round(percentual_quorum * 100)}%</span>
+              <span>
+                Quórum do condomínio{" "}
+                {convocacao_aplicada !== null && `(${convocacao_aplicada}ª convocação)`}:{" "}
+                {Math.round(percentual_quorum * 100)}%
+              </span>
             </div>
             {quorum_atingido !== null && (
               <span

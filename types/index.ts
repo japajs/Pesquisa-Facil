@@ -138,8 +138,14 @@ export interface Assembleia {
   data_abertura: string | null
   data_encerramento: string | null
   // Fração (0–1) do peso total do condomínio exigida pra assembleia ser
-  // válida. Null = sem checagem de quórum mínimo. Ver lib/peso.ts.
+  // válida na 1ª convocação (ou na única convocação, se data_1a_convocacao
+  // for null). Null = sem checagem de quórum mínimo. Ver lib/peso.ts.
   quorum_minimo: number | null
+  // Data-limite da 1ª convocação — depois dela, quorum_minimo_2a passa a
+  // valer no lugar de quorum_minimo. Null = sem 1ª/2ª convocação (só
+  // quorum_minimo, comportamento único). Ver getQuorumEfetivo em lib/peso.ts.
+  data_1a_convocacao: string | null
+  quorum_minimo_2a: number | null
   created_at: string
   updated_at: string
   // joined
@@ -202,7 +208,16 @@ export interface AssembleiaSend extends AssembleiaSendSnapshot {
   // joined
   assembleia?: Pick<
     Assembleia,
-    "id" | "condominio_id" | "titulo" | "descricao" | "status" | "data_abertura" | "data_encerramento" | "quorum_minimo"
+    | "id"
+    | "condominio_id"
+    | "titulo"
+    | "descricao"
+    | "status"
+    | "data_abertura"
+    | "data_encerramento"
+    | "quorum_minimo"
+    | "data_1a_convocacao"
+    | "quorum_minimo_2a"
   > & {
     pautas?: Pauta[]
     condominio_nome?: string | null
@@ -260,14 +275,25 @@ export interface AssembleiaApuracao {
   pautas: PautaApuracao[]
   total_enviados: number
   total_respondidos: number
-  // Quórum da assembleia (ver assembleias.quorum_minimo) — peso de quem já
-  // votou sobre o peso total do condomínio inteiro (todas as unidades, não
-  // só quem recebeu convite). quorum_atingido é null quando a assembleia
-  // não tem quorum_minimo configurado (sem checagem).
+  // Quórum da assembleia (ver assembleias.quorum_minimo/quorum_minimo_2a) —
+  // peso de quem já votou sobre o peso total do condomínio inteiro (todas
+  // as unidades, não só quem recebeu convite). quorum_atingido é null
+  // quando a assembleia não tem nenhum quórum configurado (sem checagem).
   peso_total_condominio: number
   peso_representado: number
   percentual_quorum: number | null
   quorum_atingido: boolean | null
+  // Auditoria de assembleias — Fase 2: qual convocação decidiu o
+  // quorum_atingido acima — 1 ou 2, ou null se a assembleia não usa
+  // 1ª/2ª convocação (só quorum_minimo único) ou não tem quórum nenhum
+  // configurado. Ver getQuorumEfetivo em lib/peso.ts.
+  convocacao_aplicada: 1 | 2 | null
+  // Fração (0–1) do quórum EFETIVAMENTE exigido — quorum_minimo na 1ª
+  // convocação, quorum_minimo_2a na 2ª. Não confundir com
+  // assembleias.quorum_minimo (sempre o valor da 1ª, mesmo quando a 2ª já
+  // está em vigor) — este campo é o que efetivamente vale agora/no
+  // encerramento. Null junto com percentual_quorum/quorum_atingido.
+  quorum_aplicavel: number | null
 }
 
 // ─── Importação de planilha ────────────────────────────────────────────────

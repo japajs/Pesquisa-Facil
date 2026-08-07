@@ -110,7 +110,11 @@ function AssembleiaRow({
           <p className="text-xs text-muted-foreground">
             {pautaCount} {pautaCount === 1 ? "pauta" : "pautas"}
             {assembleia.quorum_minimo !== null && (
-              <> {" · quórum mínimo "}{Math.round(assembleia.quorum_minimo * 100)}%</>
+              <>
+                {" · quórum mínimo "}
+                {Math.round(assembleia.quorum_minimo * 100)}%
+                {assembleia.data_1a_convocacao && " (1ª conv.)"}
+              </>
             )}
             {assembleia.data_encerramento && (
               <>

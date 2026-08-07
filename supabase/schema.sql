@@ -146,21 +146,33 @@ create table if not exists unidades (
 -- ============================================================
 
 -- quorum_minimo: fração (0–1) do peso total do condomínio exigida pra
--- assembleia ser válida (ex.: 0.5 = metade do condomínio precisa ter
--- participado). Null = sem checagem de quórum mínimo (comportamento
--- histórico) — ver getApuracaoAssembleia em services/assembleia-votos.ts.
+-- assembleia ser válida na 1ª convocação (ex.: 0.5 = metade do condomínio
+-- precisa ter participado). Null = sem checagem de quórum mínimo
+-- (comportamento histórico).
+--
+-- Auditoria de assembleias — Fase 2: 1ª/2ª convocação. Esta votação é
+-- assíncrona (por e-mail, ao longo de dias), não uma reunião num instante
+-- só — então "convocação" aqui não é uma hora marcada com tolerância, é uma
+-- DATA-LIMITE (data_1a_convocacao). Se a apuração acontece (assembleia
+-- ainda aberta "agora", ou já encerrada em data_encerramento) até essa
+-- data, vale quorum_minimo; depois dela, vale quorum_minimo_2a (tipicamente
+-- menor, ou null = sem checagem nenhuma na 2ª convocação). Ver
+-- getQuorumEfetivo em lib/peso.ts. data_1a_convocacao null = sem 1ª/2ª
+-- convocação, só o quorum_minimo único de sempre (Fase 1).
 create table if not exists assembleias (
-  id                 uuid          primary key default uuid_generate_v4(),
-  condominio_id      uuid          not null references condominios(id) on delete cascade,
-  titulo             text          not null,
-  descricao          text,
-  status             text          not null default 'rascunho'
-                                   check (status in ('rascunho', 'aberta', 'encerrada')),
-  data_abertura      timestamptz,
-  data_encerramento  timestamptz,
-  quorum_minimo      numeric(5,4)  check (quorum_minimo is null or (quorum_minimo > 0 and quorum_minimo <= 1)),
-  created_at         timestamptz   not null default now(),
-  updated_at         timestamptz   not null default now()
+  id                  uuid          primary key default uuid_generate_v4(),
+  condominio_id       uuid          not null references condominios(id) on delete cascade,
+  titulo              text          not null,
+  descricao           text,
+  status              text          not null default 'rascunho'
+                                    check (status in ('rascunho', 'aberta', 'encerrada')),
+  data_abertura       timestamptz,
+  data_encerramento   timestamptz,
+  quorum_minimo       numeric(5,4)  check (quorum_minimo is null or (quorum_minimo > 0 and quorum_minimo <= 1)),
+  data_1a_convocacao  timestamptz,
+  quorum_minimo_2a    numeric(5,4)  check (quorum_minimo_2a is null or (quorum_minimo_2a > 0 and quorum_minimo_2a <= 1)),
+  created_at          timestamptz   not null default now(),
+  updated_at          timestamptz   not null default now()
 );
 
 drop trigger if exists assembleias_updated_at on assembleias;
@@ -333,3 +345,14 @@ alter table pautas add constraint pautas_quorum_aprovacao_check
 -- direta é segura — todo valor integer existente já é um numeric válido.
 alter table assembleia_respostas alter column peso type numeric(14,6);
 alter table assembleia_sends alter column peso_snapshot type numeric(14,6);
+
+-- ============================================================
+-- Migração — Fase 2 da auditoria de assembleias: 1ª/2ª convocação.
+-- Execute este bloco no SQL Editor do Supabase.
+-- ============================================================
+
+alter table assembleias add column if not exists data_1a_convocacao timestamptz;
+alter table assembleias add column if not exists quorum_minimo_2a numeric(5,4);
+alter table assembleias drop constraint if exists assembleias_quorum_minimo_2a_check;
+alter table assembleias add constraint assembleias_quorum_minimo_2a_check
+  check (quorum_minimo_2a is null or (quorum_minimo_2a > 0 and quorum_minimo_2a <= 1));

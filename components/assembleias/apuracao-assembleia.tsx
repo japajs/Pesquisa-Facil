@@ -207,7 +207,11 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
           <div className="flex items-center justify-between gap-3 border-t border-border/40 px-5 py-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Scale className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-              <span>Quórum do condomínio: {Math.round(apuracao.percentual_quorum * 100)}%</span>
+              <span>
+                Quórum do condomínio{" "}
+                {apuracao.convocacao_aplicada !== null && `(${apuracao.convocacao_aplicada}ª convocação)`}:{" "}
+                {Math.round(apuracao.percentual_quorum * 100)}%
+              </span>
             </div>
             {apuracao.quorum_atingido !== null && (
               <span

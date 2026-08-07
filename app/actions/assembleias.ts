@@ -37,15 +37,39 @@ function validarQuorum(valor: number | undefined | null, campo: string): string 
   return null
 }
 
+// Auditoria de assembleias — Fase 2: 1ª/2ª convocação. Se data_1a_convocacao
+// e data_encerramento estão as duas preenchidas, a 1ª precisa vir antes (ou
+// igual) — senão a janela da 2ª convocação (depois da 1ª, até o
+// encerramento) fica vazia ou invertida, o que não faz sentido.
+function validarConvocacao(
+  dataAbertura: string | null,
+  data1aConvocacao: string | null | undefined,
+  dataEncerramento: string | null
+): string | null {
+  if (!data1aConvocacao) return null
+  if (dataEncerramento && new Date(data1aConvocacao) > new Date(dataEncerramento)) {
+    return "A data da 1ª convocação precisa ser antes (ou igual) da data de encerramento."
+  }
+  if (dataAbertura && new Date(data1aConvocacao) < new Date(dataAbertura)) {
+    return "A data da 1ª convocação precisa ser depois (ou igual) da data de abertura."
+  }
+  return null
+}
+
 export async function createAssembleiaAction(input: {
   condominio_id: string
   titulo: string
   descricao: string
   data_abertura: string | null
   data_encerramento: string | null
-  // Fração (0–1) do peso total do condomínio exigida pra assembleia valer.
-  // Null/undefined = sem checagem de quórum mínimo.
+  // Fração (0–1) do peso total do condomínio exigida pra assembleia valer
+  // na 1ª convocação (ou na única convocação, se data_1a_convocacao for
+  // null/undefined). Null/undefined = sem checagem de quórum mínimo.
   quorum_minimo?: number | null
+  // Data-limite da 1ª convocação — depois dela, quorum_minimo_2a passa a
+  // valer no lugar de quorum_minimo. Null/undefined = sem 1ª/2ª convocação.
+  data_1a_convocacao?: string | null
+  quorum_minimo_2a?: number | null
   pautas: PautaInput[]
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
@@ -60,6 +84,14 @@ export async function createAssembleiaAction(input: {
 
   const erroQuorumMinimo = validarQuorum(input.quorum_minimo, "Quórum mínimo")
   if (erroQuorumMinimo) return { success: false, error: erroQuorumMinimo }
+  const erroQuorumMinimo2a = validarQuorum(input.quorum_minimo_2a, "Quórum mínimo da 2ª convocação")
+  if (erroQuorumMinimo2a) return { success: false, error: erroQuorumMinimo2a }
+  const erroConvocacao = validarConvocacao(
+    input.data_abertura,
+    input.data_1a_convocacao,
+    input.data_encerramento
+  )
+  if (erroConvocacao) return { success: false, error: erroConvocacao }
 
   for (const p of input.pautas) {
     if (p.tipo === "multipla_escolha") {
@@ -84,6 +116,8 @@ export async function createAssembleiaAction(input: {
       data_abertura: input.data_abertura || null,
       data_encerramento: input.data_encerramento || null,
       quorum_minimo: input.quorum_minimo ?? null,
+      data_1a_convocacao: input.data_1a_convocacao || null,
+      quorum_minimo_2a: input.quorum_minimo_2a ?? null,
     })
     assembleiaId = assembleia.id
 
@@ -131,6 +165,8 @@ export async function updateAssembleiaAction(input: {
   data_abertura: string | null
   data_encerramento: string | null
   quorum_minimo?: number | null
+  data_1a_convocacao?: string | null
+  quorum_minimo_2a?: number | null
   pautas: PautaInput[] | null
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
@@ -141,6 +177,14 @@ export async function updateAssembleiaAction(input: {
 
   const erroQuorumMinimo = validarQuorum(input.quorum_minimo, "Quórum mínimo")
   if (erroQuorumMinimo) return { success: false, error: erroQuorumMinimo }
+  const erroQuorumMinimo2a = validarQuorum(input.quorum_minimo_2a, "Quórum mínimo da 2ª convocação")
+  if (erroQuorumMinimo2a) return { success: false, error: erroQuorumMinimo2a }
+  const erroConvocacao = validarConvocacao(
+    input.data_abertura,
+    input.data_1a_convocacao,
+    input.data_encerramento
+  )
+  if (erroConvocacao) return { success: false, error: erroConvocacao }
 
   if (input.pautas !== null) {
     if (input.pautas.length === 0) return { success: false, error: "Adicione pelo menos uma pauta." }
@@ -172,6 +216,8 @@ export async function updateAssembleiaAction(input: {
         data_abertura: input.data_abertura || null,
         data_encerramento: input.data_encerramento || null,
         quorum_minimo: input.quorum_minimo ?? null,
+        data_1a_convocacao: input.data_1a_convocacao || null,
+        quorum_minimo_2a: input.quorum_minimo_2a ?? null,
       },
       input.pautas === null
         ? null

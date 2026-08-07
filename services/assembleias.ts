@@ -34,6 +34,8 @@ type JoinedAssembleia = {
   data_abertura: string | null
   data_encerramento: string | null
   quorum_minimo: number | null
+  data_1a_convocacao: string | null
+  quorum_minimo_2a: number | null
   created_at: string
   updated_at: string
   pautas: JoinedPauta[] | null
@@ -78,6 +80,8 @@ function rowToAssembleia(row: JoinedAssembleia): Assembleia {
     data_abertura: row.data_abertura ?? null,
     data_encerramento: row.data_encerramento ?? null,
     quorum_minimo: row.quorum_minimo ?? null,
+    data_1a_convocacao: row.data_1a_convocacao ?? null,
+    quorum_minimo_2a: row.quorum_minimo_2a ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     pautas: (row.pautas ?? []).map(rowToPauta).sort((a, b) => a.ordem - b.ordem),
@@ -116,7 +120,14 @@ export async function getAssembleiaById(id: string): Promise<Assembleia | null> 
 export async function createAssembleia(
   input: Pick<
     Assembleia,
-    "condominio_id" | "titulo" | "descricao" | "data_abertura" | "data_encerramento" | "quorum_minimo"
+    | "condominio_id"
+    | "titulo"
+    | "descricao"
+    | "data_abertura"
+    | "data_encerramento"
+    | "quorum_minimo"
+    | "data_1a_convocacao"
+    | "quorum_minimo_2a"
   >
 ): Promise<Assembleia> {
   const db = createServerClient()
@@ -129,6 +140,8 @@ export async function createAssembleia(
       data_abertura: input.data_abertura,
       data_encerramento: input.data_encerramento,
       quorum_minimo: input.quorum_minimo,
+      data_1a_convocacao: input.data_1a_convocacao,
+      quorum_minimo_2a: input.quorum_minimo_2a,
     })
     .select(SELECT_WITH_PAUTAS)
     .single()
@@ -203,6 +216,8 @@ export async function updateAssembleiaCompleta(
     data_abertura: string | null
     data_encerramento: string | null
     quorum_minimo: number | null
+    data_1a_convocacao: string | null
+    quorum_minimo_2a: number | null
   },
   pautas: PautaEdicaoInput[] | null
 ): Promise<void> {
@@ -236,6 +251,8 @@ export async function updateAssembleiaCompleta(
       data_abertura: dadosBasicos.data_abertura,
       data_encerramento: dadosBasicos.data_encerramento,
       quorum_minimo: dadosBasicos.quorum_minimo,
+      data_1a_convocacao: dadosBasicos.data_1a_convocacao,
+      quorum_minimo_2a: dadosBasicos.quorum_minimo_2a,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

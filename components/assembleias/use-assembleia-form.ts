@@ -24,6 +24,12 @@ export interface AssembleiaFormValues {
   // Percentual (0–100) do peso do condomínio inteiro exigido pra
   // assembleia valer. Vazio = sem checagem de quórum mínimo.
   quorumMinimo: string
+  // Auditoria de assembleias — Fase 2: 1ª/2ª convocação. data1aConvocacao
+  // vazio = sem 1ª/2ª convocação (só quorumMinimo, comportamento único da
+  // Fase 1). Preenchido = depois dessa data, quorumMinimo2a passa a valer
+  // no lugar de quorumMinimo.
+  data1aConvocacao: string
+  quorumMinimo2a: string
   pautas: PautaFormState[]
 }
 
@@ -45,6 +51,8 @@ function valoresIniciais(initial?: Partial<AssembleiaFormValues>): AssembleiaFor
     dataAbertura: initial?.dataAbertura ?? "",
     dataEncerramento: initial?.dataEncerramento ?? "",
     quorumMinimo: initial?.quorumMinimo ?? "",
+    data1aConvocacao: initial?.data1aConvocacao ?? "",
+    quorumMinimo2a: initial?.quorumMinimo2a ?? "",
     pautas: initial?.pautas?.length ? initial.pautas : [novaPauta()],
   }
 }
@@ -58,6 +66,8 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
   const [dataAbertura, setDataAbertura] = useState(() => valoresIniciais(initial).dataAbertura)
   const [dataEncerramento, setDataEncerramento] = useState(() => valoresIniciais(initial).dataEncerramento)
   const [quorumMinimo, setQuorumMinimo] = useState(() => valoresIniciais(initial).quorumMinimo)
+  const [data1aConvocacao, setData1aConvocacao] = useState(() => valoresIniciais(initial).data1aConvocacao)
+  const [quorumMinimo2a, setQuorumMinimo2a] = useState(() => valoresIniciais(initial).quorumMinimo2a)
   const [pautas, setPautas] = useState<PautaFormState[]>(() => valoresIniciais(initial).pautas)
 
   function reset(values?: Partial<AssembleiaFormValues>) {
@@ -67,6 +77,8 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     setDataAbertura(v.dataAbertura)
     setDataEncerramento(v.dataEncerramento)
     setQuorumMinimo(v.quorumMinimo)
+    setData1aConvocacao(v.data1aConvocacao)
+    setQuorumMinimo2a(v.quorumMinimo2a)
     setPautas(v.pautas)
   }
 
@@ -154,9 +166,21 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     return !Number.isNaN(fracao) && fracao > 0 && fracao <= 1
   }
 
+  // Auditoria de assembleias — Fase 2: se data1aConvocacao está fora do
+  // intervalo [dataAbertura, dataEncerramento] (quando essas datas
+  // existem), a janela da 2ª convocação fica vazia ou invertida — mesma
+  // regra aplicada de novo no servidor (ver validarConvocacao em
+  // app/actions/assembleias.ts).
+  const convocacaoValida =
+    data1aConvocacao.trim() === "" ||
+    ((dataEncerramento.trim() === "" || new Date(data1aConvocacao) <= new Date(dataEncerramento)) &&
+      (dataAbertura.trim() === "" || new Date(data1aConvocacao) >= new Date(dataAbertura)))
+
   const canSubmit =
     titulo.trim().length > 0 &&
     quorumValido(quorumMinimo, false) &&
+    quorumValido(quorumMinimo2a, false) &&
+    convocacaoValida &&
     pautas.length > 0 &&
     pautas.every((p) => {
       if (!p.titulo.trim()) return false
@@ -176,6 +200,11 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     setDataEncerramento,
     quorumMinimo,
     setQuorumMinimo,
+    data1aConvocacao,
+    setData1aConvocacao,
+    quorumMinimo2a,
+    setQuorumMinimo2a,
+    convocacaoValida,
     pautas,
     addPauta,
     removePauta,

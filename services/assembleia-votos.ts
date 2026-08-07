@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { getPesoParticipante, getPesoTotalCondominio } from "@/lib/peso"
+import { getPesoParticipante, getPesoTotalCondominio, getQuorumEfetivo } from "@/lib/peso"
 import { marcarPautaEmVotacaoSeNecessario } from "@/services/pautas"
 import { getCondominioById } from "@/services/condominios"
 import { getUnidadesByCondominioId } from "@/services/unidades"
@@ -59,6 +59,8 @@ type JoinedAssembleia = {
   data_abertura: string | null
   data_encerramento: string | null
   quorum_minimo: number | null
+  data_1a_convocacao: string | null
+  quorum_minimo_2a: number | null
   condominios: { nome: string } | null
   pautas: JoinedPauta[] | null
 }
@@ -91,7 +93,7 @@ type JoinedSend = JoinedSendSnapshot & {
 }
 
 const SELECT_SEND_JOINED =
-  "*, assembleias(id, condominio_id, titulo, descricao, status, data_abertura, data_encerramento, quorum_minimo, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, status, quorum_aprovacao, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
+  "*, assembleias(id, condominio_id, titulo, descricao, status, data_abertura, data_encerramento, quorum_minimo, data_1a_convocacao, quorum_minimo_2a, condominios(nome), pautas(id, assembleia_id, ordem, titulo, descricao, ativa, tipo, permite_abstencao, status, quorum_aprovacao, created_at, pauta_opcoes(*))), proprietarios(id, nome, email)"
 
 function rowToSend(row: JoinedSend): AssembleiaSend {
   const a = row.assembleias
@@ -123,6 +125,8 @@ function rowToSend(row: JoinedSend): AssembleiaSend {
           data_abertura: a.data_abertura,
           data_encerramento: a.data_encerramento,
           quorum_minimo: a.quorum_minimo,
+          data_1a_convocacao: a.data_1a_convocacao,
+          quorum_minimo_2a: a.quorum_minimo_2a,
           condominio_nome: a.condominios?.nome ?? null,
           pautas: (a.pautas ?? [])
             .map((p) => ({
@@ -532,7 +536,11 @@ export async function getApuracaoAssembleia(
         .select("peso_snapshot")
         .eq("assembleia_id", assembleiaId)
         .not("votado_em", "is", null),
-      db.from("assembleias").select("quorum_minimo").eq("id", assembleiaId).single(),
+      db
+        .from("assembleias")
+        .select("quorum_minimo, data_1a_convocacao, quorum_minimo_2a, data_encerramento")
+        .eq("id", assembleiaId)
+        .single(),
       getCondominioById(condominioId),
       getUnidadesByCondominioId(condominioId),
     ])
@@ -553,19 +561,34 @@ export async function getApuracaoAssembleia(
     (pesoRepresentadoRes.data ?? []) as { peso_snapshot: number | null }[]
   ).reduce((soma, s) => soma + (s.peso_snapshot ?? 0), 0)
 
-  // assembleias.quorum_minimo é opcional — null = sem checagem configurada,
-  // então percentual/atingido também ficam null (não é "quórum não
-  // atingido", é "não se aplica"). percentual_quorum só é calculado quando
-  // quorum_minimo está configurado — caso contrário as telas (admin,
-  // pública) e os relatórios (PDF/XLSX, que já gatavam certo em
-  // assembleia.quorum_minimo) ficariam inconsistentes entre si sobre
+  // Auditoria de assembleias — Fase 2: getQuorumEfetivo decide se vale o
+  // quórum da 1ª ou da 2ª convocação, com base em data_1a_convocacao vs. o
+  // momento de referência (data_encerramento se já encerrada — decisão
+  // definitiva e congelada — ou "agora" se ainda aberta, visão ao vivo).
+  const quorumRow = quorumMinimoRes.data as {
+    quorum_minimo: number | null
+    data_1a_convocacao: string | null
+    quorum_minimo_2a: number | null
+    data_encerramento: string | null
+  } | null
+  const dataReferencia = quorumRow?.data_encerramento ? new Date(quorumRow.data_encerramento) : new Date()
+  const { quorumAplicavel, convocacaoAplicada } = getQuorumEfetivo({
+    quorum_minimo: quorumRow?.quorum_minimo ?? null,
+    quorum_minimo_2a: quorumRow?.quorum_minimo_2a ?? null,
+    data_1a_convocacao: quorumRow?.data_1a_convocacao ?? null,
+    dataReferencia,
+  })
+
+  // quorumAplicavel null = sem checagem configurada (nem 1ª nem 2ª
+  // convocação têm quórum aqui) — percentual/atingido ficam null (não é
+  // "quórum não atingido", é "não se aplica"). As telas (admin, pública) e
+  // os relatórios (PDF/XLSX) usam essa mesma regra, nunca decidem sozinhos
   // quando mostrar a seção de quórum.
-  const quorumMinimo = (quorumMinimoRes.data as { quorum_minimo: number | null } | null)?.quorum_minimo ?? null
   let percentual_quorum: number | null = null
   let quorum_atingido: boolean | null = null
-  if (quorumMinimo !== null && peso_total_condominio > 0) {
+  if (quorumAplicavel !== null && peso_total_condominio > 0) {
     percentual_quorum = peso_representado / peso_total_condominio
-    quorum_atingido = percentual_quorum >= quorumMinimo
+    quorum_atingido = percentual_quorum >= quorumAplicavel
   }
 
   // Agrupa respostas por pauta
@@ -594,6 +617,8 @@ export async function getApuracaoAssembleia(
     peso_representado,
     percentual_quorum,
     quorum_atingido,
+    convocacao_aplicada: quorumAplicavel !== null ? convocacaoAplicada : null,
+    quorum_aplicavel: quorumAplicavel,
   }
 }
 

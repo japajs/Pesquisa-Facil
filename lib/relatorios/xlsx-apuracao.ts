@@ -90,15 +90,21 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
     ["Responderam", apuracao.total_respondidos],
     ["Taxa de participação", taxaPart],
     [],
-    // Auditoria de assembleias — Fase 1: quórum sobre o peso do CONDOMÍNIO
-    // INTEIRO (todas as unidades), métrica diferente da Participação acima
-    // (que é só sobre quem recebeu convite). Só aparece quando a assembleia
-    // tem quorum_minimo configurado.
-    ...(assembleia.quorum_minimo !== null
+    // Auditoria de assembleias — Fase 1/2: quórum sobre o peso do
+    // CONDOMÍNIO INTEIRO (todas as unidades), métrica diferente da
+    // Participação acima (que é só sobre quem recebeu convite). Gate em
+    // apuracao.percentual_quorum (quórum EFETIVO — já resolvido pra 1ª ou
+    // 2ª convocação), nunca em assembleia.quorum_minimo direto: esse é
+    // sempre o valor da 1ª convocação, mesmo quando a 2ª já está em vigor.
+    ...(apuracao.percentual_quorum !== null
       ? ([
-          ["QUÓRUM MÍNIMO"],
-          ["Exigido", pctStr(assembleia.quorum_minimo, 1)],
-          ["Atingido", pctStr(apuracao.percentual_quorum ?? 0, 1)],
+          [
+            apuracao.convocacao_aplicada !== null
+              ? `QUÓRUM MÍNIMO (${apuracao.convocacao_aplicada}ª CONVOCAÇÃO)`
+              : "QUÓRUM MÍNIMO",
+          ],
+          ["Exigido", pctStr(apuracao.quorum_aplicavel ?? 0, 1)],
+          ["Atingido", pctStr(apuracao.percentual_quorum, 1)],
           [
             "Resultado",
             apuracao.quorum_atingido ? "QUÓRUM ATINGIDO" : "QUÓRUM NÃO ATINGIDO",
