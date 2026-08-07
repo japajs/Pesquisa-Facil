@@ -181,7 +181,10 @@ export function EditarProprietarioDialog({
 
   function carregarCoproprietarios() {
     const unidadeIds = (proprietario.unidades ?? []).map((u) => u.id)
-    if (unidadeIds.length === 0) return
+    if (unidadeIds.length === 0) {
+      setCoproprietariosPorUnidade({})
+      return
+    }
     setCarregandoCoproprietarios(true)
     getCoproprietariosPorUnidadesAction(unidadeIds, condominioId).then((result) => {
       setCarregandoCoproprietarios(false)

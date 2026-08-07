@@ -269,8 +269,12 @@ export async function sendNovaPautaEmailBatch(
           votoUrl: e.votoUrl,
         }),
       }))
-      await resend.batch.send(batch)
-      chunk.forEach((e) => sent.push(e.sendId))
+      // Achado de auditoria: resend.batch.send nunca rejeita em falha de
+      // API, só resolve com { error } — sem checar isso, um lote recusado
+      // era registrado como enviado.
+      const { error } = await resend.batch.send(batch)
+      if (error) chunk.forEach((e) => failed.push(e.sendId))
+      else chunk.forEach((e) => sent.push(e.sendId))
     } catch {
       chunk.forEach((e) => failed.push(e.sendId))
     }
@@ -401,8 +405,12 @@ export async function sendLembreteVotoEmailBatch(
           votoUrl: e.votoUrl,
         }),
       }))
-      await resend.batch.send(batch)
-      chunk.forEach((e) => sent.push(e.sendId))
+      // Achado de auditoria: resend.batch.send nunca rejeita em falha de
+      // API, só resolve com { error } — sem checar isso, um lote recusado
+      // era registrado como enviado.
+      const { error } = await resend.batch.send(batch)
+      if (error) chunk.forEach((e) => failed.push(e.sendId))
+      else chunk.forEach((e) => sent.push(e.sendId))
     } catch {
       chunk.forEach((e) => failed.push(e.sendId))
     }
@@ -451,7 +459,13 @@ export async function sendAssembleiaEmailBatch(
   if (anexo) {
     for (const e of emails) {
       try {
-        await resend.emails.send({
+        // Achado de auditoria: o SDK da Resend nunca REJEITA em falha de
+        // API (endereço inválido, anexo grande demais, limite de taxa) —
+        // ele sempre resolve com { data, error }. Sem checar `error` aqui,
+        // todo envio era registrado como "sent" mesmo quando a Resend
+        // recusou, e o síndico via "enviado" achando que o proprietário
+        // tinha sido notificado da convocação sem isso ser verdade.
+        const { error } = await resend.emails.send({
           from,
           to: e.to,
           subject: `Assembleia: ${e.assembleiaTitulo}`,
@@ -465,7 +479,8 @@ export async function sendAssembleiaEmailBatch(
           }),
           attachments: [{ filename: anexo.filename, content: anexo.content }],
         })
-        sent.push(e.sendId)
+        if (error) failed.push(e.sendId)
+        else sent.push(e.sendId)
       } catch {
         failed.push(e.sendId)
       }
@@ -492,8 +507,9 @@ export async function sendAssembleiaEmailBatch(
         }),
       }))
 
-      await resend.batch.send(batch)
-      chunk.forEach((e) => sent.push(e.sendId))
+      const { error } = await resend.batch.send(batch)
+      if (error) chunk.forEach((e) => failed.push(e.sendId))
+      else chunk.forEach((e) => sent.push(e.sendId))
     } catch {
       chunk.forEach((e) => failed.push(e.sendId))
     }

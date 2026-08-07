@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import {
   createCoproprietario,
   deleteCoproprietario,
-  getCoproprietariosByUnidade,
+  getCoproprietariosByUnidades,
 } from "@/services/coproprietarios"
 import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
@@ -23,8 +23,7 @@ export async function getCoproprietariosPorUnidadesAction(
   if (!acesso.ok) return { success: false, porUnidade: {}, error: acesso.error }
 
   try {
-    const listas = await Promise.all(unidadeIds.map((id) => getCoproprietariosByUnidade(id)))
-    const porUnidade = Object.fromEntries(unidadeIds.map((id, i) => [id, listas[i]]))
+    const porUnidade = await getCoproprietariosByUnidades(unidadeIds, condominioId)
     return { success: true, porUnidade }
   } catch (err) {
     return {
@@ -46,7 +45,7 @@ export async function createCoproprietarioAction(
   if (!acesso.ok) return { success: false, error: acesso.error }
 
   try {
-    await createCoproprietario(unidadeId, proprietarioId)
+    await createCoproprietario(unidadeId, proprietarioId, condominioId)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
     return { success: true }
   } catch (err) {
@@ -64,7 +63,7 @@ export async function deleteCoproprietarioAction(
   if (!acesso.ok) return { success: false, error: acesso.error }
 
   try {
-    await deleteCoproprietario(id)
+    await deleteCoproprietario(id, condominioId)
     revalidatePath(`${ROUTES.condominios}/${condominioId}`)
     return { success: true }
   } catch (err) {
