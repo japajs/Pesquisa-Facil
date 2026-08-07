@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createCondominio } from "@/services/condominios"
+import { createServerClient } from "@/lib/supabase/server"
+import { createCondominio, deleteCondominio } from "@/services/condominios"
 import { createProprietario } from "@/services/proprietarios"
 import { createUnidade } from "@/services/unidades"
 import { createAssembleia, updateAssembleiaStatus } from "@/services/assembleias"
@@ -22,8 +23,19 @@ export async function GET(req: NextRequest) {
   const appUrl = "https://votoonline.online"
   const emailDestino = "cleitonsalazargomes@gmail.com"
 
+  const db = createServerClient()
+  const NOME_DEMO = "ORGANIZAÇÕES TEMA LTDA ME"
+
   try {
-    const condominio = await createCondominio({ nome: "ORGANIZAÇÕES TEMA LTDA ME" })
+    // Idempotência: se já existe um condomínio de demonstração de uma
+    // chamada anterior a esta rota, apaga (cascade) antes de recriar — pra
+    // não acumular condomínios duplicados a cada disparo manual.
+    const { data: existentes } = await db.from("condominios").select("id").eq("nome", NOME_DEMO)
+    for (const c of existentes ?? []) {
+      await deleteCondominio((c as { id: string }).id)
+    }
+
+    const condominio = await createCondominio({ nome: NOME_DEMO })
 
     const proprietario = await createProprietario({
       condominio_id: condominio.id,
