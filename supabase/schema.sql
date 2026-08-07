@@ -146,6 +146,22 @@ create table if not exists unidades (
   created_at          timestamptz   not null default now()
 );
 
+-- Auditoria de assembleias — Fase 9 (copropriedade, versão de menor
+-- risco escolhida pelo usuário): registro puramente informativo de donos
+-- ADICIONAIS de uma unidade (ex.: cônjuge, herdeiros) — nunca lido por
+-- lib/peso.ts, services/assembleia-votos.ts, importação ou qualquer
+-- cálculo de peso/voto. Quem vota pela unidade continua sendo só
+-- unidades.proprietario_id, exatamente como antes desta fase. Se um
+-- coproprietário quiser votar de verdade, o caminho é procuração (Fase 8)
+-- entre proprietários já cadastrados — não este cadastro.
+create table if not exists unidade_coproprietarios (
+  id               uuid        primary key default uuid_generate_v4(),
+  unidade_id       uuid        not null references unidades(id)      on delete cascade,
+  proprietario_id  uuid        not null references proprietarios(id) on delete cascade,
+  created_at       timestamptz not null default now(),
+  unique (unidade_id, proprietario_id)
+);
+
 -- ============================================================
 -- Votação: assembleias, pautas e opções
 -- ============================================================
@@ -326,6 +342,9 @@ create index if not exists idx_procuracoes_assembleia_id          on procuracoes
 create index if not exists idx_procuracoes_outorgante_id          on procuracoes(outorgante_id);
 create index if not exists idx_procuracoes_outorgado_id           on procuracoes(outorgado_id);
 
+create index if not exists idx_unidade_coprop_unidade_id          on unidade_coproprietarios(unidade_id);
+create index if not exists idx_unidade_coprop_proprietario_id     on unidade_coproprietarios(proprietario_id);
+
 -- ─── Row Level Security ───────────────────────────────────────────────────
 -- O service role key (usado pelo Next.js) bypassa o RLS automaticamente.
 -- Nenhuma policy pública é criada — sem elas, a anon key não acessa nada.
@@ -343,6 +362,7 @@ alter table pauta_opcoes          enable row level security;
 alter table assembleia_sends      enable row level security;
 alter table assembleia_respostas  enable row level security;
 alter table procuracoes           enable row level security;
+alter table unidade_coproprietarios enable row level security;
 
 -- ============================================================
 -- Migração — Fase 1 da auditoria de assembleias: fração ideal,
@@ -429,3 +449,22 @@ create index if not exists idx_procuracoes_outorgante_id on procuracoes(outorgan
 create index if not exists idx_procuracoes_outorgado_id  on procuracoes(outorgado_id);
 
 alter table procuracoes enable row level security;
+
+-- ============================================================
+-- Migração — Fase 9 da auditoria de assembleias: coproprietários
+-- (registro puramente informativo — nunca afeta peso/voto). Execute no
+-- SQL Editor.
+-- ============================================================
+
+create table if not exists unidade_coproprietarios (
+  id               uuid        primary key default uuid_generate_v4(),
+  unidade_id       uuid        not null references unidades(id)      on delete cascade,
+  proprietario_id  uuid        not null references proprietarios(id) on delete cascade,
+  created_at       timestamptz not null default now(),
+  unique (unidade_id, proprietario_id)
+);
+
+create index if not exists idx_unidade_coprop_unidade_id      on unidade_coproprietarios(unidade_id);
+create index if not exists idx_unidade_coprop_proprietario_id on unidade_coproprietarios(proprietario_id);
+
+alter table unidade_coproprietarios enable row level security;

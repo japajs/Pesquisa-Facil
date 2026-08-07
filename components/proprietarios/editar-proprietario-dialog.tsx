@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Pencil, History, AlertTriangle, Lock, ArrowRightLeft, Link2 } from "lucide-react"
+import { Pencil, History, AlertTriangle, Lock, ArrowRightLeft, Link2, Users, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -21,8 +21,13 @@ import {
   transferUnidadeAction,
   updateFracaoIdealAction,
 } from "@/app/actions/proprietarios"
+import {
+  getCoproprietariosPorUnidadesAction,
+  createCoproprietarioAction,
+  deleteCoproprietarioAction,
+} from "@/app/actions/coproprietarios"
 import { formatUnidade } from "@/lib/unidade-format"
-import type { Proprietario, CriterioPeso } from "@/types"
+import type { Proprietario, CriterioPeso, CoproprietarioComNome } from "@/types"
 
 interface Props {
   proprietario: Proprietario
@@ -142,6 +147,17 @@ export function EditarProprietarioDialog({
 
   const [vincularUnidadeId, setVincularUnidadeId] = useState("")
 
+  // Auditoria de assembleias — Fase 9: coproprietários são puramente
+  // informativos (ver services/coproprietarios.ts) — carregados sob
+  // demanda, ao abrir o diálogo, um por unidade deste proprietário.
+  const [coproprietariosPorUnidade, setCoproprietariosPorUnidade] = useState<
+    Record<string, CoproprietarioComNome[]>
+  >({})
+  const [carregandoCoproprietarios, setCarregandoCoproprietarios] = useState(false)
+  const [novoCoprop, setNovoCoprop] = useState<Record<string, string>>({})
+  const [isPendingCoprop, startCoproprietarioTransition] = useTransition()
+  const [removendoCoprop, setRemovendoCoprop] = useState<string | null>(null)
+
   const [isPendingSalvar, startSalvarTransition] = useTransition()
   const [isPendingCpf, startCpfTransition] = useTransition()
   const [isPendingTransferir, startTransferirTransition] = useTransition()
@@ -163,14 +179,60 @@ export function EditarProprietarioDialog({
     setNovoCpfAdmin(proprietario.cpf ?? "")
   }
 
+  function carregarCoproprietarios() {
+    const unidadeIds = (proprietario.unidades ?? []).map((u) => u.id)
+    if (unidadeIds.length === 0) return
+    setCarregandoCoproprietarios(true)
+    getCoproprietariosPorUnidadesAction(unidadeIds, condominioId).then((result) => {
+      setCarregandoCoproprietarios(false)
+      if (result.success) {
+        setCoproprietariosPorUnidade(result.porUnidade)
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
   function handleOpenChange(next: boolean) {
     setOpen(next)
-    if (!next) {
+    if (next) {
+      carregarCoproprietarios()
+    } else {
       setMostrarAlterarCpf(false)
       setConfirmarAlterarCpf(false)
       setTransferindoUnidadeId(null)
       setVincularUnidadeId("")
+      setNovoCoprop({})
     }
+  }
+
+  function handleAdicionarCoproprietario(unidadeId: string) {
+    const proprietarioId = novoCoprop[unidadeId]
+    if (!proprietarioId) return
+    startCoproprietarioTransition(async () => {
+      const result = await createCoproprietarioAction(unidadeId, proprietarioId, condominioId)
+      if (result.success) {
+        toast.success("Coproprietário registrado.")
+        setNovoCoprop((prev) => ({ ...prev, [unidadeId]: "" }))
+        carregarCoproprietarios()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function handleRemoverCoproprietario(id: string) {
+    setRemovendoCoprop(id)
+    startCoproprietarioTransition(async () => {
+      const result = await deleteCoproprietarioAction(id, condominioId)
+      setRemovendoCoprop(null)
+      if (result.success) {
+        toast.success("Coproprietário removido.")
+        carregarCoproprietarios()
+      } else {
+        toast.error(result.error)
+      }
+    })
   }
 
   const algumCampoMudou =
@@ -538,6 +600,92 @@ export function EditarProprietarioDialog({
               ))}
             </div>
           </Secao>
+
+          {/* ── Coproprietários ───────────────────────────────────────── */}
+          {(proprietario.unidades ?? []).length > 0 && (
+            <Secao icon={Users} titulo="Coproprietários">
+              <p className="text-xs text-muted-foreground">
+                Registro apenas informativo (ex.: cônjuge, herdeiros) — não altera quem vota pela
+                unidade nem o peso do voto. Para um coproprietário votar de fato, use Procurações
+                na assembleia.
+              </p>
+              {carregandoCoproprietarios ? (
+                <div className="flex items-center justify-center py-4 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(proprietario.unidades ?? []).map((u) => {
+                    const lista = coproprietariosPorUnidade[u.id] ?? []
+                    const elegiveis = outrosProprietarios.filter(
+                      (p) => !lista.some((c) => c.proprietario_id === p.id)
+                    )
+                    return (
+                      <div
+                        key={u.id}
+                        className="rounded-lg border border-border/60 bg-background p-2.5 space-y-2"
+                      >
+                        <span className="text-sm font-medium">{formatUnidade(u)}</span>
+
+                        {lista.length > 0 && (
+                          <div className="space-y-1">
+                            {lista.map((c) => (
+                              <div
+                                key={c.id}
+                                className="flex items-center justify-between rounded-md bg-muted/30 px-2 py-1 text-xs"
+                              >
+                                <span className="min-w-0 truncate">{c.proprietario_nome}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoverCoproprietario(c.id)}
+                                  disabled={isPendingCoprop}
+                                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                                >
+                                  {isPendingCoprop && removendoCoprop === c.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <X className="h-3 w-3" />
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {elegiveis.length > 0 && (
+                          <div className="flex gap-1.5">
+                            <select
+                              value={novoCoprop[u.id] ?? ""}
+                              onChange={(e) =>
+                                setNovoCoprop((prev) => ({ ...prev, [u.id]: e.target.value }))
+                              }
+                              className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+                            >
+                              <option value="">Adicionar coproprietário…</option>
+                              {elegiveis.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.nome}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-2 text-xs"
+                              disabled={!novoCoprop[u.id] || isPendingCoprop}
+                              onClick={() => handleAdicionarCoproprietario(u.id)}
+                            >
+                              Adicionar
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Secao>
+          )}
 
           {/* ── Vincular unidade ──────────────────────────────────────── */}
           {unidadesDeOutros.length > 0 && (

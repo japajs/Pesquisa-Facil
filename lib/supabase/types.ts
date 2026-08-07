@@ -387,6 +387,22 @@ export type Database = {
         Update: never
         Relationships: []
       }
+      unidade_coproprietarios: {
+        Row: {
+          id: string
+          unidade_id: string
+          proprietario_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          unidade_id: string
+          proprietario_id: string
+          created_at?: string
+        }
+        Update: never
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -90,6 +90,24 @@ export interface Unidade {
   // usada/exigida quando o condomínio tem criterio_peso = "fracao_ideal".
   fracao_ideal: number | null
   created_at: string
+  // joined
+  coproprietarios?: CoproprietarioComNome[]
+}
+
+// Auditoria de assembleias — Fase 9: registro puramente informativo de um
+// dono ADICIONAL de uma unidade (ex.: cônjuge, herdeiros). Nunca lido por
+// lib/peso.ts ou services/assembleia-votos.ts — quem vota pela unidade
+// continua sendo só unidades.proprietario_id. Se um coproprietário quiser
+// votar de fato, o caminho é procuração (Procuracao), não este cadastro.
+export interface Coproprietario {
+  id: string
+  unidade_id: string
+  proprietario_id: string
+  created_at: string
+}
+
+export interface CoproprietarioComNome extends Coproprietario {
+  proprietario_nome: string
 }
 
 // Uma entrada do histórico simples de alterações de cadastro (Etapa 4) —
