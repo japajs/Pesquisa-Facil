@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { getAllCondominios } from "@/services/condominios"
-import { getCondominiosAutorizados } from "@/services/usuarios"
-import { getSession } from "@/lib/auth"
+import { resolveCondominioScope } from "@/lib/auth"
 import { ImportacaoWizard } from "@/components/importacao/importacao-wizard"
 import type { Condominio } from "@/types"
 
@@ -16,12 +15,7 @@ export const maxDuration = 60
 // escolher, para importar, um condomínio dentre os vinculados a ele.
 async function fetchCondominios(): Promise<Condominio[]> {
   try {
-    const session = await getSession()
-    if (session && !session.acessoTotal) {
-      const ids = await getCondominiosAutorizados(session.userId)
-      return await getAllCondominios(ids)
-    }
-    return await getAllCondominios()
+    return await getAllCondominios(await resolveCondominioScope())
   } catch {
     return []
   }

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation"
-import { getSession } from "@/lib/auth"
+import { getSession, resolveCondominioScope } from "@/lib/auth"
 import { getAllCondominios } from "@/services/condominios"
-import { getCondominiosAutorizados } from "@/services/usuarios"
 import { RelatoriosClient } from "@/components/relatorios/relatorios-client"
 
 export const metadata = { title: "Relatórios" }
@@ -12,9 +11,7 @@ export default async function RelatoriosPage() {
 
   // Escopo por condomínio (MASTER/PESSOAL): PESSOAL só pode gerar relatório
   // dos condomínios vinculados a ele.
-  const condominios = session.acessoTotal
-    ? await getAllCondominios()
-    : await getAllCondominios(await getCondominiosAutorizados(session.userId))
+  const condominios = await getAllCondominios(await resolveCondominioScope())
 
   return (
     <div className="flex flex-col gap-6 p-6 pt-8">

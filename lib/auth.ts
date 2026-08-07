@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE } from "./constants"
 import { createServerClient } from "@/lib/supabase/server"
+import { getCondominiosAutorizados } from "@/services/usuarios"
 import type { SessionUser, UserPerfil } from "@/types"
 
 function getSecret(): Uint8Array {
@@ -74,6 +75,22 @@ export async function getSession(): Promise<SessionUser | null> {
 
 export async function isAuthenticated(): Promise<boolean> {
   return (await getSession()) !== null
+}
+
+// Escopo por condomínio (MASTER/PESSOAL): resolve, a partir da sessão atual,
+// a lista de condomínio_id que o usuário pode ver — `undefined` pra MASTER
+// (acessoTotal: true) ou sessão antiga/inexistente, mantendo o comportamento
+// de sempre (sem filtro); um array pra PESSOAL, vindo de usuario_condominios.
+// Centraliza a decisão "quais condomínios este usuário enxerga" pra não
+// precisar reescrever `session && !session.acessoTotal ? ... : undefined`
+// em cada página/rota que lista dados por condomínio (ver
+// app/(dashboard)/condominios/page.tsx e app/(dashboard)/dashboard/page.tsx).
+export async function resolveCondominioScope(): Promise<string[] | undefined> {
+  const session = await getSession()
+  if (session && !session.acessoTotal) {
+    return getCondominiosAutorizados(session.userId)
+  }
+  return undefined
 }
 
 // Auditoria de segurança: os 3 perfis (administrador/operador/visualizador)

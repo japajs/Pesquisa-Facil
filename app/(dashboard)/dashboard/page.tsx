@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { getCondoDashboardStats, getRecentAssembleias, getResumoPorCondominio } from "@/services/dashboard"
-import { getCondominiosAutorizados } from "@/services/usuarios"
-import { getSession } from "@/lib/auth"
+import { resolveCondominioScope } from "@/lib/auth"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { RecentSurveysTable } from "@/components/dashboard/recent-surveys-table"
 import { ResumoCondominiosTable } from "@/components/dashboard/resumo-condominios-table"
@@ -25,9 +24,7 @@ async function fetchDashboardData(): Promise<{
   resumoCondominios: CondominioResumo[]
 }> {
   try {
-    const session = await getSession()
-    const condominioIds =
-      session && !session.acessoTotal ? await getCondominiosAutorizados(session.userId) : undefined
+    const condominioIds = await resolveCondominioScope()
 
     const [stats, assembleias, resumoCondominios] = await Promise.all([
       getCondoDashboardStats(condominioIds),
