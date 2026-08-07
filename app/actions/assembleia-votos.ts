@@ -9,9 +9,10 @@ import {
   updateAssembleiaSendStatus,
   createAssembleiaRespostas,
   getSendsJaVotaram,
+  getSendsNaoVotaram,
   type RespostaInput,
 } from "@/services/assembleia-votos"
-import { sendAssembleiaEmailBatch, sendNovaPautaEmailBatch } from "@/services/email"
+import { sendAssembleiaEmailBatch, sendNovaPautaEmailBatch, sendLembreteVotoEmailBatch } from "@/services/email"
 import { generateSurveyToken } from "@/lib/tokens"
 import { requirePerfil, requireAcessoCondominio } from "@/lib/auth"
 import { ROUTES } from "@/lib/constants"
@@ -198,6 +199,71 @@ export async function notificarNovaPautaAction(
         proprietarioNome: s.proprietarioNome,
         assembleiaTitulo: assembleia.titulo,
         pautaTitulo: pauta.titulo,
+        votoUrl: `${appUrl}${ROUTES.publicCondoVoto(s.token)}`,
+      }))
+    )
+
+    return {
+      success: true,
+      sent: sent.length,
+      failed: failed.length + (sends.length - comEmail.length),
+    }
+  } catch (err) {
+    return {
+      success: false,
+      sent: 0,
+      failed: 0,
+      error: err instanceof Error ? err.message : "Erro ao notificar participantes.",
+    }
+  }
+}
+
+export interface NotificarNaoVotaramResult {
+  success: boolean
+  sent: number
+  failed: number
+  error?: string
+}
+
+// Auditoria de assembleias — Fase 6: lembrete manual pra quem ainda não
+// registrou nenhum voto — disparado pelo síndico clicando um botão na tela
+// da assembleia (não existe cron/agendamento neste projeto). Reaproveita o
+// token já existente de cada send, sem rotacionar.
+export async function notificarNaoVotaramAction(
+  assembleiaId: string
+): Promise<NotificarNaoVotaramResult> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, sent: 0, failed: 0, error: auth.error }
+
+  try {
+    const assembleia = await getAssembleiaById(assembleiaId)
+    if (!assembleia) return { success: false, sent: 0, failed: 0, error: "Assembleia não encontrada." }
+
+    const acesso = await requireAcessoCondominio(assembleia.condominio_id)
+    if (!acesso.ok) return { success: false, sent: 0, failed: 0, error: acesso.error }
+
+    if (assembleia.status !== "aberta") {
+      return {
+        success: false,
+        sent: 0,
+        failed: 0,
+        error: "Só é possível notificar enquanto a assembleia estiver aberta.",
+      }
+    }
+
+    const sends = await getSendsNaoVotaram(assembleiaId)
+    const comEmail = sends.filter((s) => s.proprietarioEmail)
+    if (comEmail.length === 0) return { success: true, sent: 0, failed: 0 }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+
+    const { sent, failed } = await sendLembreteVotoEmailBatch(
+      comEmail.map((s) => ({
+        sendId: s.id,
+        to: s.proprietarioEmail!,
+        proprietarioNome: s.proprietarioNome,
+        assembleiaTitulo: assembleia.titulo,
+        dataEncerramento: assembleia.data_encerramento,
         votoUrl: `${appUrl}${ROUTES.publicCondoVoto(s.token)}`,
       }))
     )

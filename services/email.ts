@@ -279,6 +279,138 @@ export async function sendNovaPautaEmailBatch(
   return { sent, failed }
 }
 
+// Auditoria de assembleias — Fase 6: lembrete manual pra quem ainda não
+// registrou nenhum voto na assembleia — disparado pelo síndico clicando um
+// botão na tela (não existe cron/agendamento neste projeto, ver
+// lib/rate-limit.ts pro mesmo padrão de "sem infraestrutura de fundo").
+// Reaproveita o mesmo estilo visual dos outros e-mails do sistema.
+interface LembreteVotoTemplateInput {
+  proprietarioNome: string
+  assembleiaTitulo: string
+  dataEncerramento: string | null
+  votoUrl: string
+}
+
+function buildLembreteVotoEmailHtml({
+  proprietarioNome,
+  assembleiaTitulo,
+  dataEncerramento,
+  votoUrl,
+}: LembreteVotoTemplateInput): string {
+  const accent = "#16233F"
+  proprietarioNome = escapeHtml(proprietarioNome)
+  assembleiaTitulo = escapeHtml(assembleiaTitulo)
+  const prazoTexto = dataEncerramento
+    ? `O prazo para votar encerra em <strong>${new Date(dataEncerramento).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</strong>.`
+    : "A votação continua aberta."
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>${assembleiaTitulo}</title>
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f9fafb;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" role="presentation"
+               style="background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+          <tr>
+            <td style="background:${accent};padding:24px 32px;">
+              <p style="margin:0;font-size:16px;font-weight:600;color:#ffffff;letter-spacing:-0.01em;">
+                ${APP_NAME}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 32px 28px;">
+              <h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 8px;line-height:1.3;">
+                Olá, ${proprietarioNome}!
+              </h1>
+              <p style="font-size:15px;color:#374151;margin:0 0 12px;line-height:1.6;">
+                Você ainda não registrou seu voto na assembleia
+                <strong>&ldquo;${assembleiaTitulo}&rdquo;</strong>.
+              </p>
+              <p style="font-size:13px;color:#6b7280;margin:0 0 20px;line-height:1.5;">
+                ${prazoTexto}
+              </p>
+              <a href="${votoUrl}"
+                 style="display:inline-block;background:${accent};color:#ffffff;font-size:15px;
+                        font-weight:600;padding:14px 28px;border-radius:8px;text-decoration:none;
+                        letter-spacing:-0.01em;">
+                Votar agora →
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 28px;">
+              <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.5;">
+                Se o botão não funcionar, acesse:<br/>
+                <a href="${votoUrl}" style="color:${accent};word-break:break-all;">${votoUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 32px;">
+              <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.5;">
+                Este e-mail foi enviado por <strong>${APP_NAME}</strong>.
+                Se você não esperava recebê-lo, pode ignorar esta mensagem com segurança.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+export interface LembreteVotoEmailInput {
+  sendId: string
+  to: string
+  proprietarioNome: string
+  assembleiaTitulo: string
+  dataEncerramento: string | null
+  votoUrl: string
+}
+
+export async function sendLembreteVotoEmailBatch(
+  emails: LembreteVotoEmailInput[]
+): Promise<EmailBatchResult> {
+  const resend = getResend()
+  const from = getFromEmail()
+  const sent: string[] = []
+  const failed: string[] = []
+
+  const CHUNK = 100
+  for (let i = 0; i < emails.length; i += CHUNK) {
+    const chunk = emails.slice(i, i + CHUNK)
+    try {
+      const batch = chunk.map((e) => ({
+        from,
+        to: e.to,
+        subject: `Lembrete: vote na assembleia "${e.assembleiaTitulo}"`,
+        html: buildLembreteVotoEmailHtml({
+          proprietarioNome: e.proprietarioNome,
+          assembleiaTitulo: e.assembleiaTitulo,
+          dataEncerramento: e.dataEncerramento,
+          votoUrl: e.votoUrl,
+        }),
+      }))
+      await resend.batch.send(batch)
+      chunk.forEach((e) => sent.push(e.sendId))
+    } catch {
+      chunk.forEach((e) => failed.push(e.sendId))
+    }
+  }
+
+  return { sent, failed }
+}
+
 export interface AssembleiaEmailInput {
   sendId: string
   to: string

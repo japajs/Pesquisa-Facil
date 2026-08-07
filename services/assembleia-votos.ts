@@ -680,3 +680,32 @@ export async function getSendsJaVotaram(assembleiaId: string): Promise<SendJaVot
     proprietarioEmail: r.email_snapshot ?? r.proprietarios?.email ?? null,
   }))
 }
+
+// Auditoria de assembleias — Fase 6: quem ainda não registrou nenhum voto
+// nesta assembleia — usado pro lembrete manual (botão "notificar quem não
+// votou"). Sem snapshot ainda (não votou), então usa sempre o cadastro
+// atual do proprietário — nunca *_snapshot, que só existe a partir do 1º
+// voto (ver createAssembleiaRespostas).
+export async function getSendsNaoVotaram(assembleiaId: string): Promise<SendJaVotado[]> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from("assembleia_sends")
+    .select("id, token, proprietarios(nome, email)")
+    .eq("assembleia_id", assembleiaId)
+    .is("votado_em", null)
+
+  if (error) throw new Error(error.message)
+
+  type Row = {
+    id: string
+    token: string
+    proprietarios: { nome: string; email: string | null } | null
+  }
+
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    token: r.token,
+    proprietarioNome: r.proprietarios?.nome ?? "Proprietário",
+    proprietarioEmail: r.proprietarios?.email ?? null,
+  }))
+}

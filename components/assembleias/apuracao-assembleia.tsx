@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { Download, FileSpreadsheet, FileText, Printer, Trash2, Scale, Lock } from "lucide-react"
+import { Download, FileSpreadsheet, FileText, Printer, Trash2, Scale, Lock, BellRing } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
@@ -9,6 +9,7 @@ import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assemble
 import { AdicionarPautaDialog } from "@/components/assembleias/adicionar-pauta-dialog"
 import { EditarPautaDialog } from "@/components/assembleias/editar-pauta-dialog"
 import { excluirPautaAction } from "@/app/actions/assembleias"
+import { notificarNaoVotaramAction } from "@/app/actions/assembleia-votos"
 import { APP_NAME } from "@/lib/constants"
 import type { Assembleia, AssembleiaApuracao, PautaApuracao, PautaStatus } from "@/types"
 
@@ -76,6 +77,30 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
   const { total_enviados, total_respondidos } = apuracao
   const participacao =
     total_enviados > 0 ? Math.round((total_respondidos / total_enviados) * 100) : 0
+  const pendentes = total_enviados - total_respondidos
+
+  const [isPendingLembrete, startLembreteTransition] = useTransition()
+
+  // Auditoria de assembleias — Fase 6: lembrete manual (sem cron/agendamento
+  // neste projeto) pra quem ainda não registrou nenhum voto. Confirmação
+  // antes de disparar — é um e-mail de verdade indo pra pessoas de verdade,
+  // não uma ação só de dados.
+  function handleNotificarNaoVotaram() {
+    if (
+      !confirm(
+        `Enviar lembrete de votação por e-mail para ${pendentes} proprietário(s) que ainda não votou/votaram?`
+      )
+    )
+      return
+    startLembreteTransition(async () => {
+      const result = await notificarNaoVotaramAction(assembleia.id)
+      if (result.success) {
+        toast.success(`${result.sent} lembrete(s) enviado(s).`)
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
 
   const temVotos = apuracao.pautas.some(
     (p) =>
@@ -122,6 +147,18 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
               )}
               {canExport && assembleia.status === "aberta" && (
                 <AdicionarPautaDialog assembleiaId={assembleia.id} condominioId={condominioId} />
+              )}
+              {canExport && assembleia.status === "aberta" && pendentes > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNotificarNaoVotaram}
+                  disabled={isPendingLembrete}
+                  className="gap-1.5"
+                >
+                  <BellRing className="h-3.5 w-3.5" />
+                  Lembrar quem não votou ({pendentes})
+                </Button>
               )}
               {canExport && (
                 <>
