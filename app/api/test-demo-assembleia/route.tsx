@@ -50,10 +50,16 @@ export async function GET(req: NextRequest) {
   const db = createServerClient()
 
   try {
-    // 1) Apaga o condomínio fictício criado na primeira tentativa.
+    // 1) Tenta apagar o condomínio fictício criado na primeira tentativa —
+    // ignora se não der (ex.: já tem voto registrado nele, protegido por
+    // deleteCondominio de propósito) e segue em frente mesmo assim.
     const { data: fake } = await db.from("condominios").select("id").eq("nome", nomeProprietario)
     for (const c of fake ?? []) {
-      await deleteCondominio((c as { id: string }).id)
+      try {
+        await deleteCondominio((c as { id: string }).id)
+      } catch {
+        // ignora — condomínio fictício fica como resíduo inofensivo
+      }
     }
 
     // 2) Localiza o proprietário REAL (mesmo nome + e-mail) e seu condomínio real.
