@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
-import { getCondoDashboardStats, getRecentAssembleias } from "@/services/dashboard"
+import { getCondoDashboardStats, getRecentAssembleias, getResumoPorCondominio } from "@/services/dashboard"
+import { getCondominiosAutorizados } from "@/services/usuarios"
+import { getSession } from "@/lib/auth"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { RecentSurveysTable } from "@/components/dashboard/recent-surveys-table"
-import type { CondoDashboardStats, AssembleiaRecente } from "@/types"
+import { ResumoCondominiosTable } from "@/components/dashboard/resumo-condominios-table"
+import type { CondoDashboardStats, AssembleiaRecente, CondominioResumo } from "@/types"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -13,23 +16,32 @@ const EMPTY_STATS: CondoDashboardStats = {
   total_assembleias: 0,
 }
 
+// Usuário PESSOAL (acessoTotal: false) só vê os totais e o resumo dos
+// condomínios vinculados a ele em usuario_condominios — mesma regra de
+// escopo já usada em app/(dashboard)/condominios/page.tsx.
 async function fetchDashboardData(): Promise<{
   stats: CondoDashboardStats
   assembleias: AssembleiaRecente[]
+  resumoCondominios: CondominioResumo[]
 }> {
   try {
-    const [stats, assembleias] = await Promise.all([
-      getCondoDashboardStats(),
-      getRecentAssembleias(6),
+    const session = await getSession()
+    const condominioIds =
+      session && !session.acessoTotal ? await getCondominiosAutorizados(session.userId) : undefined
+
+    const [stats, assembleias, resumoCondominios] = await Promise.all([
+      getCondoDashboardStats(condominioIds),
+      getRecentAssembleias(6, condominioIds),
+      getResumoPorCondominio(condominioIds),
     ])
-    return { stats, assembleias }
+    return { stats, assembleias, resumoCondominios }
   } catch {
-    return { stats: EMPTY_STATS, assembleias: [] }
+    return { stats: EMPTY_STATS, assembleias: [], resumoCondominios: [] }
   }
 }
 
 export default async function DashboardPage() {
-  const { stats, assembleias } = await fetchDashboardData()
+  const { stats, assembleias, resumoCondominios } = await fetchDashboardData()
 
   return (
     <div className="flex flex-col gap-8 p-6 pt-8">
@@ -41,6 +53,8 @@ export default async function DashboardPage() {
       </div>
 
       <StatsCards stats={stats} />
+
+      <ResumoCondominiosTable condominios={resumoCondominios} />
 
       <RecentSurveysTable assembleias={assembleias} />
     </div>

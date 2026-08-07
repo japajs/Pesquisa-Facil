@@ -39,6 +39,17 @@ export interface CondoDashboardStats {
   total_assembleias: number
 }
 
+// Resumo por condomínio (dashboard) — respeita o mesmo escopo MASTER/PESSOAL
+// de usuario_condominios que o resto do sistema (ver getResumoPorCondominio
+// em services/dashboard.ts).
+export interface CondominioResumo {
+  id: string
+  nome: string
+  total_proprietarios: number
+  total_unidades: number
+  assembleias_abertas: number
+}
+
 export interface AssembleiaRecente {
   id: string
   titulo: string

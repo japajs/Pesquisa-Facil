@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
-import type { AssembleiaStatus, CondoDashboardStats, AssembleiaRecente } from "@/types"
+import type { AssembleiaStatus, CondoDashboardStats, AssembleiaRecente, CondominioResumo } from "@/types"
 
 // Prioridade de exibição no painel operacional (dashboard): abertas antes de
 // encerradas, para o operador ver primeiro o que ainda exige ação.
@@ -9,14 +9,35 @@ const STATUS_PRIORIDADE: Record<AssembleiaStatus, number> = {
   encerrada: 2,
 }
 
-export async function getCondoDashboardStats(): Promise<CondoDashboardStats> {
+// `condominioIds` filtra o resultado quando informado — usado para usuários
+// PESSOAL (acesso_total = false), que só devem ver os totais dos condomínios
+// vinculados em usuario_condominios. `undefined` (padrão) mantém o
+// comportamento de sempre: MASTER/usuário antigo continua vendo o total do
+// sistema inteiro. Mesma convenção de getAllCondominios (services/condominios.ts).
+export async function getCondoDashboardStats(condominioIds?: string[]): Promise<CondoDashboardStats> {
   const db = createServerClient()
 
+  if (condominioIds && condominioIds.length === 0) {
+    return { total_condominios: 0, total_proprietarios: 0, total_unidades: 0, total_assembleias: 0 }
+  }
+
+  let condosQuery = db.from("condominios").select("*", { count: "exact", head: true })
+  let propsQuery = db.from("proprietarios").select("*", { count: "exact", head: true })
+  let unidsQuery = db.from("unidades").select("*", { count: "exact", head: true })
+  let assembleiaQuery = db.from("assembleias").select("*", { count: "exact", head: true })
+
+  if (condominioIds) {
+    condosQuery = condosQuery.in("id", condominioIds)
+    propsQuery = propsQuery.in("condominio_id", condominioIds)
+    unidsQuery = unidsQuery.in("condominio_id", condominioIds)
+    assembleiaQuery = assembleiaQuery.in("condominio_id", condominioIds)
+  }
+
   const [condosRes, propsRes, unidsRes, assembleiaRes] = await Promise.all([
-    db.from("condominios").select("*", { count: "exact", head: true }),
-    db.from("proprietarios").select("*", { count: "exact", head: true }),
-    db.from("unidades").select("*", { count: "exact", head: true }),
-    db.from("assembleias").select("*", { count: "exact", head: true }),
+    condosQuery,
+    propsQuery,
+    unidsQuery,
+    assembleiaQuery,
   ])
 
   return {
@@ -27,14 +48,81 @@ export async function getCondoDashboardStats(): Promise<CondoDashboardStats> {
   }
 }
 
-export async function getRecentAssembleias(limit = 6): Promise<AssembleiaRecente[]> {
+// Resumo por condomínio: quantos proprietários, unidades e assembleias
+// abertas cada um tem — pra dar visão individual, não só o total agregado do
+// sistema inteiro (que não ajuda a achar qual condomínio precisa de atenção).
+export async function getResumoPorCondominio(condominioIds?: string[]): Promise<CondominioResumo[]> {
   const db = createServerClient()
 
-  const { data, error } = await db
+  if (condominioIds && condominioIds.length === 0) return []
+
+  let condQuery = db.from("condominios").select("id, nome").order("nome", { ascending: true })
+  let propQuery = db.from("proprietarios").select("condominio_id")
+  let unidQuery = db.from("unidades").select("condominio_id")
+  let assembQuery = db.from("assembleias").select("condominio_id, status")
+
+  if (condominioIds) {
+    condQuery = condQuery.in("id", condominioIds)
+    propQuery = propQuery.in("condominio_id", condominioIds)
+    unidQuery = unidQuery.in("condominio_id", condominioIds)
+    assembQuery = assembQuery.in("condominio_id", condominioIds)
+  }
+
+  const [condRes, propRes, unidRes, assembRes] = await Promise.all([
+    condQuery,
+    propQuery,
+    unidQuery,
+    assembQuery,
+  ])
+
+  if (condRes.error) throw new Error(condRes.error.message)
+  if (propRes.error) throw new Error(propRes.error.message)
+  if (unidRes.error) throw new Error(unidRes.error.message)
+  if (assembRes.error) throw new Error(assembRes.error.message)
+
+  const propCount = new Map<string, number>()
+  for (const r of (propRes.data ?? []) as { condominio_id: string }[]) {
+    propCount.set(r.condominio_id, (propCount.get(r.condominio_id) ?? 0) + 1)
+  }
+  const unidCount = new Map<string, number>()
+  for (const r of (unidRes.data ?? []) as { condominio_id: string }[]) {
+    unidCount.set(r.condominio_id, (unidCount.get(r.condominio_id) ?? 0) + 1)
+  }
+  const abertasCount = new Map<string, number>()
+  for (const r of (assembRes.data ?? []) as { condominio_id: string; status: AssembleiaStatus }[]) {
+    if (r.status === "aberta") {
+      abertasCount.set(r.condominio_id, (abertasCount.get(r.condominio_id) ?? 0) + 1)
+    }
+  }
+
+  return ((condRes.data ?? []) as { id: string; nome: string }[]).map((c) => ({
+    id: c.id,
+    nome: c.nome,
+    total_proprietarios: propCount.get(c.id) ?? 0,
+    total_unidades: unidCount.get(c.id) ?? 0,
+    assembleias_abertas: abertasCount.get(c.id) ?? 0,
+  }))
+}
+
+// `condominioIds` filtra o resultado quando informado — mesma convenção
+// acima (escopo MASTER/PESSOAL).
+export async function getRecentAssembleias(
+  limit = 6,
+  condominioIds?: string[]
+): Promise<AssembleiaRecente[]> {
+  const db = createServerClient()
+
+  if (condominioIds && condominioIds.length === 0) return []
+
+  let query = db
     .from("assembleias")
     .select("id, titulo, status, created_at, data_encerramento, condominio_id, condominios(nome)")
     .order("created_at", { ascending: false })
     .limit(limit)
+
+  if (condominioIds) query = query.in("condominio_id", condominioIds)
+
+  const { data, error } = await query
 
   if (error) throw new Error(error.message)
 
