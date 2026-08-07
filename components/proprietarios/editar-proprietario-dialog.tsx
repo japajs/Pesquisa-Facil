@@ -124,6 +124,7 @@ export function EditarProprietarioDialog({
   const [email, setEmail] = useState(proprietario.email ?? "")
   const [telefone, setTelefone] = useState(proprietario.telefone ?? "")
   const [observacoes, setObservacoes] = useState(proprietario.observacoes ?? "")
+  const [inadimplente, setInadimplente] = useState(proprietario.inadimplente)
 
   // Campo-chave (item 6): CPF/CNPJ não é editado junto com o resto do
   // cadastro — fica bloqueado por padrão, com uma ação administrativa
@@ -158,6 +159,7 @@ export function EditarProprietarioDialog({
     setEmail(proprietario.email ?? "")
     setTelefone(proprietario.telefone ?? "")
     setObservacoes(proprietario.observacoes ?? "")
+    setInadimplente(proprietario.inadimplente)
     setNovoCpfAdmin(proprietario.cpf ?? "")
   }
 
@@ -175,7 +177,8 @@ export function EditarProprietarioDialog({
     nome.trim() !== proprietario.nome ||
     (email.trim() || null) !== (proprietario.email ?? null) ||
     (telefone.trim() || null) !== (proprietario.telefone ?? null) ||
-    (observacoes.trim() || null) !== (proprietario.observacoes ?? null)
+    (observacoes.trim() || null) !== (proprietario.observacoes ?? null) ||
+    inadimplente !== proprietario.inadimplente
   const canSalvar = algumCampoMudou && nome.trim().length > 0
 
   function handleSalvarDados() {
@@ -187,6 +190,7 @@ export function EditarProprietarioDialog({
         email,
         telefone,
         observacoes,
+        inadimplente,
       })
       if (result.success) {
         toast.success("Cadastro atualizado.")
@@ -392,6 +396,22 @@ export function EditarProprietarioDialog({
                   onChange={(e) => setObservacoes(e.target.value)}
                 />
               </div>
+
+              {/* Auditoria de assembleias — Fase 4: campo puramente
+                  informativo, um selo pro síndico — nunca bloqueia voto ou
+                  participação. */}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={inadimplente}
+                  onChange={(e) => setInadimplente(e.target.checked)}
+                  className="accent-primary"
+                />
+                Inadimplente
+                <span className="text-xs font-normal text-muted-foreground">
+                  (só informativo — não impede votar)
+                </span>
+              </label>
 
               <Button
                 onClick={handleSalvarDados}

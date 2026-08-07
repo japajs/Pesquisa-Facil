@@ -251,7 +251,19 @@ const ProprietarioRow = memo(function ProprietarioRow({
           depois e-mail/celular/peso). A partir de lg: uma única linha em
           grade de colunas alinhadas com o cabeçalho. */}
       <div className={`grid grid-cols-1 gap-1 lg:items-center lg:gap-3 ${GRID_COLUNAS}`}>
-        <p className="min-w-0 truncate text-sm font-semibold lg:font-medium">{proprietario.nome}</p>
+        <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold lg:font-medium">
+          <span className="truncate">{proprietario.nome}</span>
+          {/* Auditoria de assembleias — Fase 4: selo puramente informativo,
+              nunca impede votar. */}
+          {proprietario.inadimplente && (
+            <span
+              className="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
+              title="Inadimplente (informativo — não impede votar)"
+            >
+              Inadimplente
+            </span>
+          )}
+        </p>
 
         {/* Sempre 3 filhos diretos (mesmo quando falta e-mail/celular) — com
             `lg:contents` eles viram itens da grade do pai, um por coluna;

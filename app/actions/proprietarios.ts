@@ -175,6 +175,7 @@ export async function updateProprietarioAction(input: {
   email: string
   telefone: string
   observacoes: string
+  inadimplente: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
   if (!auth.ok) return { success: false, error: auth.error }
@@ -231,6 +232,12 @@ export async function updateProprietarioAction(input: {
         valorAnterior: atual.observacoes,
         valorNovo: novasObservacoes,
       })
+    if (input.inadimplente !== atual.inadimplente)
+      mudancas.push({
+        campo: "inadimplente",
+        valorAnterior: String(atual.inadimplente),
+        valorNovo: String(input.inadimplente),
+      })
 
     if (mudancas.length === 0) {
       return { success: false, error: "Nenhuma alteração para salvar." }
@@ -241,6 +248,7 @@ export async function updateProprietarioAction(input: {
       email: novoEmail,
       telefone: novoTelefone,
       observacoes: novasObservacoes,
+      inadimplente: input.inadimplente,
     })
 
     await registrarHistoricoAlteracao(

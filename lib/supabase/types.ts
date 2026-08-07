@@ -126,6 +126,7 @@ export type Database = {
           cpf: string | null
           telefone: string | null
           observacoes: string | null
+          inadimplente: boolean
           historico_alteracoes: Json
           created_at: string
         }
@@ -137,6 +138,7 @@ export type Database = {
           cpf?: string | null
           telefone?: string | null
           observacoes?: string | null
+          inadimplente?: boolean
           historico_alteracoes?: Json
           created_at?: string
         }
@@ -146,6 +148,7 @@ export type Database = {
           cpf?: string | null
           telefone?: string | null
           observacoes?: string | null
+          inadimplente?: boolean
           historico_alteracoes?: Json
         }
         Relationships: []

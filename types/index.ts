@@ -110,6 +110,11 @@ export interface Proprietario {
   cpf: string | null
   telefone: string | null
   observacoes: string | null
+  // Auditoria de assembleias — Fase 4: campo puramente informativo, um
+  // selo pro síndico ver quem está em débito. Nunca bloqueia voto — se a
+  // convenção do condomínio restringe voto de inadimplente, é decisão
+  // humana, não do sistema.
+  inadimplente: boolean
   historico_alteracoes: HistoricoAlteracao[]
   created_at: string
   // joined
