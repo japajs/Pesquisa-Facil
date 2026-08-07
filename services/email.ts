@@ -430,6 +430,15 @@ export interface AssembleiaEmailAnexo {
 }
 
 // Sends emails in batches of 100 (Resend's batch limit).
+//
+// Achado: a API de batch send da Resend NÃO suporta anexos (limitação
+// documentada — CreateBatchEmailOptions omite `attachments`) — o campo era
+// aceito silenciosamente pelo TypeScript (checagem de excesso de
+// propriedade não se aplica a um array construído via .map()) e descartado
+// silenciosamente pela API, então todo disparo com PDF anexado (Item 5)
+// nunca de fato entregava o anexo, sem erro nenhum. Quando há anexo, envia
+// um e-mail por vez via `resend.emails.send` (que suporta attachments) em
+// vez do batch; sem anexo, continua usando o batch por eficiência.
 export async function sendAssembleiaEmailBatch(
   emails: AssembleiaEmailInput[],
   anexo?: AssembleiaEmailAnexo
@@ -438,6 +447,31 @@ export async function sendAssembleiaEmailBatch(
   const from = getFromEmail()
   const sent: string[] = []
   const failed: string[] = []
+
+  if (anexo) {
+    for (const e of emails) {
+      try {
+        await resend.emails.send({
+          from,
+          to: e.to,
+          subject: `Assembleia: ${e.assembleiaTitulo}`,
+          html: buildAssembleiaEmailHtml({
+            proprietarioNome: e.proprietarioNome,
+            assembleiaTitulo: e.assembleiaTitulo,
+            assembleiaDescricao: e.assembleiaDescricao,
+            pautas: e.pautas,
+            votoUrl: e.votoUrl,
+            temAnexo: true,
+          }),
+          attachments: [{ filename: anexo.filename, content: anexo.content }],
+        })
+        sent.push(e.sendId)
+      } catch {
+        failed.push(e.sendId)
+      }
+    }
+    return { sent, failed }
+  }
 
   const CHUNK = 100
   for (let i = 0; i < emails.length; i += CHUNK) {
@@ -454,11 +488,8 @@ export async function sendAssembleiaEmailBatch(
           assembleiaDescricao: e.assembleiaDescricao,
           pautas: e.pautas,
           votoUrl: e.votoUrl,
-          temAnexo: !!anexo,
+          temAnexo: false,
         }),
-        ...(anexo
-          ? { attachments: [{ filename: anexo.filename, content: anexo.content }] }
-          : {}),
       }))
 
       await resend.batch.send(batch)
