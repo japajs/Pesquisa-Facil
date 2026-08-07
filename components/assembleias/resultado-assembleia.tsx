@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, Building2, CalendarDays, Users, Scale } from "lucide-react"
+import { CheckCircle2, XCircle, Building2, CalendarDays, Users, Scale, Lock } from "lucide-react"
 import type { AssembleiaApuracao, CriterioPeso } from "@/types"
 
 interface Props {
@@ -215,7 +215,18 @@ export function ResultadoAssembleia({
                   <p className="text-xs font-semibold uppercase tracking-widest text-primary/60">
                     Pauta {i + 1}
                   </p>
-                  <h3 className="mt-1 text-sm font-semibold leading-snug">{pauta.titulo}</h3>
+                  <h3 className="mt-1 flex items-center gap-1.5 text-sm font-semibold leading-snug">
+                    {pauta.titulo}
+                    {pauta.sigiloso && (
+                      <span
+                        className="flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        title="Voto sigiloso"
+                      >
+                        <Lock className="h-2.5 w-2.5" />
+                        Sigiloso
+                      </span>
+                    )}
+                  </h3>
                   {pauta.descricao && (
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{pauta.descricao}</p>
                   )}

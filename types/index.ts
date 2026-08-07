@@ -179,6 +179,10 @@ export interface Pauta {
   // abstenções não entram no denominador. 0.5 = maioria simples (padrão),
   // 0.6667 ≈ 2/3, 1 = unanimidade.
   quorum_aprovacao: number
+  // Auditoria de assembleias — Fase 5: pauta sigilosa (ex.: eleição de
+  // síndico) — resultado agregado continua público; PDF/Excel omitem o
+  // vínculo nome↔voto no detalhamento pra essa pauta.
+  sigiloso: boolean
   created_at: string
   // joined — só populado para pautas do tipo "multipla_escolha"
   opcoes?: PautaOpcao[]

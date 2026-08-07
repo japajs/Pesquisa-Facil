@@ -26,6 +26,9 @@ interface PautaInput {
   // Fração (0–1) de Sim sobre Sim+Não exigida pra aprovar — 0.5 = maioria
   // simples (padrão), 0.6667 ≈ 2/3, 1 = unanimidade.
   quorum_aprovacao?: number
+  // Auditoria de assembleias — Fase 5: pauta sigilosa (ex.: eleição de
+  // síndico) — PDF/Excel omitem o vínculo nome↔voto no detalhamento.
+  sigiloso?: boolean
   opcoes?: string[]
 }
 
@@ -130,6 +133,7 @@ export async function createAssembleiaAction(input: {
         tipo: p.tipo ?? "sim_nao",
         permite_abstencao: p.permite_abstencao ?? true,
         quorum_aprovacao: p.quorum_aprovacao ?? 0.5,
+        sigiloso: p.sigiloso ?? false,
         opcoes:
           p.tipo === "multipla_escolha"
             ? (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -227,6 +231,7 @@ export async function updateAssembleiaAction(input: {
             tipo: p.tipo ?? "sim_nao",
             permite_abstencao: p.permite_abstencao ?? true,
             quorum_aprovacao: p.quorum_aprovacao ?? 0.5,
+            sigiloso: p.sigiloso ?? false,
             opcoes:
               p.tipo === "multipla_escolha"
                 ? (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -315,6 +320,7 @@ export async function adicionarPautaAssembleiaAction(input: {
         tipo: input.pauta.tipo ?? "sim_nao",
         permite_abstencao: input.pauta.permite_abstencao ?? true,
         quorum_aprovacao: input.pauta.quorum_aprovacao ?? 0.5,
+        sigiloso: input.pauta.sigiloso ?? false,
         opcoes:
           input.pauta.tipo === "multipla_escolha"
             ? (input.pauta.opcoes ?? []).map((o) => o.trim()).filter(Boolean)
@@ -348,6 +354,7 @@ export async function editarPautaAction(input: {
   tipo?: PautaTipo
   permite_abstencao?: boolean
   quorum_aprovacao?: number
+  sigiloso?: boolean
   opcoes?: string[]
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador", "operador"])
@@ -379,6 +386,7 @@ export async function editarPautaAction(input: {
       tipo,
       permite_abstencao: input.permite_abstencao ?? true,
       quorum_aprovacao: input.quorum_aprovacao ?? 0.5,
+      sigiloso: input.sigiloso ?? false,
       opcoes: tipo === "multipla_escolha" ? (input.opcoes ?? []).map((o) => o.trim()).filter(Boolean) : undefined,
     })
 

@@ -250,6 +250,22 @@ export function AssembleiaFormFields({ form, pautasEditaveis, mensagemPautasBloq
                   </div>
                 )}
 
+                {/* Auditoria de assembleias — Fase 5: sigiloso se aplica aos
+                    dois tipos (o clássico é eleição de síndico, geralmente
+                    múltipla escolha) — só muda o que aparece no
+                    detalhamento do PDF/Excel, nunca o resultado agregado. */}
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={pauta.sigiloso}
+                    onChange={() => form.toggleSigiloso(i)}
+                    disabled={!pautasEditaveis}
+                    className="accent-primary"
+                  />
+                  Voto sigiloso
+                  <span className="font-normal">(oculta nome↔voto no PDF/Excel)</span>
+                </label>
+
                 {pauta.tipo === "multipla_escolha" && (
                   <div className="space-y-2 rounded-md border border-border/50 bg-card/60 p-2">
                     <div className="space-y-1.5">

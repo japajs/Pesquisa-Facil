@@ -236,6 +236,7 @@ export type Database = {
           permite_abstencao: boolean
           status: "rascunho" | "aberta" | "em_votacao" | "encerrada"
           quorum_aprovacao: number
+          sigiloso: boolean
           created_at: string
         }
         Insert: {
@@ -249,6 +250,7 @@ export type Database = {
           permite_abstencao?: boolean
           status?: "rascunho" | "aberta" | "em_votacao" | "encerrada"
           quorum_aprovacao?: number
+          sigiloso?: boolean
           created_at?: string
         }
         Update: {
@@ -260,6 +262,7 @@ export type Database = {
           permite_abstencao?: boolean
           status?: "rascunho" | "aberta" | "em_votacao" | "encerrada"
           quorum_aprovacao?: number
+          sigiloso?: boolean
         }
         Relationships: []
       }

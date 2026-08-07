@@ -43,6 +43,7 @@ export function CriarAssembleiaDialog({ condominioId }: { condominioId: string }
           tipo: p.tipo,
           permite_abstencao: p.permiteAbstencao,
           quorum_aprovacao: form.pctParaFracao(p.quorumAprovacao),
+          sigiloso: p.sigiloso,
           opcoes: p.tipo === "multipla_escolha" ? p.opcoes : undefined,
         })),
       })

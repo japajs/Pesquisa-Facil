@@ -13,6 +13,10 @@ export interface PautaFormState {
   // form pra aceitar campo vazio/em edição; convertido pra fração (0–1) só
   // na hora de enviar (ver services/pautas.ts). "50" = maioria simples.
   quorumAprovacao: string
+  // Auditoria de assembleias — Fase 5: pauta sigilosa (ex.: eleição de
+  // síndico) — resultado agregado continua público; PDF/Excel omitem o
+  // vínculo nome↔voto no detalhamento pra essa pauta.
+  sigiloso: boolean
   opcoes: string[]
 }
 
@@ -40,6 +44,7 @@ export function novaPauta(): PautaFormState {
     tipo: "sim_nao",
     permiteAbstencao: true,
     quorumAprovacao: "50",
+    sigiloso: false,
     opcoes: [],
   }
 }
@@ -113,6 +118,10 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     setPautas((prev) =>
       prev.map((p, i) => (i === index ? { ...p, permiteAbstencao: !p.permiteAbstencao } : p))
     )
+  }
+
+  function toggleSigiloso(index: number) {
+    setPautas((prev) => prev.map((p, i) => (i === index ? { ...p, sigiloso: !p.sigiloso } : p)))
   }
 
   function addOpcao(pautaIndex: number) {
@@ -212,6 +221,7 @@ export function useAssembleiaForm(initial?: Partial<AssembleiaFormValues>) {
     updatePautaTipo,
     updatePautaQuorum,
     togglePermiteAbstencao,
+    toggleSigiloso,
     addOpcao,
     removeOpcao,
     updateOpcao,

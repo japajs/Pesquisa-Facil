@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { Download, FileSpreadsheet, FileText, Printer, Trash2, Scale } from "lucide-react"
+import { Download, FileSpreadsheet, FileText, Printer, Trash2, Scale, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DonutChart } from "@/components/ui/donut-chart"
@@ -319,6 +319,15 @@ function PautaApuracaoSection({
         >
           {PAUTA_STATUS_LABEL[pauta.status]}
         </span>
+        {pauta.sigiloso && (
+          <span
+            className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+            title="Voto sigiloso — o detalhamento nominal fica oculto no PDF/Excel"
+          >
+            <Lock className="h-3 w-3" />
+            Sigiloso
+          </span>
+        )}
         {podeEditar && (
           <div className="ml-auto flex items-center gap-0.5 print:hidden">
             <EditarPautaDialog pauta={pauta} assembleiaId={assembleiaId} condominioId={condominioId} />

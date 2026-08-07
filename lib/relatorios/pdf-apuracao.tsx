@@ -408,7 +408,20 @@ function PautaMultiplaEscolha({
 // `wrap={false}` da pauta, de propósito: pode ter dezenas de linhas e
 // precisa poder quebrar entre páginas livremente, diferente do resumo
 // (pequeno, sempre cabe, por isso esse sim fica atômico).
-function DetalhamentoVotos({ votos }: { votos: VotoDetalhado[] }) {
+// Auditoria de assembleias — Fase 5: pauta sigilosa não mostra o
+// detalhamento nominal — só uma nota, o resultado agregado já está no
+// resumo acima (POR PARTICIPANTES / PONDERADO).
+function DetalhamentoVotos({ votos, sigiloso }: { votos: VotoDetalhado[]; sigiloso: boolean }) {
+  if (sigiloso) {
+    return (
+      <View>
+        <Text style={s.detLabel}>DETALHAMENTO DOS VOTOS</Text>
+        <Text style={s.tdText}>
+          Pauta sigilosa — detalhamento individual não disponível. Ver resultado agregado acima.
+        </Text>
+      </View>
+    )
+  }
   if (votos.length === 0) return null
   return (
     <View>
@@ -701,7 +714,7 @@ export function ApuracaoPDF({
               </View>
 
               <View style={{ marginBottom: 16 }}>
-                <DetalhamentoVotos votos={votosPauta} />
+                <DetalhamentoVotos votos={votosPauta} sigiloso={pauta.sigiloso} />
               </View>
 
               {i < apuracao.pautas.length - 1 ? <View style={s.divider} /> : null}

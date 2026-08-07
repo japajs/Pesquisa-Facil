@@ -207,6 +207,7 @@ export function AtaPDF({
             <View key={pauta.id} style={s.pautaBlock} wrap={false}>
               <Text style={s.pautaTitle}>
                 {i + 1}. {pauta.titulo}
+                {pauta.sigiloso ? " (votação sigilosa)" : ""}
               </Text>
               {pauta.descricao && <Text style={s.paragraph}>{pauta.descricao}</Text>}
               <Text style={s.pautaResult}>{resultadoTexto}</Text>

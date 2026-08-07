@@ -39,6 +39,7 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
   const [tipo, setTipo] = useState<PautaTipo>("sim_nao")
   const [permiteAbstencao, setPermiteAbstencao] = useState(true)
   const [quorumAprovacao, setQuorumAprovacao] = useState("50")
+  const [sigiloso, setSigiloso] = useState(false)
   const [opcoes, setOpcoes] = useState<string[]>(["", ""])
   const [pautaCriadaId, setPautaCriadaId] = useState<string | null>(null)
   const [participantesParaNotificar, setParticipantesParaNotificar] = useState(0)
@@ -52,6 +53,7 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
     setTipo("sim_nao")
     setPermiteAbstencao(true)
     setQuorumAprovacao("50")
+    setSigiloso(false)
     setOpcoes(["", ""])
     setPautaCriadaId(null)
     setParticipantesParaNotificar(0)
@@ -81,6 +83,7 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
           tipo,
           permite_abstencao: permiteAbstencao,
           quorum_aprovacao: tipo === "sim_nao" ? quorumNum / 100 : undefined,
+          sigiloso,
           opcoes: tipo === "multipla_escolha" ? opcoes : undefined,
         },
       })
@@ -195,6 +198,17 @@ export function AdicionarPautaDialog({ assembleiaId, condominioId }: Props) {
                   />
                 </div>
               )}
+
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={sigiloso}
+                  onChange={(e) => setSigiloso(e.target.checked)}
+                  className="accent-primary"
+                />
+                Voto sigiloso
+                <span className="font-normal">(oculta nome↔voto no PDF/Excel)</span>
+              </label>
 
               {tipo === "multipla_escolha" && (
                 <div className="space-y-2 rounded-md border border-border/50 bg-muted/20 p-2">

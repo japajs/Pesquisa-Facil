@@ -297,16 +297,30 @@ export function gerarXlsxApuracao(data: XlsxApuracaoData): Buffer {
 
   /* ── Tab 5: Detalhamento de Votos (Unidade/Nome/E-mail/Resposta) ──────
      Substitui o que seria uma coluna de Endereço IP — o IP continua só no
-     banco, para auditoria técnica, nunca em relatório. */
+     banco, para auditoria técnica, nunca em relatório.
+
+     Auditoria de assembleias — Fase 5: pautas marcadas sigiloso ficam de
+     fora daqui — o vínculo nome↔voto nunca aparece no export pra elas, só
+     o resultado agregado (já presente na aba "Resultados por Pauta"). */
   const tituloPorPauta = new Map(apuracao.pautas.map((p) => [p.pauta.id, p.pauta.titulo]))
+  const pautasSigilosas = apuracao.pautas.filter((p) => p.pauta.sigiloso)
+  const idsSigilosos = new Set(pautasSigilosas.map((p) => p.pauta.id))
   const detHeader = ["Pauta", "Unidade(s)", "Nome", "E-mail", "Resposta"]
-  const detRows = votosDetalhados.map((v) => [
-    tituloPorPauta.get(v.pauta_id) ?? "—",
-    v.unidades,
-    v.nome,
-    v.email ?? "",
-    v.resposta,
-  ])
+  const detRows = votosDetalhados
+    .filter((v) => !idsSigilosos.has(v.pauta_id))
+    .map((v) => [
+      tituloPorPauta.get(v.pauta_id) ?? "—",
+      v.unidades,
+      v.nome,
+      v.email ?? "",
+      v.resposta,
+    ])
+  if (pautasSigilosas.length > 0) {
+    detRows.push([])
+    detRows.push([
+      `Pauta(s) sigilosa(s) — detalhamento individual não disponível, ver resultado agregado na aba "Resultados por Pauta": ${pautasSigilosas.map((p) => p.pauta.titulo).join(", ")}`,
+    ])
+  }
 
   const wsDet = XLSX.utils.aoa_to_sheet(sanitizarLinhas([detHeader, ...detRows]))
   wsDet["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 32 }, { wch: 30 }, { wch: 20 }]

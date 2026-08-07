@@ -39,6 +39,7 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
   const [tipo, setTipo] = useState<PautaTipo>(pauta.tipo)
   const [permiteAbstencao, setPermiteAbstencao] = useState(pauta.permite_abstencao)
   const [quorumAprovacao, setQuorumAprovacao] = useState(String(Math.round(pauta.quorum_aprovacao * 10000) / 100))
+  const [sigiloso, setSigiloso] = useState(pauta.sigiloso)
   const [opcoes, setOpcoes] = useState<string[]>(
     pauta.opcoes && pauta.opcoes.length > 0 ? pauta.opcoes.map((o) => o.label) : ["", ""]
   )
@@ -50,6 +51,7 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
     setTipo(pauta.tipo)
     setPermiteAbstencao(pauta.permite_abstencao)
     setQuorumAprovacao(String(Math.round(pauta.quorum_aprovacao * 10000) / 100))
+    setSigiloso(pauta.sigiloso)
     setOpcoes(pauta.opcoes && pauta.opcoes.length > 0 ? pauta.opcoes.map((o) => o.label) : ["", ""])
   }
 
@@ -77,6 +79,7 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
         tipo,
         permite_abstencao: permiteAbstencao,
         quorum_aprovacao: tipo === "sim_nao" ? quorumNum / 100 : undefined,
+        sigiloso,
         opcoes: tipo === "multipla_escolha" ? opcoes : undefined,
       })
       if (result.success) {
@@ -150,6 +153,17 @@ export function EditarPautaDialog({ pauta, assembleiaId, condominioId }: Props) 
               />
             </div>
           )}
+
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={sigiloso}
+              onChange={(e) => setSigiloso(e.target.checked)}
+              className="accent-primary"
+            />
+            Voto sigiloso
+            <span className="font-normal">(oculta nome↔voto no PDF/Excel)</span>
+          </label>
 
           {tipo === "multipla_escolha" && (
             <div className="space-y-2 rounded-md border border-border/50 bg-muted/20 p-2">

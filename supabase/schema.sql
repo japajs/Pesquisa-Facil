@@ -208,6 +208,12 @@ create table if not exists pautas (
                                    check (status in ('rascunho', 'aberta', 'em_votacao', 'encerrada')),
   quorum_aprovacao   numeric(5,4)  not null default 0.5
                                    check (quorum_aprovacao > 0 and quorum_aprovacao <= 1),
+  -- Auditoria de assembleias — Fase 5: pauta sigilosa (ex.: eleição de
+  -- síndico) — o resultado agregado (Sim/Não/opção) continua público como
+  -- sempre; o que muda é que "Detalhamento de Votos" no PDF/Excel omite o
+  -- vínculo nome↔voto pra pautas marcadas aqui. Não afeta a tela viva do
+  -- admin, que nunca mostrou esse detalhamento nominal (só nos exports).
+  sigiloso           boolean       not null default false,
   created_at         timestamptz   not null default now()
 );
 
@@ -368,3 +374,10 @@ alter table assembleias add constraint assembleias_quorum_minimo_2a_check
 -- ============================================================
 
 alter table proprietarios add column if not exists inadimplente boolean not null default false;
+
+-- ============================================================
+-- Migração — Fase 5 da auditoria de assembleias: voto sigiloso.
+-- Execute no SQL Editor.
+-- ============================================================
+
+alter table pautas add column if not exists sigiloso boolean not null default false;
