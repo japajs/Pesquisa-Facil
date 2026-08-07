@@ -33,7 +33,7 @@ export function ResumoCondominiosTable({ condominios }: ResumoCondominiosTablePr
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 hover:bg-transparent">
-                  <TableHead className="pl-6 text-xs sm:pl-0">Condomínio</TableHead>
+                  <TableHead className="pl-6 text-xs">Condomínio</TableHead>
                   <TableHead className="text-right text-xs">Proprietários</TableHead>
                   <TableHead className="text-right text-xs">Unidades</TableHead>
                   <TableHead className="pr-6 text-right text-xs">Assembleias abertas</TableHead>
@@ -45,7 +45,7 @@ export function ResumoCondominiosTable({ condominios }: ResumoCondominiosTablePr
                     key={c.id}
                     className="border-border/60 transition-colors hover:bg-accent/30"
                   >
-                    <TableCell className="pl-6 sm:pl-0">
+                    <TableCell className="pl-6">
                       <Link
                         href={`${ROUTES.condominios}/${c.id}`}
                         className="font-medium text-foreground hover:text-primary hover:underline"
