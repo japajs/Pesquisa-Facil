@@ -10,7 +10,9 @@ import {
   createAssembleiaRespostas,
   getSendsJaVotaram,
   getSendsNaoVotaram,
+  getProprietariosSemVoto,
   type RespostaInput,
+  type ProprietarioSemVoto,
 } from "@/services/assembleia-votos"
 import { sendAssembleiaEmailBatch, sendNovaPautaEmailBatch, sendLembreteVotoEmailBatch } from "@/services/email"
 import { generateSurveyToken } from "@/lib/tokens"
@@ -318,6 +320,112 @@ export async function registrarVotosAction(
     const msg = err instanceof Error ? err.message : "Erro ao registrar votos."
     if (msg.includes("unique") || msg.includes("duplicate") || msg.includes("23505")) {
       return { success: false, error: "Você já votou nesta assembleia." }
+    }
+    return { success: false, error: msg }
+  }
+}
+
+// Auditoria de assembleias — Fase 7: quem não tem e-mail cadastrado nunca
+// recebe link de voto (achado da auditoria) — sem fallback, ficava
+// permanentemente excluído da votação eletrônica. Lista todo proprietário
+// do condomínio que ainda não votou nesta assembleia, com ou sem e-mail,
+// pra alimentar o dialog de registro manual (voto presencial/por
+// procuração em papel, lançado pelo síndico).
+export async function getProprietariosSemVotoAction(
+  assembleiaId: string,
+  condominioId: string
+): Promise<{ success: boolean; proprietarios: ProprietarioSemVoto[]; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, proprietarios: [], error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, proprietarios: [], error: acesso.error }
+
+  try {
+    const proprietarios = await getProprietariosSemVoto(condominioId, assembleiaId)
+    return { success: true, proprietarios }
+  } catch (err) {
+    return {
+      success: false,
+      proprietarios: [],
+      error: err instanceof Error ? err.message : "Erro ao buscar proprietários.",
+    }
+  }
+}
+
+// Cria (ou reaproveita, se já existir) o `send` de um proprietário nesta
+// assembleia, sem enviar nenhum e-mail — é só o "assento" que
+// registrarVotoManualAction depois usa pra gravar as respostas. O token
+// gerado nunca é comunicado a ninguém (o proprietário não vota sozinho
+// aqui, o síndico lança em nome dele).
+export async function iniciarVotoManualAction(
+  assembleiaId: string,
+  condominioId: string,
+  proprietarioId: string
+): Promise<{ success: boolean; sendId?: string; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
+
+  try {
+    const assembleia = await getAssembleiaById(assembleiaId)
+    if (!assembleia) return { success: false, error: "Assembleia não encontrada." }
+    if (assembleia.status !== "aberta") {
+      return { success: false, error: "Só é possível registrar votos enquanto a assembleia estiver aberta." }
+    }
+
+    const proprietario = await getProprietarioById(proprietarioId)
+    if (!proprietario || proprietario.condominio_id !== condominioId) {
+      return { success: false, error: "Proprietário não encontrado neste condomínio." }
+    }
+
+    const send = await upsertAssembleiaSend({
+      assembleia_id: assembleiaId,
+      proprietario_id: proprietarioId,
+      token: generateSurveyToken(),
+    })
+    return { success: true, sendId: send.id }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Erro ao iniciar registro." }
+  }
+}
+
+// Versão administrativa de registrarVotosAction — mesma lógica de
+// integridade (createAssembleiaRespostas), mas exige perfil autorizado e
+// acesso ao condomínio (a versão pública não checa isso, de propósito: o
+// token já é a prova de identidade lá). Marca no snapshot que este voto
+// foi lançado manualmente por um administrador, e por quem — nunca deixa
+// esse registro se passar por um voto "self-service" comum na auditoria.
+export async function registrarVotoManualAction(
+  sendId: string,
+  assembleiaId: string,
+  condominioId: string,
+  respostas: RespostaInput[]
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requirePerfil(["administrador", "operador"])
+  if (!auth.ok) return { success: false, error: auth.error }
+  const acesso = await requireAcessoCondominio(condominioId)
+  if (!acesso.ok) return { success: false, error: acesso.error }
+
+  if (!sendId || respostas.length === 0) {
+    return { success: false, error: "Dados inválidos." }
+  }
+  const invalida = respostas.some((r) => Boolean(r.resposta) === Boolean(r.opcao_id))
+  if (invalida) {
+    return { success: false, error: "Dados de voto inválidos." }
+  }
+
+  try {
+    await createAssembleiaRespostas(sendId, respostas, {
+      ip: null,
+      userAgent: `Registrado manualmente por ${auth.session.nome} <${auth.session.email}>`,
+    })
+    revalidatePath(ROUTES.condominioAssembleia(condominioId, assembleiaId))
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao registrar votos."
+    if (msg.includes("unique") || msg.includes("duplicate") || msg.includes("23505")) {
+      return { success: false, error: "Este proprietário já votou nesta assembleia." }
     }
     return { success: false, error: msg }
   }

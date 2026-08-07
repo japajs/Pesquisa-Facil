@@ -8,6 +8,7 @@ import { DonutChart } from "@/components/ui/donut-chart"
 import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assembleia-dialog"
 import { AdicionarPautaDialog } from "@/components/assembleias/adicionar-pauta-dialog"
 import { EditarPautaDialog } from "@/components/assembleias/editar-pauta-dialog"
+import { RegistrarVotoManualDialog } from "@/components/assembleias/registrar-voto-manual-dialog"
 import { excluirPautaAction } from "@/app/actions/assembleias"
 import { notificarNaoVotaramAction } from "@/app/actions/assembleia-votos"
 import { APP_NAME } from "@/lib/constants"
@@ -159,6 +160,14 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
                   <BellRing className="h-3.5 w-3.5" />
                   Lembrar quem não votou ({pendentes})
                 </Button>
+              )}
+              {canExport && assembleia.status === "aberta" && (
+                <RegistrarVotoManualDialog
+                  assembleiaId={assembleia.id}
+                  assembleiaTitulo={assembleia.titulo}
+                  condominioId={condominioId}
+                  pautas={assembleia.pautas ?? []}
+                />
               )}
               {canExport && (
                 <>

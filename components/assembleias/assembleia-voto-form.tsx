@@ -34,9 +34,23 @@ interface Props {
   sendId: string
   pautas: Pauta[]
   assembleiaTitulo: string
+  // Auditoria de assembleias — Fase 7: o dialog de registro manual
+  // (síndico lançando voto de quem não tem e-mail/votou presencialmente)
+  // reaproveita este mesmo formulário, só troca qual action é chamada —
+  // sem isso, a UI de seleção Sim/Não/Múltipla escolha ficaria duplicada
+  // em dois lugares e sujeita a divergir com o tempo. Sem essa prop,
+  // comportamento idêntico ao de sempre (voto público via token).
+  registrarAction?: (sendId: string, votos: RespostaInput[]) => Promise<{ success: boolean; error?: string }>
+  onDone?: () => void
 }
 
-export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) {
+export function AssembleiaVotoForm({
+  sendId,
+  pautas,
+  assembleiaTitulo,
+  registrarAction = registrarVotosAction,
+  onDone,
+}: Props) {
   const [respostas, setRespostas] = useState<Record<string, ValorEscolhido>>({})
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -65,9 +79,10 @@ export function AssembleiaVotoForm({ sendId, pautas, assembleiaTitulo }: Props) 
         }
         return { pauta_id: p.id, resposta: valor as AssembleiaRespostaValor }
       })
-      const result = await registrarVotosAction(sendId, votos)
+      const result = await registrarAction(sendId, votos)
       if (result.success) {
         setDone(true)
+        onDone?.()
       } else {
         setError(result.error ?? "Erro ao registrar votos. Tente novamente.")
       }

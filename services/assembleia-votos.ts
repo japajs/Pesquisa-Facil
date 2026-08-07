@@ -709,3 +709,40 @@ export async function getSendsNaoVotaram(assembleiaId: string): Promise<SendJaVo
     proprietarioEmail: r.proprietarios?.email ?? null,
   }))
 }
+
+export interface ProprietarioSemVoto {
+  id: string
+  nome: string
+  email: string | null
+}
+
+// Auditoria de assembleias — Fase 7: proprietários do condomínio que ainda
+// não votaram nesta assembleia — inclui tanto quem nunca recebeu convite
+// (proprietario sem e-mail, nunca teve assembleia_sends criado) quanto
+// quem recebeu mas não votou ainda. Usado pro registro de voto manual
+// (síndico lança o voto de quem votou presencialmente/sem e-mail).
+export async function getProprietariosSemVoto(
+  condominioId: string,
+  assembleiaId: string
+): Promise<ProprietarioSemVoto[]> {
+  const db = createServerClient()
+
+  const [{ data: proprietarios, error: propError }, { data: votados, error: votadosError }] =
+    await Promise.all([
+      db.from("proprietarios").select("id, nome, email").eq("condominio_id", condominioId),
+      db
+        .from("assembleia_sends")
+        .select("proprietario_id")
+        .eq("assembleia_id", assembleiaId)
+        .not("votado_em", "is", null),
+    ])
+
+  if (propError) throw new Error(propError.message)
+  if (votadosError) throw new Error(votadosError.message)
+
+  const idsVotados = new Set((votados ?? []).map((v) => v.proprietario_id as string))
+
+  return ((proprietarios ?? []) as { id: string; nome: string; email: string | null }[])
+    .filter((p) => !idsVotados.has(p.id))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+}
