@@ -554,12 +554,19 @@ export async function getApuracaoAssembleia(
   ).reduce((soma, s) => soma + (s.peso_snapshot ?? 0), 0)
 
   // assembleias.quorum_minimo é opcional — null = sem checagem configurada,
-  // percentual/atingido também ficam null (não é "quórum não atingido", é
-  // "não se aplica").
+  // então percentual/atingido também ficam null (não é "quórum não
+  // atingido", é "não se aplica"). percentual_quorum só é calculado quando
+  // quorum_minimo está configurado — caso contrário as telas (admin,
+  // pública) e os relatórios (PDF/XLSX, que já gatavam certo em
+  // assembleia.quorum_minimo) ficariam inconsistentes entre si sobre
+  // quando mostrar a seção de quórum.
   const quorumMinimo = (quorumMinimoRes.data as { quorum_minimo: number | null } | null)?.quorum_minimo ?? null
-  const percentual_quorum = peso_total_condominio > 0 ? peso_representado / peso_total_condominio : null
-  const quorum_atingido =
-    quorumMinimo === null || percentual_quorum === null ? null : percentual_quorum >= quorumMinimo
+  let percentual_quorum: number | null = null
+  let quorum_atingido: boolean | null = null
+  if (quorumMinimo !== null && peso_total_condominio > 0) {
+    percentual_quorum = peso_representado / peso_total_condominio
+    quorum_atingido = percentual_quorum >= quorumMinimo
+  }
 
   // Agrupa respostas por pauta
   const byPauta = new Map<string, ApuracaoRow[]>()
