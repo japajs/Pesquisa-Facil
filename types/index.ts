@@ -250,6 +250,26 @@ export interface AssembleiaResposta {
   created_at: string
 }
 
+// ─── Procuração ────────────────────────────────────────────────────────────
+// Auditoria de assembleias — Fase 8: outorgante (quem delega) precisa ser
+// um proprietário já cadastrado no mesmo condomínio do outorgado (quem
+// recebe/vota) — nunca uma pessoa externa. Escopo por assembleia (não é
+// uma delegação permanente). O peso do outorgado, ao votar, passa a somar
+// o peso das unidades do outorgante — ver createAssembleiaRespostas em
+// services/assembleia-votos.ts.
+export interface Procuracao {
+  id: string
+  assembleia_id: string
+  outorgante_id: string
+  outorgado_id: string
+  created_at: string
+}
+
+export interface ProcuracaoComNomes extends Procuracao {
+  outorgante_nome: string
+  outorgado_nome: string
+}
+
 // ─── Apuração de Assembleia ────────────────────────────────────────────────
 
 export interface OpcaoApuracao {

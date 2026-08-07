@@ -275,6 +275,28 @@ create table if not exists assembleia_respostas (
   unique (send_id, pauta_id)
 );
 
+-- Auditoria de assembleias — Fase 8: procuração — outorgante (quem
+-- delega) precisa ser um proprietário já cadastrado no mesmo condomínio
+-- do outorgado (quem recebe/vota) — nunca uma pessoa externa ao sistema,
+-- de propósito, pra não inventar um conceito novo de identidade. Escopo
+-- por assembleia (não é uma delegação permanente) — mais seguro e mais
+-- perto de como procuração funciona na prática (documento específico pra
+-- uma reunião). Peso do outorgado, quando vota, passa a somar o peso das
+-- unidades do outorgante também — ver createAssembleiaRespostas em
+-- services/assembleia-votos.ts. Um proprietário só pode outorgar a UM
+-- representante por assembleia (unique abaixo); nem outorgante nem
+-- outorgado podem já ter votado nesta assembleia quando a procuração é
+-- criada (services/procuracoes.ts garante isso em código).
+create table if not exists procuracoes (
+  id             uuid        primary key default uuid_generate_v4(),
+  assembleia_id  uuid        not null references assembleias(id)   on delete cascade,
+  outorgante_id  uuid        not null references proprietarios(id) on delete cascade,
+  outorgado_id   uuid        not null references proprietarios(id) on delete cascade,
+  created_at     timestamptz not null default now(),
+  constraint procuracoes_nao_autorrepresentacao check (outorgante_id <> outorgado_id),
+  unique (assembleia_id, outorgante_id)
+);
+
 -- ─── Índices ───────────────────────────────────────────────────────────────
 create index if not exists idx_usuario_condominios_usuario_id     on usuario_condominios(usuario_id);
 create index if not exists idx_usuario_condominios_condominio_id  on usuario_condominios(condominio_id);
@@ -300,6 +322,10 @@ create index if not exists idx_assembleia_respostas_send_id       on assembleia_
 create index if not exists idx_assembleia_respostas_pauta_id      on assembleia_respostas(pauta_id);
 create index if not exists idx_assembleia_respostas_opcao_id      on assembleia_respostas(opcao_id);
 
+create index if not exists idx_procuracoes_assembleia_id          on procuracoes(assembleia_id);
+create index if not exists idx_procuracoes_outorgante_id          on procuracoes(outorgante_id);
+create index if not exists idx_procuracoes_outorgado_id           on procuracoes(outorgado_id);
+
 -- ─── Row Level Security ───────────────────────────────────────────────────
 -- O service role key (usado pelo Next.js) bypassa o RLS automaticamente.
 -- Nenhuma policy pública é criada — sem elas, a anon key não acessa nada.
@@ -316,6 +342,7 @@ alter table pautas                enable row level security;
 alter table pauta_opcoes          enable row level security;
 alter table assembleia_sends      enable row level security;
 alter table assembleia_respostas  enable row level security;
+alter table procuracoes           enable row level security;
 
 -- ============================================================
 -- Migração — Fase 1 da auditoria de assembleias: fração ideal,
@@ -381,3 +408,24 @@ alter table proprietarios add column if not exists inadimplente boolean not null
 -- ============================================================
 
 alter table pautas add column if not exists sigiloso boolean not null default false;
+
+-- ============================================================
+-- Migração — Fase 8 da auditoria de assembleias: procuração.
+-- Execute no SQL Editor.
+-- ============================================================
+
+create table if not exists procuracoes (
+  id             uuid        primary key default uuid_generate_v4(),
+  assembleia_id  uuid        not null references assembleias(id)   on delete cascade,
+  outorgante_id  uuid        not null references proprietarios(id) on delete cascade,
+  outorgado_id   uuid        not null references proprietarios(id) on delete cascade,
+  created_at     timestamptz not null default now(),
+  constraint procuracoes_nao_autorrepresentacao check (outorgante_id <> outorgado_id),
+  unique (assembleia_id, outorgante_id)
+);
+
+create index if not exists idx_procuracoes_assembleia_id on procuracoes(assembleia_id);
+create index if not exists idx_procuracoes_outorgante_id on procuracoes(outorgante_id);
+create index if not exists idx_procuracoes_outorgado_id  on procuracoes(outorgado_id);
+
+alter table procuracoes enable row level security;

@@ -9,6 +9,7 @@ import { EditarAssembleiaDialog } from "@/components/assembleias/editar-assemble
 import { AdicionarPautaDialog } from "@/components/assembleias/adicionar-pauta-dialog"
 import { EditarPautaDialog } from "@/components/assembleias/editar-pauta-dialog"
 import { RegistrarVotoManualDialog } from "@/components/assembleias/registrar-voto-manual-dialog"
+import { ProcuracoesDialog } from "@/components/assembleias/procuracoes-dialog"
 import { excluirPautaAction } from "@/app/actions/assembleias"
 import { notificarNaoVotaramAction } from "@/app/actions/assembleia-votos"
 import { APP_NAME } from "@/lib/constants"
@@ -168,6 +169,9 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
                   condominioId={condominioId}
                   pautas={assembleia.pautas ?? []}
                 />
+              )}
+              {canExport && assembleia.status === "aberta" && (
+                <ProcuracoesDialog assembleiaId={assembleia.id} condominioId={condominioId} />
               )}
               {canExport && (
                 <>

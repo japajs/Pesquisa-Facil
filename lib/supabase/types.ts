@@ -369,6 +369,24 @@ export type Database = {
         }
         Relationships: []
       }
+      procuracoes: {
+        Row: {
+          id: string
+          assembleia_id: string
+          outorgante_id: string
+          outorgado_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          assembleia_id: string
+          outorgante_id: string
+          outorgado_id: string
+          created_at?: string
+        }
+        Update: never
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

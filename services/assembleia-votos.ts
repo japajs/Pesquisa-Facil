@@ -3,6 +3,7 @@ import { getPesoParticipante, getPesoTotalCondominio, getQuorumEfetivo } from "@
 import { marcarPautaEmVotacaoSeNecessario } from "@/services/pautas"
 import { getCondominioById } from "@/services/condominios"
 import { getUnidadesByCondominioId } from "@/services/unidades"
+import { outorgouProcuracao, getOutorgantesIds } from "@/services/procuracoes"
 import type {
   AssembleiaSend,
   AssembleiaResposta,
@@ -240,6 +241,7 @@ export interface RespostaInput {
 
 type SendComProprietarioCompleto = {
   assembleia_id: string
+  proprietario_id: string
   votado_em: string | null
   proprietarios: {
     nome: string
@@ -273,6 +275,7 @@ async function validarVotoOuFalhar(
   db: ReturnType<typeof createServerClient>,
   sendId: string,
   assembleiaId: string,
+  proprietarioId: string,
   status: AssembleiaStatus,
   pautaIds: string[]
 ): Promise<void> {
@@ -281,6 +284,15 @@ async function validarVotoOuFalhar(
   }
   if (pautaIds.length === 0) {
     throw new Error("Nenhuma pauta para registrar.")
+  }
+
+  // Auditoria de assembleias — Fase 8: quem outorgou procuração pra outro
+  // proprietário nesta assembleia não vota mais por conta própria — o
+  // peso dele já é somado no voto do outorgado (ver mais abaixo).
+  if (await outorgouProcuracao(assembleiaId, proprietarioId)) {
+    throw new Error(
+      "Você outorgou procuração a outro proprietário nesta assembleia — quem vota agora é o seu representante."
+    )
   }
 
   const idsUnicos = [...new Set(pautaIds)]
@@ -324,7 +336,7 @@ export async function createAssembleiaRespostas(
   const { data: sendRow, error: sendError } = await db
     .from("assembleia_sends")
     .select(
-      "assembleia_id, votado_em, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco, fracao_ideal)), assembleias(status, condominios(criterio_peso))"
+      "assembleia_id, proprietario_id, votado_em, proprietarios(nome, cpf, email, telefone, unidades(numero, bloco, fracao_ideal)), assembleias(status, condominios(criterio_peso))"
     )
     .eq("id", sendId)
     .single()
@@ -337,12 +349,31 @@ export async function createAssembleiaRespostas(
     db,
     sendId,
     send.assembleia_id,
+    send.proprietario_id,
     send.assembleias?.status ?? "encerrada",
     respostas.map((r) => r.pauta_id)
   )
 
-  const unidades = proprietario?.unidades ?? []
+  const unidadesProprias = proprietario?.unidades ?? []
   const criterioPeso = send.assembleias?.condominios?.criterio_peso ?? "unidade"
+
+  // Auditoria de assembleias — Fase 8: peso do outorgado soma o peso das
+  // unidades de quem outorgou procuração pra ele nesta assembleia — o
+  // outorgante em si já está bloqueado de votar por conta própria (ver
+  // validarVotoOuFalhar acima). unidades_snapshot também reflete a soma,
+  // pra bater com peso_snapshot no histórico.
+  const outorgantesIds = await getOutorgantesIds(send.assembleia_id, send.proprietario_id)
+  let unidadesDelegadas: { numero: string; bloco: string | null; fracao_ideal: number | null }[] = []
+  if (outorgantesIds.length > 0) {
+    const { data: unidadesOutorgantes, error: outorgantesError } = await db
+      .from("unidades")
+      .select("numero, bloco, fracao_ideal")
+      .in("proprietario_id", outorgantesIds)
+    if (outorgantesError) throw new Error(outorgantesError.message)
+    unidadesDelegadas = unidadesOutorgantes ?? []
+  }
+
+  const unidades = [...unidadesProprias, ...unidadesDelegadas]
   const peso = getPesoParticipante({ unidades }, criterioPeso)
 
   const { error } = await db.from("assembleia_respostas").insert(
