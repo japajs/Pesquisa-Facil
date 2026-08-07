@@ -151,6 +151,24 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
                     <FileSpreadsheet className="h-3.5 w-3.5" />
                     Excel
                   </Button>
+                  {/* Auditoria de assembleias — Fase 3: ata só faz sentido
+                      depois que a assembleia encerra (é o documento final,
+                      não um relatório parcial). */}
+                  {assembleia.status === "encerrada" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const a = document.createElement("a")
+                        a.href = `/api/relatorios/apuracao/${assembleia.id}/ata`
+                        a.click()
+                      }}
+                      className="gap-1.5"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Ata
+                    </Button>
+                  )}
                 </>
               )}
               <Button
