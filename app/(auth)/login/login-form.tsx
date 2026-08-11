@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
+import { Eye, EyeOff, Loader2, LogIn, Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,16 +22,20 @@ export function LoginForm() {
         <Label htmlFor="email" className="text-sm text-foreground/80">
           E-mail
         </Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          placeholder="seu@email.com"
-          autoComplete="email"
-          autoFocus
-          required
-          disabled={isPending}
-        />
+        <div className="relative">
+          <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="seu@email.com"
+            autoComplete="email"
+            autoFocus
+            required
+            disabled={isPending}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -39,6 +43,7 @@ export function LoginForm() {
           Senha
         </Label>
         <div className="relative">
+          <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="password"
             name="password"
@@ -47,7 +52,7 @@ export function LoginForm() {
             autoComplete="current-password"
             required
             disabled={isPending}
-            className="pr-10"
+            className="pr-10 pl-10"
           />
           <button
             type="button"
