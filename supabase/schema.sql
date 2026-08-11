@@ -81,9 +81,6 @@ insert into configuracoes (chave, valor) values
   ('admin_email',                     'admin@exemplo.com'),
   ('auth_password',                   ''),
   ('email_nome_remetente',            'Sistema de Votação'),
-  ('votacao_resposta_unica',          'true'),
-  ('votacao_ponderada',               'true'),
-  ('votacao_permite_abstencao',       'true'),
   ('votacao_encerramento_automatico', 'false')
 on conflict (chave) do nothing;
 
@@ -468,3 +465,15 @@ create index if not exists idx_unidade_coprop_unidade_id      on unidade_copropr
 create index if not exists idx_unidade_coprop_proprietario_id on unidade_coproprietarios(proprietario_id);
 
 alter table unidade_coproprietarios enable row level security;
+
+-- ============================================================
+-- Migração — limpeza de configurações mortas. Três chaves em
+-- "Configuração da Votação" (resposta única, votação ponderada, permitir
+-- abstenção) eram globais e nunca influenciavam o cálculo de peso/voto de
+-- verdade — desde a Fase 1 da auditoria, isso é decidido por
+-- condominios.criterio_peso e pautas.permite_abstencao, por condomínio/
+-- pauta. Execute no SQL Editor.
+-- ============================================================
+
+delete from configuracoes
+  where chave in ('votacao_resposta_unica', 'votacao_ponderada', 'votacao_permite_abstencao');

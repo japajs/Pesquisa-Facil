@@ -117,23 +117,15 @@ export async function enviarEmailTesteAction(
 // ─── Votação defaults ─────────────────────────────────────────────────────────
 
 export async function updateVotacaoDefaultsAction(defaults: {
-  votacao_resposta_unica: boolean
-  votacao_ponderada: boolean
-  votacao_permite_abstencao: boolean
   votacao_encerramento_automatico: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const auth = await requirePerfil(["administrador"])
   if (!auth.ok) return { success: false, error: auth.error }
   try {
-    await Promise.all([
-      setConfiguracao("votacao_resposta_unica", String(defaults.votacao_resposta_unica)),
-      setConfiguracao("votacao_ponderada", String(defaults.votacao_ponderada)),
-      setConfiguracao("votacao_permite_abstencao", String(defaults.votacao_permite_abstencao)),
-      setConfiguracao(
-        "votacao_encerramento_automatico",
-        String(defaults.votacao_encerramento_automatico)
-      ),
-    ])
+    await setConfiguracao(
+      "votacao_encerramento_automatico",
+      String(defaults.votacao_encerramento_automatico)
+    )
     revalidatePath(ROUTES.configuracoes)
     return { success: true }
   } catch (err) {

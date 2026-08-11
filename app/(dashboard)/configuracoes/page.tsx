@@ -30,12 +30,7 @@ export default async function ConfiguracoesPage() {
       />
 
       <VotacaoDefaultsSection
-        defaults={{
-          votacao_resposta_unica: config.votacao_resposta_unica,
-          votacao_ponderada: config.votacao_ponderada,
-          votacao_permite_abstencao: config.votacao_permite_abstencao,
-          votacao_encerramento_automatico: config.votacao_encerramento_automatico,
-        }}
+        defaults={{ votacao_encerramento_automatico: config.votacao_encerramento_automatico }}
       />
 
       <SobreSection ambiente={ambiente} />
