@@ -27,7 +27,7 @@ export default function LoginPage() {
           className="object-cover"
           sizes="(min-width: 1024px) 60vw, 0px"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1524] via-[#0b1524]/50 to-[#0b1524]/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1524] via-[#0b1524]/60 to-[#0b1524]/20" />
 
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <div>
@@ -58,10 +58,10 @@ export default function LoginPage() {
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
-              <Gavel className="h-6 w-6 text-primary" />
+            <div className="mx-auto mb-4 flex h-[67px] w-[67px] items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
+              <Gavel className="h-[29px] w-[29px] text-primary" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{APP_NAME}</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">{APP_NAME}</h1>
             <p className="mt-1 text-sm text-muted-foreground">Assembleias eletrônicas para condomínios</p>
           </div>
 
