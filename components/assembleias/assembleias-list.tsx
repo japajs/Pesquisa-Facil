@@ -136,7 +136,9 @@ function AssembleiaRow({
             {assembleia.data_encerramento && (
               <>
                 {" · encerra "}
-                {new Date(assembleia.data_encerramento).toLocaleDateString("pt-BR")}
+                {new Date(assembleia.data_encerramento).toLocaleDateString("pt-BR", {
+                  timeZone: "America/Sao_Paulo",
+                })}
               </>
             )}
           </p>
