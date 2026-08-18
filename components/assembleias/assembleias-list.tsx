@@ -206,7 +206,12 @@ function AssembleiaRow({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel ref={cancelDeleteRef}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel
+                ref={cancelDeleteRef}
+                className="focus:border-ring focus:ring-3 focus:ring-ring/50"
+              >
+                Cancelar
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -229,7 +234,12 @@ function AssembleiaRow({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel ref={cancelEncerrarRef}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel
+                ref={cancelEncerrarRef}
+                className="focus:border-ring focus:ring-3 focus:ring-ring/50"
+              >
+                Cancelar
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleEncerrar}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
