@@ -187,12 +187,13 @@ export function AssembleiaFormFields({ form, pautasEditaveis, mensagemPautasBloq
                   disabled={!pautasEditaveis}
                   className="h-8 text-sm"
                 />
-                <Input
+                <Textarea
                   placeholder="Descrição (opcional)"
                   value={pauta.descricao}
                   onChange={(e) => form.updatePauta(i, "descricao", e.target.value)}
                   disabled={!pautasEditaveis}
-                  className="h-8 text-sm"
+                  rows={2}
+                  className="resize-none text-sm"
                 />
 
                 {/* Tipo da pauta */}
