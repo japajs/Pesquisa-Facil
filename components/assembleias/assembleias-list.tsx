@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { ClipboardList, BarChart3, Trash2, LockKeyhole, Unlock } from "lucide-react"
 import { toast } from "sonner"
@@ -76,6 +76,13 @@ function AssembleiaRow({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [encerrarOpen, setEncerrarOpen] = useState(false)
   const pautaCount = assembleia.pautas?.length ?? 0
+
+  // Achado de auditoria: foco inicial nos dois diálogos abaixo é o botão
+  // "Cancelar", não a ação destrutiva — quem confirmar sem querer (Enter,
+  // toque duplo etc.) cancela por padrão, precisa mover pra excluir/encerrar
+  // de propósito.
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null)
+  const cancelEncerrarRef = useRef<HTMLButtonElement>(null)
 
   function handleDelete() {
     setDeleteOpen(false)
@@ -190,7 +197,7 @@ function AssembleiaRow({
         </Button>
 
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent initialFocus={cancelDeleteRef}>
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir assembleia?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -199,7 +206,7 @@ function AssembleiaRow({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel ref={cancelDeleteRef}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -211,7 +218,7 @@ function AssembleiaRow({
         </AlertDialog>
 
         <AlertDialog open={encerrarOpen} onOpenChange={setEncerrarOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent initialFocus={cancelEncerrarRef}>
             <AlertDialogHeader>
               <AlertDialogTitle>Encerrar assembleia?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -222,7 +229,7 @@ function AssembleiaRow({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel ref={cancelEncerrarRef}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleEncerrar}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
