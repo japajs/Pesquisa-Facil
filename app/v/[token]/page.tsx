@@ -6,12 +6,14 @@ import {
   getAssembleiaSendByToken,
   getRespostasBySendId,
   getApuracaoAssembleia,
+  getParticipacaoParcial,
 } from "@/services/assembleia-votos"
 import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
 import { getCondominioById } from "@/services/condominios"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
+import { formatUnidade } from "@/lib/unidade-format"
 import { APP_NAME } from "@/lib/constants"
 import { checkRateLimit } from "@/lib/rate-limit"
 
@@ -179,6 +181,11 @@ export default async function PublicVotoPage({ params }: Props) {
 
   // ── Situação 3: Em andamento + já votou ────────────────────────────────────
   if (alreadyAnswered) {
+    // Achado de auditoria: mostra só QUEM já votou (participação), nunca o
+    // placar Sim/Não/Abstenção — divulgar parcial do resultado enquanto a
+    // votação está aberta arrisca influenciar quem ainda vai votar.
+    const participacao = await getParticipacaoParcial(assembleia.id).catch(() => null)
+
     return (
       <div className="min-h-screen bg-background">
         {header}
@@ -199,9 +206,30 @@ export default async function PublicVotoPage({ params }: Props) {
                 Em andamento
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Os resultados serão divulgados somente após o encerramento da votação.
+                O resultado (Sim/Não) só é divulgado após o encerramento da votação.
               </p>
             </div>
+
+            {participacao && (
+              <div className="w-full rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-left text-sm">
+                <p className="text-center font-medium text-foreground">
+                  {participacao.totalVotaram} de {participacao.totalEnviados}{" "}
+                  {participacao.totalEnviados === 1 ? "já votou" : "já votaram"}
+                </p>
+                {participacao.votantes.length > 0 && (
+                  <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                    {participacao.votantes.map((v, i) => (
+                      <li key={i} className="truncate">
+                        {v.nome}
+                        {v.unidades.length > 0 && (
+                          <> — {v.unidades.map((u) => formatUnidade(u)).join(", ")}</>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
