@@ -123,8 +123,8 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
 
       {/* Cabeçalho da assembleia */}
       <div className="space-y-3 rounded-xl border border-border/60 bg-card p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
             {assembleia.descricao && (
               <p className="whitespace-pre-line text-sm text-muted-foreground">{assembleia.descricao}</p>
             )}
