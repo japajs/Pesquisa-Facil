@@ -208,7 +208,7 @@ function AssembleiaRow({
             <AlertDialogFooter>
               <AlertDialogCancel
                 ref={cancelDeleteRef}
-                className="focus:border-ring focus:ring-3 focus:ring-ring/50"
+                className="focus:border-ring focus:ring-3 focus:ring-ring/50 active:border-primary active:bg-primary/10"
               >
                 Cancelar
               </AlertDialogCancel>
@@ -236,7 +236,7 @@ function AssembleiaRow({
             <AlertDialogFooter>
               <AlertDialogCancel
                 ref={cancelEncerrarRef}
-                className="focus:border-ring focus:ring-3 focus:ring-ring/50"
+                className="focus:border-ring focus:ring-3 focus:ring-ring/50 active:border-primary active:bg-primary/10"
               >
                 Cancelar
               </AlertDialogCancel>
