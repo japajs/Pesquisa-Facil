@@ -228,7 +228,7 @@ export function ResultadoAssembleia({
                     )}
                   </h3>
                   {pauta.descricao && (
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{pauta.descricao}</p>
+                    <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{pauta.descricao}</p>
                   )}
                 </div>
                 {multiplaEscolha ? (
