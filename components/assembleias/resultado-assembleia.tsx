@@ -17,6 +17,15 @@ interface Props {
    * Pautas com `sigiloso` mostram uma nota no lugar da tabela, nunca a
    * lista nome↔voto (mesma regra dos relatórios PDF/XLSX). */
   votosDetalhados?: Omit<VotoDetalhado, "email">[]
+  /** Total de unidades cadastradas no condomínio (não só quem foi
+   * convidado pra ESTA assembleia). Achado do usuário: "Aptos a votar"
+   * mostrava só `total_enviados` (assembleia_sends desta assembleia), o
+   * que inflava a % de participação quando nem todo o condomínio foi
+   * convidado ainda. Quando informado, substitui total_enviados como
+   * denominador aqui — sem mexer no `total_enviados`/`total_respondidos`
+   * originais, que continuam corretos pra apuração/lembrete no painel do
+   * síndico (ver services/assembleia-votos.ts). */
+  totalUnidadesCondominio?: number
 }
 
 function formatDataHoraVoto(iso: string | null): string {
@@ -121,10 +130,12 @@ export function ResultadoAssembleia({
   criterioPeso = "unidade",
   parcial = false,
   votosDetalhados,
+  totalUnidadesCondominio,
 }: Props) {
   const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido, convocacao_aplicada } =
     apuracao
-  const participacaoPct = pct(total_respondidos, total_enviados)
+  const aptosAVotar = totalUnidadesCondominio ?? total_enviados
+  const participacaoPct = pct(total_respondidos, aptosAVotar)
   const totalUnidades = pautas[0]?.total_apartamentos_representados ?? 0
 
   const votosPorPauta = new Map<string, Omit<VotoDetalhado, "email">[]>()
@@ -181,7 +192,7 @@ export function ResultadoAssembleia({
           <h2 className="text-sm font-semibold">Participação</h2>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Aptos a votar" value={total_enviados} />
+          <Stat label="Aptos a votar" value={aptosAVotar} />
           <Stat label="Votaram" value={total_respondidos} />
           <Stat label="Participação" value={`${participacaoPct}%`} highlight={participacaoPct >= 50} />
           <Stat label="Unidades repr." value={formatPesoValor(totalUnidades, criterioPeso)} />
