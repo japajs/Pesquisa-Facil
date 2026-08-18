@@ -228,8 +228,8 @@ export default async function PublicVotoPage({ params }: Props) {
             {participacao && (
               <div className="w-full rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-left text-sm">
                 <p className="text-center font-medium text-foreground">
-                  {participacao.totalVotaram} de {participacao.totalEnviados}{" "}
-                  {participacao.totalEnviados === 1 ? "já votou" : "já votaram"}
+                  {participacao.totalVotaram} de {unidadesCondominio.length}{" "}
+                  {unidadesCondominio.length === 1 ? "já votou" : "já votaram"}
                 </p>
                 {participacao.votantes.length > 0 && (
                   <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
