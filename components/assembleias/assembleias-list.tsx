@@ -74,6 +74,7 @@ function AssembleiaRow({
 }) {
   const [isPending, startTransition] = useTransition()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [encerrarOpen, setEncerrarOpen] = useState(false)
   const pautaCount = assembleia.pautas?.length ?? 0
 
   function handleDelete() {
@@ -95,6 +96,15 @@ function AssembleiaRow({
         toast.error(result.error)
       }
     })
+  }
+
+  // Achado de auditoria: encerrar era um clique só, sem confirmação — e é
+  // uma ação irreversível (updateAssembleiaStatus bloqueia reabrir depois),
+  // que trava voto de quem ainda não votou. Mesmo padrão de confirmação já
+  // usado pra excluir.
+  function handleEncerrar() {
+    setEncerrarOpen(false)
+    handleStatusChange("encerrada")
   }
 
   return (
@@ -143,7 +153,7 @@ function AssembleiaRow({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleStatusChange("encerrada")}
+            onClick={() => setEncerrarOpen(true)}
             disabled={isPending}
             className="gap-1.5 px-2.5 text-xs text-rose-500 hover:text-rose-600"
           >
@@ -195,6 +205,29 @@ function AssembleiaRow({
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={encerrarOpen} onOpenChange={setEncerrarOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Encerrar assembleia?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong>"{assembleia.titulo}"</strong> deixará de aceitar novos votos e{" "}
+                <strong>não poderá ser reaberta depois</strong>. Quem ainda não votou fica de fora
+                definitivamente. Confira se todos que precisavam votar já votaram antes de
+                continuar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleEncerrar}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Encerrar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
