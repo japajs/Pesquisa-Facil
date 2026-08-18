@@ -7,6 +7,9 @@ interface Props {
   data_encerramento: string | null
   apuracao: AssembleiaApuracao
   criterioPeso?: CriterioPeso
+  /** true = votação ainda aberta, números podem mudar até o encerramento
+   * (mostrado a quem já votou, no link público). false = resultado final. */
+  parcial?: boolean
 }
 
 function formatPesoValor(valor: number, criterioPeso: CriterioPeso): string {
@@ -97,6 +100,7 @@ export function ResultadoAssembleia({
   data_encerramento,
   apuracao,
   criterioPeso = "unidade",
+  parcial = false,
 }: Props) {
   const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido, convocacao_aplicada } =
     apuracao
@@ -114,8 +118,12 @@ export function ResultadoAssembleia({
               <span>{condominio_nome}</span>
             </div>
           )}
-          <span className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-semibold text-rose-500">
-            Encerrada
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              parcial ? "bg-indigo-500/15 text-indigo-500" : "bg-rose-500/15 text-rose-500"
+            }`}
+          >
+            {parcial ? "Em andamento" : "Encerrada"}
           </span>
         </div>
 
@@ -329,7 +337,9 @@ export function ResultadoAssembleia({
       )}
 
       <p className="pb-4 text-center text-xs text-muted-foreground">
-        Resultado oficial · Apenas dados consolidados são exibidos
+        {parcial
+          ? "Resultado parcial · pode mudar até o encerramento da votação"
+          : "Resultado oficial · Apenas dados consolidados são exibidos"}
       </p>
     </div>
   )

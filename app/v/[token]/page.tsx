@@ -181,10 +181,17 @@ export default async function PublicVotoPage({ params }: Props) {
 
   // ── Situação 3: Em andamento + já votou ────────────────────────────────────
   if (alreadyAnswered) {
-    // Achado de auditoria: mostra só QUEM já votou (participação), nunca o
-    // placar Sim/Não/Abstenção — divulgar parcial do resultado enquanto a
-    // votação está aberta arrisca influenciar quem ainda vai votar.
-    const participacao = await getParticipacaoParcial(assembleia.id).catch(() => null)
+    // Achado de auditoria original: só mostrava QUEM já votou, nunca o
+    // placar — evitar influenciar quem ainda vai votar. Pedido do usuário:
+    // quem JÁ votou pode ver o boletim completo (o voto dele já está
+    // travado, não tem como o placar influenciar uma escolha que já foi
+    // feita) — só quem ainda não votou continua sem ver nada disso, porque
+    // nem chega nesta tela (cai na Situação 2, o formulário de voto).
+    const [participacao, apuracao, condominio] = await Promise.all([
+      getParticipacaoParcial(assembleia.id).catch(() => null),
+      getApuracaoAssembleia(assembleia.id, pautas, assembleia.condominio_id).catch(() => null),
+      getCondominioById(assembleia.condominio_id).catch(() => null),
+    ])
 
     return (
       <div className="min-h-screen bg-background">
@@ -206,7 +213,7 @@ export default async function PublicVotoPage({ params }: Props) {
                 Em andamento
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                O resultado (Sim/Não) só é divulgado após o encerramento da votação.
+                O resultado pode mudar até o encerramento — o boletim abaixo é parcial.
               </p>
             </div>
 
@@ -231,6 +238,19 @@ export default async function PublicVotoPage({ params }: Props) {
               </div>
             )}
           </div>
+
+          {apuracao && (
+            <div className="mt-6">
+              <ResultadoAssembleia
+                condominio_nome={assembleia.condominio_nome ?? null}
+                data_abertura={assembleia.data_abertura ?? null}
+                data_encerramento={assembleia.data_encerramento ?? null}
+                apuracao={apuracao}
+                criterioPeso={condominio?.criterio_peso ?? "unidade"}
+                parcial
+              />
+            </div>
+          )}
         </div>
       </div>
     )
