@@ -208,13 +208,14 @@ function AssembleiaRow({
             <AlertDialogFooter>
               <AlertDialogCancel
                 ref={cancelDeleteRef}
-                className="focus:border-ring focus:ring-3 focus:ring-ring/50 active:border-primary active:bg-primary/10"
+                className="border-destructive/40 bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:border-ring focus:ring-3 focus:ring-ring/50"
               >
                 Cancelar
               </AlertDialogCancel>
               <AlertDialogAction
+                variant="outline"
                 onClick={handleDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="active:border-destructive active:bg-destructive active:text-destructive-foreground"
               >
                 Excluir
               </AlertDialogAction>
@@ -236,13 +237,14 @@ function AssembleiaRow({
             <AlertDialogFooter>
               <AlertDialogCancel
                 ref={cancelEncerrarRef}
-                className="focus:border-ring focus:ring-3 focus:ring-ring/50 active:border-primary active:bg-primary/10"
+                className="border-destructive/40 bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:border-ring focus:ring-3 focus:ring-ring/50"
               >
                 Cancelar
               </AlertDialogCancel>
               <AlertDialogAction
+                variant="outline"
                 onClick={handleEncerrar}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="active:border-destructive active:bg-destructive active:text-destructive-foreground"
               >
                 Encerrar
               </AlertDialogAction>
