@@ -123,8 +123,8 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
 
       {/* Cabeçalho da assembleia */}
       <div className="space-y-3 rounded-xl border border-border/60 bg-card p-5">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-col gap-3">
+          <div>
             {assembleia.descricao && (
               <p className="whitespace-pre-line text-sm text-muted-foreground">{assembleia.descricao}</p>
             )}
@@ -133,7 +133,7 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
               {(assembleia.pautas?.length ?? 0) === 1 ? "pauta" : "pautas"}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[statusExibido]}`}
             >
