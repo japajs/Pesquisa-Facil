@@ -128,15 +128,19 @@ export interface VotoDetalhado {
   nome: string
   email: string | null
   resposta: string
+  votado_em: string | null
 }
 
-// Detalhamento de voto por pauta (Unidade/Nome/E-mail/Resposta) para os
-// relatórios — usa os campos *_snapshot de Etapa 3 (nome/e-mail/unidades no
-// momento do voto), nunca o cadastro atual, pelo mesmo motivo de
-// getParticipantesByAssembleia: preservar a integridade histórica mesmo que
-// o proprietário seja editado depois. IP, user-agent e data/hora do voto
-// (ip_snapshot, user_agent_snapshot, votado_em) continuam gravados no banco
-// só para auditoria técnica — nunca lidos aqui, nunca aparecem no relatório.
+// Detalhamento de voto por pauta (Unidade/Nome/E-mail/Resposta/Data-hora)
+// para os relatórios e para o boletim parcial/final do link público — usa os
+// campos *_snapshot de Etapa 3 (nome/e-mail/unidades no momento do voto),
+// nunca o cadastro atual, pelo mesmo motivo de getParticipantesByAssembleia:
+// preservar a integridade histórica mesmo que o proprietário seja editado
+// depois. `votado_em` foi liberado aqui a pedido do usuário — mostrar quando
+// cada voto foi registrado ajuda a afastar suspeita de fraude (voto
+// retroativo/fora de hora). Quem chama isto pro link público NÃO deve
+// exibir `email` (é PII de outro morador) nem a tabela inteira quando
+// `pauta.sigiloso` — a mesma regra já aplicada nos relatórios PDF/XLSX.
 export async function getVotosDetalhados(assembleiaId: string): Promise<VotoDetalhado[]> {
   const db = createServerClient()
 
@@ -150,6 +154,7 @@ export async function getVotosDetalhados(assembleiaId: string): Promise<VotoDeta
       nome_snapshot: string | null
       email_snapshot: string | null
       unidades_snapshot: RawUnidadeSnapshot[] | null
+      votado_em: string | null
     } | null
     pauta_opcoes: { label: string } | null
   }
@@ -157,7 +162,7 @@ export async function getVotosDetalhados(assembleiaId: string): Promise<VotoDeta
   const { data, error } = await db
     .from("assembleia_respostas")
     .select(
-      "pauta_id, resposta, opcao_id, assembleia_sends!inner(assembleia_id, nome_snapshot, email_snapshot, unidades_snapshot), pauta_opcoes(label)"
+      "pauta_id, resposta, opcao_id, assembleia_sends!inner(assembleia_id, nome_snapshot, email_snapshot, unidades_snapshot, votado_em), pauta_opcoes(label)"
     )
     .eq("assembleia_sends.assembleia_id", assembleiaId)
 
@@ -176,6 +181,7 @@ export async function getVotosDetalhados(assembleiaId: string): Promise<VotoDeta
       nome: r.assembleia_sends?.nome_snapshot ?? "—",
       email: r.assembleia_sends?.email_snapshot ?? null,
       resposta: r.opcao_id ? (r.pauta_opcoes?.label ?? "—") : (r.resposta ?? "—"),
+      votado_em: r.assembleia_sends?.votado_em ?? null,
     }
   })
 

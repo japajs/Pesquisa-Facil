@@ -11,6 +11,7 @@ import {
 import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
 import { getCondominioById } from "@/services/condominios"
+import { getVotosDetalhados } from "@/services/relatorios"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
 import { formatUnidade } from "@/lib/unidade-format"
@@ -149,9 +150,10 @@ export default async function PublicVotoPage({ params }: Props) {
 
   // ── Situação 4: Encerrada — exibir resultados ──────────────────────────────
   if (status === "encerrada") {
-    const [apuracao, condominio] = await Promise.all([
+    const [apuracao, condominio, votosDetalhados] = await Promise.all([
       getApuracaoAssembleia(assembleia.id, pautas, assembleia.condominio_id).catch(() => null),
       getCondominioById(assembleia.condominio_id).catch(() => null),
+      getVotosDetalhados(assembleia.id).catch(() => []),
     ])
 
     return (
@@ -166,6 +168,7 @@ export default async function PublicVotoPage({ params }: Props) {
               data_encerramento={assembleia.data_encerramento ?? null}
               apuracao={apuracao}
               criterioPeso={condominio?.criterio_peso ?? "unidade"}
+              votosDetalhados={votosDetalhados.map(({ email: _email, ...v }) => v)}
             />
           ) : (
             <div className="rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
@@ -187,10 +190,11 @@ export default async function PublicVotoPage({ params }: Props) {
     // travado, não tem como o placar influenciar uma escolha que já foi
     // feita) — só quem ainda não votou continua sem ver nada disso, porque
     // nem chega nesta tela (cai na Situação 2, o formulário de voto).
-    const [participacao, apuracao, condominio] = await Promise.all([
+    const [participacao, apuracao, condominio, votosDetalhados] = await Promise.all([
       getParticipacaoParcial(assembleia.id).catch(() => null),
       getApuracaoAssembleia(assembleia.id, pautas, assembleia.condominio_id).catch(() => null),
       getCondominioById(assembleia.condominio_id).catch(() => null),
+      getVotosDetalhados(assembleia.id).catch(() => []),
     ])
 
     return (
@@ -247,6 +251,7 @@ export default async function PublicVotoPage({ params }: Props) {
                 data_encerramento={assembleia.data_encerramento ?? null}
                 apuracao={apuracao}
                 criterioPeso={condominio?.criterio_peso ?? "unidade"}
+                votosDetalhados={votosDetalhados.map(({ email: _email, ...v }) => v)}
                 parcial
               />
             </div>

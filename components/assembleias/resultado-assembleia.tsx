@@ -1,5 +1,6 @@
 import { CheckCircle2, XCircle, Building2, CalendarDays, Users, Scale, Lock } from "lucide-react"
 import type { AssembleiaApuracao, CriterioPeso } from "@/types"
+import type { VotoDetalhado } from "@/services/relatorios"
 
 interface Props {
   condominio_nome: string | null
@@ -10,6 +11,24 @@ interface Props {
   /** true = votação ainda aberta, números podem mudar até o encerramento
    * (mostrado a quem já votou, no link público). false = resultado final. */
   parcial?: boolean
+  /** Voto a voto (unidade/nome/resposta/data-hora) — a pedido do usuário,
+   * pra afastar suspeita de fraude no link público. Sem `email` de
+   * propósito (é PII de outro morador, o componente nem lê esse campo).
+   * Pautas com `sigiloso` mostram uma nota no lugar da tabela, nunca a
+   * lista nome↔voto (mesma regra dos relatórios PDF/XLSX). */
+  votosDetalhados?: Omit<VotoDetalhado, "email">[]
+}
+
+function formatDataHoraVoto(iso: string | null): string {
+  if (!iso) return "—"
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(iso))
 }
 
 function formatPesoValor(valor: number, criterioPeso: CriterioPeso): string {
@@ -101,11 +120,19 @@ export function ResultadoAssembleia({
   apuracao,
   criterioPeso = "unidade",
   parcial = false,
+  votosDetalhados,
 }: Props) {
   const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido, convocacao_aplicada } =
     apuracao
   const participacaoPct = pct(total_respondidos, total_enviados)
   const totalUnidades = pautas[0]?.total_apartamentos_representados ?? 0
+
+  const votosPorPauta = new Map<string, Omit<VotoDetalhado, "email">[]>()
+  for (const v of votosDetalhados ?? []) {
+    const lista = votosPorPauta.get(v.pauta_id) ?? []
+    lista.push(v)
+    votosPorPauta.set(v.pauta_id, lista)
+  }
 
   return (
     <div className="space-y-4">
@@ -331,6 +358,46 @@ export function ResultadoAssembleia({
                   )}
                 </p>
               </div>
+
+              {votosDetalhados && (
+                <div className="border-t border-border/40 pt-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" />
+                    Detalhamento dos votos
+                  </p>
+                  {pauta.sigiloso ? (
+                    <p className="text-xs text-muted-foreground italic">
+                      Pauta sigilosa — detalhamento individual não fica disponível, só o resultado
+                      agregado acima.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-border/40 text-left text-muted-foreground">
+                            <th className="py-1.5 pr-3 font-medium">Unidade</th>
+                            <th className="py-1.5 pr-3 font-medium">Nome</th>
+                            <th className="py-1.5 pr-3 font-medium">Resposta</th>
+                            <th className="py-1.5 font-medium">Voto registrado em</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(votosPorPauta.get(pauta.id) ?? []).map((v, i) => (
+                            <tr key={i} className="border-b border-border/20 last:border-0">
+                              <td className="py-1.5 pr-3 whitespace-nowrap">{v.unidades}</td>
+                              <td className="py-1.5 pr-3">{v.nome}</td>
+                              <td className="py-1.5 pr-3 font-medium">{v.resposta}</td>
+                              <td className="py-1.5 whitespace-nowrap text-muted-foreground">
+                                {formatDataHoraVoto(v.votado_em)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })
