@@ -15,7 +15,6 @@ import { getUnidadesByCondominioId } from "@/services/unidades"
 import { getVotosDetalhados } from "@/services/relatorios"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
-import { formatUnidade } from "@/lib/unidade-format"
 import { APP_NAME } from "@/lib/constants"
 import { checkRateLimit } from "@/lib/rate-limit"
 
@@ -226,23 +225,14 @@ export default async function PublicVotoPage({ params }: Props) {
             </div>
 
             {participacao && (
-              <div className="w-full rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-left text-sm">
-                <p className="text-center font-medium text-foreground">
+              <div className="w-full rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-center text-sm">
+                <p className="font-medium text-foreground">
                   {participacao.totalVotaram} de {unidadesCondominio.length}{" "}
                   {unidadesCondominio.length === 1 ? "já votou" : "já votaram"}
                 </p>
-                {participacao.votantes.length > 0 && (
-                  <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                    {participacao.votantes.map((v, i) => (
-                      <li key={i} className="truncate">
-                        {v.nome}
-                        {v.unidades.length > 0 && (
-                          <> — {v.unidades.map((u) => formatUnidade(u)).join(", ")}</>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Quem já votou e como, pauta a pauta: no "Detalhamento dos votos" abaixo.
+                </p>
               </div>
             )}
           </div>
