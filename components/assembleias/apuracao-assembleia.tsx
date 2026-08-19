@@ -126,7 +126,7 @@ export function ApuracaoAssembleia({ assembleia, condominioId, apuracao, canExpo
         <div className="flex flex-col gap-3">
           <div>
             {assembleia.descricao && (
-              <p className="whitespace-pre-line text-sm text-muted-foreground">{assembleia.descricao}</p>
+              <p className="whitespace-pre-line text-justify text-sm text-muted-foreground">{assembleia.descricao}</p>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
               {assembleia.pautas?.length ?? 0}{" "}
@@ -395,7 +395,7 @@ function PautaApuracaoSection({
         )}
       </div>
 
-      {pauta.descricao && <p className="whitespace-pre-line text-sm text-muted-foreground">{pauta.descricao}</p>}
+      {pauta.descricao && <p className="whitespace-pre-line text-justify text-sm text-muted-foreground">{pauta.descricao}</p>}
 
       {pauta.tipo === "multipla_escolha" ? (
         <MultiplaEscolhaApuracao item={item} />
