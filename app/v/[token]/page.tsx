@@ -11,7 +11,6 @@ import {
 import { updateAssembleiaStatus } from "@/services/assembleias"
 import { getConfiguracao } from "@/services/configuracoes"
 import { getCondominioById } from "@/services/condominios"
-import { getUnidadesByCondominioId } from "@/services/unidades"
 import { getVotosDetalhados } from "@/services/relatorios"
 import { AssembleiaVotoForm } from "@/components/assembleias/assembleia-voto-form"
 import { ResultadoAssembleia } from "@/components/assembleias/resultado-assembleia"
@@ -150,11 +149,10 @@ export default async function PublicVotoPage({ params }: Props) {
 
   // ── Situação 4: Encerrada — exibir resultados ──────────────────────────────
   if (status === "encerrada") {
-    const [apuracao, condominio, votosDetalhados, unidadesCondominio] = await Promise.all([
+    const [apuracao, condominio, votosDetalhados] = await Promise.all([
       getApuracaoAssembleia(assembleia.id, pautas, assembleia.condominio_id).catch(() => null),
       getCondominioById(assembleia.condominio_id).catch(() => null),
       getVotosDetalhados(assembleia.id).catch(() => []),
-      getUnidadesByCondominioId(assembleia.condominio_id).catch(() => []),
     ])
 
     return (
@@ -170,7 +168,6 @@ export default async function PublicVotoPage({ params }: Props) {
               apuracao={apuracao}
               criterioPeso={condominio?.criterio_peso ?? "unidade"}
               votosDetalhados={votosDetalhados.map(({ email: _email, ...v }) => v)}
-              totalUnidadesCondominio={unidadesCondominio.length}
             />
           ) : (
             <div className="rounded-xl border border-border/60 bg-card px-6 py-10 text-center">
@@ -192,12 +189,11 @@ export default async function PublicVotoPage({ params }: Props) {
     // travado, não tem como o placar influenciar uma escolha que já foi
     // feita) — só quem ainda não votou continua sem ver nada disso, porque
     // nem chega nesta tela (cai na Situação 2, o formulário de voto).
-    const [participacao, apuracao, condominio, votosDetalhados, unidadesCondominio] = await Promise.all([
+    const [participacao, apuracao, condominio, votosDetalhados] = await Promise.all([
       getParticipacaoParcial(assembleia.id).catch(() => null),
       getApuracaoAssembleia(assembleia.id, pautas, assembleia.condominio_id).catch(() => null),
       getCondominioById(assembleia.condominio_id).catch(() => null),
       getVotosDetalhados(assembleia.id).catch(() => []),
-      getUnidadesByCondominioId(assembleia.condominio_id).catch(() => []),
     ])
 
     return (
@@ -227,11 +223,12 @@ export default async function PublicVotoPage({ params }: Props) {
             {participacao && (
               <div className="w-full rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-center text-sm">
                 <p className="font-medium text-foreground">
-                  {participacao.totalVotaram} de {unidadesCondominio.length}{" "}
-                  {unidadesCondominio.length === 1 ? "já votou" : "já votaram"}
+                  {participacao.totalVotaram}{" "}
+                  {participacao.totalVotaram === 1 ? "pessoa já votou" : "pessoas já votaram"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Quem já votou e como, pauta a pauta: no "Detalhamento dos votos" abaixo.
+                  Quórum e % de participação do condomínio: no quadro abaixo. Quem votou e como,
+                  pauta a pauta: no "Detalhamento dos votos".
                 </p>
               </div>
             )}
@@ -246,7 +243,6 @@ export default async function PublicVotoPage({ params }: Props) {
                 apuracao={apuracao}
                 criterioPeso={condominio?.criterio_peso ?? "unidade"}
                 votosDetalhados={votosDetalhados.map(({ email: _email, ...v }) => v)}
-                totalUnidadesCondominio={unidadesCondominio.length}
                 parcial
               />
             </div>

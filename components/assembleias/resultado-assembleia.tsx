@@ -17,15 +17,6 @@ interface Props {
    * Pautas com `sigiloso` mostram uma nota no lugar da tabela, nunca a
    * lista nome↔voto (mesma regra dos relatórios PDF/XLSX). */
   votosDetalhados?: Omit<VotoDetalhado, "email">[]
-  /** Total de unidades cadastradas no condomínio (não só quem foi
-   * convidado pra ESTA assembleia). Achado do usuário: "Aptos a votar"
-   * mostrava só `total_enviados` (assembleia_sends desta assembleia), o
-   * que inflava a % de participação quando nem todo o condomínio foi
-   * convidado ainda. Quando informado, substitui total_enviados como
-   * denominador aqui — sem mexer no `total_enviados`/`total_respondidos`
-   * originais, que continuam corretos pra apuração/lembrete no painel do
-   * síndico (ver services/assembleia-votos.ts). */
-  totalUnidadesCondominio?: number
 }
 
 function formatDataHoraVoto(iso: string | null): string {
@@ -130,13 +121,25 @@ export function ResultadoAssembleia({
   criterioPeso = "unidade",
   parcial = false,
   votosDetalhados,
-  totalUnidadesCondominio,
 }: Props) {
-  const { pautas, total_enviados, total_respondidos, percentual_quorum, quorum_atingido, convocacao_aplicada } =
-    apuracao
-  const aptosAVotar = totalUnidadesCondominio ?? total_enviados
-  const participacaoPct = pct(total_respondidos, aptosAVotar)
-  const totalUnidades = pautas[0]?.total_apartamentos_representados ?? 0
+  const {
+    pautas,
+    total_respondidos,
+    peso_total_condominio,
+    peso_representado,
+    percentual_quorum,
+    quorum_atingido,
+    convocacao_aplicada,
+  } = apuracao
+  // Achado do usuário: "Aptos a votar" mostrava total_enviados (quem foi
+  // CONVIDADO pra esta assembleia), não o condomínio inteiro — e a %
+  // dividia total_respondidos (pessoas) por essa base, misturando pessoas
+  // com unidades. peso_total_condominio/peso_representado já vêm certos
+  // do apuração (mesma base usada no "Quórum do condomínio" abaixo) —
+  // unidade/peso dividido por unidade/peso, nunca pessoa por unidade.
+  const aptosAVotar = peso_total_condominio
+  const totalUnidades = peso_representado
+  const participacaoPct = pct(totalUnidades, aptosAVotar)
 
   const votosPorPauta = new Map<string, Omit<VotoDetalhado, "email">[]>()
   for (const v of votosDetalhados ?? []) {
