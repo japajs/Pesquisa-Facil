@@ -62,19 +62,19 @@ export function DashboardShell({ user, children }: Props) {
       {/* Content area */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile top header */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 lg:hidden print:hidden">
+        <header className="flex h-14 shrink-0 items-center gap-2 bg-sidebar px-3 text-sidebar-foreground lg:hidden print:hidden">
           <button
             onClick={() => setOpen(true)}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-sidebar-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50"
             aria-label="Abrir menu"
           >
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-              <Gavel className="h-3.5 w-3.5 text-primary" />
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-sidebar-primary/15 ring-1 ring-sidebar-primary/25">
+              <Gavel className="h-3.5 w-3.5 text-sidebar-primary" strokeWidth={1.75} />
             </div>
-            <span className="text-sm font-semibold tracking-tight">{APP_NAME}</span>
+            <span className="font-heading text-sm font-medium tracking-tight">{APP_NAME}</span>
           </div>
         </header>
 
