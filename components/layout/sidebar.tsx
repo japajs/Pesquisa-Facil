@@ -161,7 +161,7 @@ export function Sidebar({ user, open, onClose }: Props) {
           ))}
         </ul>
 
-        <p className="mt-6 mb-1.5 px-3 text-[0.5625rem] font-semibold tracking-[0.14em] text-sidebar-muted-foreground/70 uppercase">
+        <p className="mt-6 mb-1.5 px-3 text-[0.5625rem] font-semibold tracking-[0.14em] text-sidebar-muted-foreground uppercase">
           Sistema
         </p>
         <ul className="space-y-0.5">
