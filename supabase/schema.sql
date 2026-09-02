@@ -22,7 +22,8 @@ begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql
+set search_path = '';
 
 -- ============================================================
 -- Usuários do sistema (administradores/operadores/visualizadores)
