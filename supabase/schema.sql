@@ -362,6 +362,39 @@ alter table assembleia_respostas  enable row level security;
 alter table procuracoes           enable row level security;
 alter table unidade_coproprietarios enable row level security;
 
+-- Policies explícitas de "deny all" para anon/authenticated — apenas
+-- documentam a intenção acima e silenciam o linter do Supabase
+-- (rls_enabled_no_policy). service_role sempre bypassa RLS, com ou
+-- sem policy.
+drop policy if exists "deny_all" on usuarios;
+create policy "deny_all" on usuarios              for all using (false) with check (false);
+drop policy if exists "deny_all" on usuario_condominios;
+create policy "deny_all" on usuario_condominios   for all using (false) with check (false);
+drop policy if exists "deny_all" on condominios;
+create policy "deny_all" on condominios           for all using (false) with check (false);
+drop policy if exists "deny_all" on configuracoes;
+create policy "deny_all" on configuracoes         for all using (false) with check (false);
+drop policy if exists "deny_all" on rate_limits;
+create policy "deny_all" on rate_limits           for all using (false) with check (false);
+drop policy if exists "deny_all" on proprietarios;
+create policy "deny_all" on proprietarios         for all using (false) with check (false);
+drop policy if exists "deny_all" on unidades;
+create policy "deny_all" on unidades              for all using (false) with check (false);
+drop policy if exists "deny_all" on assembleias;
+create policy "deny_all" on assembleias           for all using (false) with check (false);
+drop policy if exists "deny_all" on pautas;
+create policy "deny_all" on pautas                for all using (false) with check (false);
+drop policy if exists "deny_all" on pauta_opcoes;
+create policy "deny_all" on pauta_opcoes          for all using (false) with check (false);
+drop policy if exists "deny_all" on assembleia_sends;
+create policy "deny_all" on assembleia_sends      for all using (false) with check (false);
+drop policy if exists "deny_all" on assembleia_respostas;
+create policy "deny_all" on assembleia_respostas  for all using (false) with check (false);
+drop policy if exists "deny_all" on procuracoes;
+create policy "deny_all" on procuracoes           for all using (false) with check (false);
+drop policy if exists "deny_all" on unidade_coproprietarios;
+create policy "deny_all" on unidade_coproprietarios for all using (false) with check (false);
+
 -- ============================================================
 -- Migração — Fase 1 da auditoria de assembleias: fração ideal,
 -- quórum de aprovação por pauta, quórum mínimo por assembleia.
