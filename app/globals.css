@@ -17,6 +17,7 @@
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
   --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -74,14 +75,19 @@
   --chart-4: #8c4a2f;
   --chart-5: #4a6fa5;
   --radius: 0.25rem;
-  --sidebar: #f1ede3;
-  --sidebar-foreground: #1c1c1c;
-  --sidebar-primary: #16233f;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e4dfd1;
-  --sidebar-accent-foreground: #1c1c1c;
-  --sidebar-border: #e4dfd1;
-  --sidebar-ring: #16233f;
+  /* O rail não é uma variação do fundo: é o azul-marinho institucional
+     (o mesmo --primary) virando superfície. O dourado, que no conteúdo é
+     só detalhe, aqui assume o papel de cor de ação — sobre a tinta naval
+     ele tem contraste de sobra, e o marinho não teria. */
+  --sidebar: #16233f;
+  --sidebar-foreground: #eee9dc;
+  --sidebar-muted-foreground: #97a3ba;
+  --sidebar-primary: #d9b45f;
+  --sidebar-primary-foreground: #16233f;
+  --sidebar-accent: #1f2b48;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #27334f;
+  --sidebar-ring: #d9b45f;
 }
 
 /* Dark theme — mesmo sistema institucional; o dourado assume o papel de
@@ -111,13 +117,14 @@
   --chart-3: #7fa487;
   --chart-4: #b06a4a;
   --chart-5: #7c93b8;
-  --sidebar: #131b26;
+  --sidebar: #121a27;
   --sidebar-foreground: #ede8da;
+  --sidebar-muted-foreground: #8b95a5;
   --sidebar-primary: #d4af37;
   --sidebar-primary-foreground: #16202c;
-  --sidebar-accent: #202b39;
-  --sidebar-accent-foreground: #ede8da;
-  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-accent: #1e2836;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #232e3d;
   --sidebar-ring: #d4af37;
 }
 
